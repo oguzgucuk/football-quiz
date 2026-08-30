@@ -13,12 +13,16 @@ interface ChatMessage {
 
 export default function TestPartyPage() {
   const [roomId, setRoomId] = useState("test-room");
-  const [username, setUsername] = useState(() => `Oyuncu_${Math.floor(100 + Math.random() * 900)}`);
+  const [username, setUsername] = useState("Oyuncu_1");
   const [isConnected, setIsConnected] = useState(false);
   const [latency, setLatency] = useState<number | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [serverState, setServerState] = useState<any>(null);
+
+  useEffect(() => {
+    setUsername(`Oyuncu_${Math.floor(100 + Math.random() * 900)}`);
+  }, []);
 
   const wsRef = useRef<WebSocket | null>(null);
 

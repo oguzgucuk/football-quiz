@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { MatchHeader } from "./MatchHeader";
 import { TeamPicker } from "./TeamPicker";
@@ -19,9 +19,28 @@ interface PlayRoomClientProps {
 }
 
 export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
-  const [currentUserId] = useState(() => `user_${Math.random().toString(36).substring(2, 8)}`);
-  const [username] = useState(() => `Oyuncu_${Math.floor(100 + Math.random() * 900)}`);
+  const [mounted, setMounted] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState("");
+  const [username, setUsername] = useState("");
   const [isSandboxActive, setIsSandboxActive] = useState(false);
+
+  useEffect(() => {
+    let savedId = typeof window !== "undefined" ? sessionStorage.getItem("football_quiz_user_id") : null;
+    let savedName = typeof window !== "undefined" ? sessionStorage.getItem("football_quiz_username") : null;
+
+    if (!savedId) {
+      savedId = `user_${Math.random().toString(36).substring(2, 8)}`;
+      sessionStorage.setItem("football_quiz_user_id", savedId);
+    }
+    if (!savedName) {
+      savedName = `Oyuncu_${Math.floor(100 + Math.random() * 900)}`;
+      sessionStorage.setItem("football_quiz_username", savedName);
+    }
+
+    setCurrentUserId(savedId);
+    setUsername(savedName);
+    setMounted(true);
+  }, []);
 
   const {
     roomState,

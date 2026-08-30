@@ -79,7 +79,7 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
 
   // 2. Canlı WebSocket Sunucusuna Bağlan (PartyKit Protokolü)
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !userId || !username) return;
 
     const host = window.location.hostname || "localhost";
     const port = process.env.NEXT_PUBLIC_PARTYKIT_PORT || "1999";
