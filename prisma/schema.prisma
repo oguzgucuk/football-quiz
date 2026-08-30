@@ -14,7 +14,7 @@ model Player {
   birthDate    DateTime?           @map("birth_date")
   nationality  String?
   position     String?
-  externalRef  String?             @map("external_ref")
+  externalRef  String?             @unique @map("external_ref")
   createdAt    DateTime            @default(now()) @map("created_at")
   teamsHistory PlayerTeamHistory[]
 
@@ -27,6 +27,7 @@ model Team {
   country        String
   league         String
   logoUrl        String?             @map("logo_url")
+  externalRef    String?             @unique @map("external_ref")
   createdAt      DateTime            @default(now()) @map("created_at")
   playersHistory PlayerTeamHistory[]
 
@@ -43,6 +44,7 @@ model PlayerTeamHistory {
   player         Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
   team           Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
+  @@unique([playerId, teamId])
   @@index([playerId, teamId])
   @@map("player_team_history")
 }

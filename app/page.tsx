@@ -1,11 +1,13 @@
 import React from "react";
 import Link from "next/link";
-import { Trophy, Zap, Users, Play, ShieldAlert, Sparkles, ArrowRight } from "lucide-react";
+import { Trophy, Zap, Users, Play, Sparkles, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 
 export default function HomePage() {
+  const randomRoomId = `duel_${Math.floor(1000 + Math.random() * 9000)}`;
+
   return (
     <div className="flex flex-col min-h-screen">
       {/* Header / Navbar */}
@@ -50,14 +52,18 @@ export default function HomePage() {
 
         {/* CTA Actions */}
         <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto mb-16">
-          <Button size="lg" className="w-full sm:w-auto text-base">
-            <Play className="w-5 h-5 fill-current" />
-            Hızlı Maç Bul (1v1)
-          </Button>
-          <Button variant="secondary" size="lg" className="w-full sm:w-auto">
-            Arkadaşını Davet Et
-            <ArrowRight className="w-4 h-4" />
-          </Button>
+          <Link href={`/play/${randomRoomId}`} className="w-full sm:w-auto">
+            <Button size="lg" className="w-full sm:w-auto text-base">
+              <Play className="w-5 h-5 fill-current" />
+              Hızlı Maç Bul (1v1)
+            </Button>
+          </Link>
+          <Link href={`/play/${randomRoomId}`} className="w-full sm:w-auto">
+            <Button variant="secondary" size="lg" className="w-full sm:w-auto">
+              Arkadaşını Davet Et
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </Link>
         </div>
 
         {/* Feature Cards Grid */}
@@ -68,7 +74,7 @@ export default function HomePage() {
             </div>
             <h2 className="font-bold text-lg text-zinc-100">Anlık & Hızlı</h2>
             <p className="text-sm text-zinc-400 leading-normal">
-              PartyKit ile milisaniyelik senkronize tur süresi ve anında sonuç bildirimi.
+              5 saniye takım seçimi, 15 saniye anlık cevap süresi ve anında sonuç bildirimi.
             </p>
           </Card>
 
@@ -86,9 +92,9 @@ export default function HomePage() {
             <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
               <Users className="w-5 h-5" />
             </div>
-            <h2 className="font-bold text-lg text-zinc-100">Zengin Veri Tabanı</h2>
+            <h2 className="font-bold text-lg text-zinc-100">50.000+ Futbolcu Havuzu</h2>
             <p className="text-sm text-zinc-400 leading-normal">
-              Kaggle + Wikidata kaynaklı on binlerce futbolcu ve transfer geçmişi.
+              Kaggle + Wikidata kaynaklı 2.900+ kulüp ve 95.000+ transfer geçmişi.
             </p>
           </Card>
         </div>
