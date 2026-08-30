@@ -1,11 +1,36 @@
 /**
  * Oyun odası durumunu (RoomState), serbest takım yazımını, 5sn bitiminde karşılıklı açılmayı,
- * cevap doğrulamasını ve tur geçişlerini yöneten React hook'u.
+ * akıllı popüler rakip takım seçimini, cevap doğrulamasını ve tur geçişlerini yöneten React hook'u.
  */
 
 import { useState, useEffect, useCallback } from "react";
 import { RoomState, createInitialRoomState } from "@/lib/realtime/roomState";
 import { Team, PlayerSearchItem } from "@/types/game";
+
+// Bot/Rakip eşleşmesinde ve otomatik seçimde öncelik verilecek popüler dünya ve Türkiye devleri
+const POPULAR_CLUB_NAMES = [
+  "Real Madrid",
+  "FC Barcelona",
+  "Galatasaray",
+  "Fenerbahçe",
+  "Beşiktaş",
+  "AC Milan",
+  "Inter Milan",
+  "Juventus",
+  "Manchester United",
+  "Arsenal FC",
+  "Chelsea FC",
+  "Liverpool FC",
+  "Manchester City",
+  "Bayern München",
+  "Borussia Dortmund",
+  "Paris Saint-Germain",
+  "Atlético Madrid",
+  "Boca Juniors",
+  "River Plate",
+  "Flamengo",
+  "Trabzonspor",
+];
 
 interface UseGameRoomProps {
   roomId: string;
@@ -76,14 +101,28 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
   const handleRevealTeams = useCallback(() => {
     if (allTeams.length === 0) return;
 
-    // Kullanıcı takım seçmediyse rastgele bir takım ata
-    const chosenTeam =
-      mySelectedTeam || allTeams[Math.floor(Math.random() * Math.min(allTeams.length, 50))];
+    // Popüler takımları filtrele
+    const popularClubs = allTeams.filter((t) =>
+      POPULAR_CLUB_NAMES.some((name) =>
+        t.name.toLowerCase().includes(name.toLowerCase())
+      )
+    );
 
-    // Rakibin takımı (Demo / bot eşleşmesinde farklı bir takım)
+    const fallbackClubs = popularClubs.length > 0 ? popularClubs : allTeams;
+
+    // Kullanıcı takım seçmediyse popüler bir takım ata
+    const chosenTeam =
+      mySelectedTeam ||
+      fallbackClubs[Math.floor(Math.random() * fallbackClubs.length)];
+
+    // Rakip bot: Kullanıcının takımından farklı, popüler ve bilinen dev bir kulüp seçer
+    const availableOpponentClubs = fallbackClubs.filter(
+      (t) => t.id !== chosenTeam.id
+    );
     const opponentTeam =
-      allTeams.find((t) => t.id !== chosenTeam.id) ||
-      allTeams[Math.floor(Math.random() * allTeams.length)];
+      availableOpponentClubs[
+        Math.floor(Math.random() * availableOpponentClubs.length)
+      ] || allTeams[0];
 
     setRoomState((prev) => ({
       ...prev,
