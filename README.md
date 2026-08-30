@@ -32,7 +32,7 @@ Gerçek zamanlı 1v1 futbol bilgi yarışı. İki oyuncu bağımsız olarak bire
 
 1. Bağımlılıkları yükleyin:
 ```bash
-npm install
+pnpm install
 ```
 
 2. `.env.example` dosyasını `.env` olarak kopyalayın ve PostgreSQL bağlantınızı girin:
@@ -42,12 +42,12 @@ cp .env.example .env
 
 3. Prisma client oluşturun:
 ```bash
-npx prisma generate
+pnpm db:generate
 ```
 
 4. Geliştirme sunucusunu başlatın:
 ```bash
-npm run dev
+pnpm dev
 ```
 
 5. Tarayıcınızda [http://localhost:3000](http://localhost:3000) adresine gidin.
