@@ -1,6 +1,6 @@
 /**
- * Oyun odası durumunu (RoomState), takım seçimini, cevap doğrulamasını
- * ve tur geçişlerini yöneten özel React hook'u.
+ * Oyun odası durumunu (RoomState), serbest takım yazımını, 5sn bitiminde karşılıklı açılmayı,
+ * cevap doğrulamasını ve tur geçişlerini yöneten React hook'u.
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -17,8 +17,9 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
   const [roomState, setRoomState] = useState<RoomState>(() =>
     createInitialRoomState(roomId)
   );
-  const [availableTeams, setAvailableTeams] = useState<Team[]>([]);
+  const [allTeams, setAllTeams] = useState<Team[]>([]);
   const [playerList, setPlayerList] = useState<PlayerSearchItem[]>([]);
+  const [mySelectedTeam, setMySelectedTeam] = useState<Team | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasErrorFeedback, setHasErrorFeedback] = useState(false);
   const [lastRoundWinner, setLastRoundWinner] = useState<{
@@ -27,36 +28,29 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
     isDraw: boolean;
   } | null>(null);
 
-  // 1. Oyuncu arama havuzunu (Fuse.js için) yükle
+  // 1. Tüm kulüp ve oyuncu listesini yükle (Fuse.js için)
   useEffect(() => {
-    async function loadPlayers() {
+    async function loadData() {
       try {
-        const res = await fetch("/api/players/search");
-        const data = await res.json();
-        if (data.players) {
-          setPlayerList(data.players);
-        }
+        const [playersRes, teamsRes] = await Promise.all([
+          fetch("/api/players/search"),
+          fetch("/api/teams/search"),
+        ]);
+        const [playersData, teamsData] = await Promise.all([
+          playersRes.json(),
+          teamsRes.json(),
+        ]);
+
+        if (playersData.players) setPlayerList(playersData.players);
+        if (teamsData.teams) setAllTeams(teamsData.teams);
       } catch (err) {
-        console.error("Oyuncu listesi yüklenemedi:", err);
+        console.error("Veri havuzu yüklenemedi:", err);
       }
     }
-    loadPlayers();
+    loadData();
   }, []);
 
-  // 2. Rastgele takımları yükle
-  const fetchRandomTeams = useCallback(async () => {
-    try {
-      const res = await fetch("/api/teams/random");
-      const data = await res.json();
-      if (data.teams) {
-        setAvailableTeams(data.teams);
-      }
-    } catch (err) {
-      console.error("Takımlar yüklenemedi:", err);
-    }
-  }, []);
-
-  // 3. Odaya katıl ve ilk durumu başlat
+  // 2. Odaya katıl ve ilk durumu başlat
   useEffect(() => {
     setRoomState((prev) => {
       const isP1 = !prev.player1 || prev.player1.userId === userId;
@@ -71,37 +65,34 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
           : { userId, username, score: 0, isReady: true },
       };
     });
-    fetchRandomTeams();
-  }, [roomId, userId, username, fetchRandomTeams]);
+  }, [roomId, userId, username]);
 
-  // 4. Takım Seçimi
-  const handleSelectTeam = useCallback(
-    (teamId: string) => {
-      const selectedTeam = availableTeams.find((t) => t.id === teamId);
-      if (!selectedTeam) return;
+  // 3. Kullanıcı Takımını Yazdı/Kilitledi (5 saniye dolana kadar gizli kalır)
+  const handleSelectTeam = useCallback((team: Team) => {
+    setMySelectedTeam(team);
+  }, []);
 
-      setRoomState((prev) => {
-        const isPlayer1 = prev.player1?.userId === userId;
-        const newTeam1 = isPlayer1 ? selectedTeam : prev.team1;
-        const newTeam2 = !isPlayer1 ? selectedTeam : prev.team2;
+  // 4. 5 Saniye Doldu -> Karşılıklı Takımları Aç (Reveal)
+  const handleRevealTeams = useCallback(() => {
+    if (allTeams.length === 0) return;
 
-        // Test/Demo modunda rakip otomatik bir takım seçer
-        const opponentTeam =
-          availableTeams.find((t) => t.id !== teamId) || availableTeams[0];
-        const finalTeam1 = newTeam1 || opponentTeam;
-        const finalTeam2 = newTeam2 || opponentTeam;
+    // Kullanıcı takım seçmediyse rastgele bir takım ata
+    const chosenTeam =
+      mySelectedTeam || allTeams[Math.floor(Math.random() * Math.min(allTeams.length, 50))];
 
-        return {
-          ...prev,
-          team1: finalTeam1,
-          team2: finalTeam2,
-          roundStatus: "answering",
-          roundStartTime: Date.now(),
-        };
-      });
-    },
-    [availableTeams, userId]
-  );
+    // Rakibin takımı (Demo / bot eşleşmesinde farklı bir takım)
+    const opponentTeam =
+      allTeams.find((t) => t.id !== chosenTeam.id) ||
+      allTeams[Math.floor(Math.random() * allTeams.length)];
+
+    setRoomState((prev) => ({
+      ...prev,
+      team1: chosenTeam,
+      team2: opponentTeam,
+      roundStatus: "answering",
+      roundStartTime: Date.now(),
+    }));
+  }, [allTeams, mySelectedTeam]);
 
   // 5. Cevap Gönderme ve Doğrulama
   const handleSubmitAnswer = useCallback(
@@ -125,7 +116,6 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
         const data = await res.json();
 
         if (data.isCorrect && data.player) {
-          // Doğru cevap!
           setLastRoundWinner({
             username,
             correctAnswer: data.player.fullName,
@@ -146,9 +136,9 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
             };
           });
 
-          // 3 saniye sonra yeni tura geç
           setTimeout(() => {
             setLastRoundWinner(null);
+            setMySelectedTeam(null);
             setRoomState((prev) => {
               if (prev.currentRound >= prev.maxRounds) {
                 return { ...prev, status: "match_finished" };
@@ -161,10 +151,8 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
                 team2: null,
               };
             });
-            fetchRandomTeams();
           }, 3500);
         } else {
-          // Yanlış cevap: Kural 12'ye uygun hafif feedback ve hızlı tekrar deneme
           setHasErrorFeedback(true);
         }
       } catch (err) {
@@ -173,16 +161,13 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
         setIsSubmitting(false);
       }
     },
-    [roomState.team1, roomState.team2, isSubmitting, userId, username, fetchRandomTeams]
+    [roomState.team1, roomState.team2, isSubmitting, userId, username]
   );
 
-  // 6. Süre Dolduğunda (Berabere)
+  // 6. Sayaç Bittiğinde
   const handleTimeExpired = useCallback(() => {
     if (roomState.roundStatus === "picking_teams") {
-      // Takım seçmediyse rastgele bir takım ata
-      if (availableTeams.length > 0) {
-        handleSelectTeam(availableTeams[0].id);
-      }
+      handleRevealTeams();
     } else if (roomState.roundStatus === "answering") {
       setLastRoundWinner({
         username: null,
@@ -197,6 +182,7 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
 
       setTimeout(() => {
         setLastRoundWinner(null);
+        setMySelectedTeam(null);
         setRoomState((prev) => {
           if (prev.currentRound >= prev.maxRounds) {
             return { ...prev, status: "match_finished" };
@@ -209,15 +195,15 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
             team2: null,
           };
         });
-        fetchRandomTeams();
       }, 3500);
     }
-  }, [roomState.roundStatus, availableTeams, handleSelectTeam, fetchRandomTeams]);
+  }, [roomState.roundStatus, handleRevealTeams]);
 
   return {
     roomState,
-    availableTeams,
+    allTeams,
     playerList,
+    mySelectedTeam,
     isSubmitting,
     hasErrorFeedback,
     lastRoundWinner,

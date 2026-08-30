@@ -11,7 +11,7 @@ import { RoundResultModal } from "./RoundResultModal";
 import { useGameRoom } from "@/hooks/useGameRoom";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Trophy, ArrowLeft, RotateCcw } from "lucide-react";
+import { Trophy, RotateCcw } from "lucide-react";
 
 interface PlayRoomClientProps {
   roomId: string;
@@ -24,8 +24,9 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
 
   const {
     roomState,
-    availableTeams,
+    allTeams,
     playerList,
+    mySelectedTeam,
     isSubmitting,
     hasErrorFeedback,
     lastRoundWinner,
@@ -92,15 +93,15 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
       />
 
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-8 flex flex-col items-center justify-center">
-        {/* FAZ 1: Takım Seçim Ekranı (5 sn) */}
+        {/* FAZ 1: Serbest Takım Yazma Ekranı (5 sn) */}
         {roomState.roundStatus === "picking_teams" && (
           <div className="w-full flex flex-col items-center animate-fadeIn">
             <div className="mb-6">
               <RoundTimer durationSeconds={5} onTimeExpired={handleTimeExpired} />
             </div>
             <TeamPicker
-              teams={availableTeams}
-              selectedTeamId={roomState.player1?.selectedTeamId}
+              teams={allTeams}
+              selectedTeam={mySelectedTeam}
               onSelectTeam={handleSelectTeam}
             />
           </div>
