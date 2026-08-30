@@ -6,7 +6,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/client";
 import { normalizeText } from "@/lib/validation/normalizeText";
-import { isTypoMatch } from "@/lib/validation/levenshtein";
+import { matchPlayerAnswer } from "@/lib/validation/matchPlayerAnswer";
 import { z } from "zod";
 
 const verifyAnswerInputSchema = z.object({
@@ -47,34 +47,8 @@ export async function POST(req: Request) {
       },
     });
 
-    // İsim tam eşleşme, parçalı kelime eşleşmesi, Levenshtein typo toleransı
-    const matchedPlayer = commonPlayers.find((p) => {
-      const normalizedPlayerName = normalizeText(p.fullName);
-
-      // 1. Birebir tam eşleşme veya tüm isimde 1-2 harf typo toleransı
-      if (normalizedPlayerName === normalizedInput) return true;
-      if (isTypoMatch(normalizedInput, normalizedPlayerName)) return true;
-
-      // 2. İsim parçaları kontrolü (örn: "Rüştü Reçber" -> ["rustu", "recber"])
-      const nameParts = normalizedPlayerName.split(" ").filter((part) => part.length >= 2);
-      const inputParts = normalizedInput.split(" ").filter((part) => part.length >= 2);
-
-      // Gönderilen herhangi bir kelime parçası (örn: "rustu" veya "recber" veya "recoberi")
-      for (const inputPart of inputParts) {
-        for (const namePart of nameParts) {
-          if (isTypoMatch(inputPart, namePart)) {
-            return true;
-          }
-        }
-      }
-
-      // 3. Alt dize kontrolü
-      if (normalizedInput.length >= 4 && normalizedPlayerName.includes(normalizedInput)) {
-        return true;
-      }
-
-      return false;
-    });
+    // Akıllı puanlama ve tüm kelimeleri eşleştirme algoritması
+    const matchedPlayer = matchPlayerAnswer(submittedName, commonPlayers);
 
     if (matchedPlayer) {
       return NextResponse.json({
