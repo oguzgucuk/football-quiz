@@ -1,13 +1,16 @@
 /**
- * Oyun odası durumunu (RoomState), serbest takım yazımını, 5sn bitiminde karşılıklı açılmayı,
- * akıllı popüler Avrupa & Türkiye devleri rakip takım seçimini, cevap doğrulamasını ve tur geçişlerini yöneten React hook'u.
+ * Canlı PartyKit/WebSocket bağlantısı, Server-Side Timer senkronizasyonu,
+ * takım seçimi, çift taraflı skor takibi ve Kural 12 uyumlu cevap doğrulamasını yöneten React hook'u.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { RoomState, createInitialRoomState } from "@/lib/realtime/roomState";
 import { Team, PlayerSearchItem } from "@/types/game";
 
-// Bot/Rakip eşleşmesinde ve otomatik seçimde öncelik verilecek Avrupa & Türkiye devleri
+const ROUNDS_PER_MATCH = 5;
+const PICK_TIME_SECONDS = 5;
+const ANSWER_TIME_SECONDS = 15;
+
 const POPULAR_CLUB_NAMES = [
   "Real Madrid",
   "FC Barcelona",
@@ -25,7 +28,7 @@ const POPULAR_CLUB_NAMES = [
   "Bayern München",
   "Borussia Dortmund",
   "Paris Saint-Germain",
-  "Atlético Madrid",
+  "Atlético de Madrid",
   "Trabzonspor",
   "SSC Napoli",
   "Tottenham Hotspur",
@@ -38,19 +41,22 @@ interface UseGameRoomProps {
 }
 
 export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
-  const [roomState, setRoomState] = useState<RoomState>(() =>
-    createInitialRoomState(roomId)
-  );
+  const [roomState, setRoomState] = useState<RoomState>(() => createInitialRoomState(roomId));
   const [allTeams, setAllTeams] = useState<Team[]>([]);
   const [playerList, setPlayerList] = useState<PlayerSearchItem[]>([]);
   const [mySelectedTeam, setMySelectedTeam] = useState<Team | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasErrorFeedback, setHasErrorFeedback] = useState(false);
+  const [serverSecondsLeft, setServerSecondsLeft] = useState<number | null>(null);
+  const [isConnectedToSocket, setIsConnectedToSocket] = useState(false);
+
   const [lastRoundWinner, setLastRoundWinner] = useState<{
     username: string | null;
     correctAnswer: string | null;
     isDraw: boolean;
   } | null>(null);
+
+  const wsRef = useRef<WebSocket | null>(null);
 
   // 1. Tüm kulüp ve oyuncu listesini yükle (Fuse.js için)
   useEffect(() => {
@@ -60,10 +66,7 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
           fetch("/api/players/search"),
           fetch("/api/teams/search"),
         ]);
-        const [playersData, teamsData] = await Promise.all([
-          playersRes.json(),
-          teamsRes.json(),
-        ]);
+        const [playersData, teamsData] = await Promise.all([playersRes.json(), teamsRes.json()]);
 
         if (playersData.players) setPlayerList(playersData.players);
         if (teamsData.teams) setAllTeams(teamsData.teams);
@@ -74,65 +77,102 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
     loadData();
   }, []);
 
-  // 2. Odaya katıl ve ilk durumu başlat
+  // 2. Canlı WebSocket Sunucusuna Bağlan (PartyKit Protokolü)
   useEffect(() => {
-    setRoomState((prev) => {
-      const isP1 = !prev.player1 || prev.player1.userId === userId;
-      return {
-        ...prev,
-        status: isP1 ? "waiting_for_players" : "in_round",
-        player1: isP1
-          ? { userId, username, score: 0, isReady: true }
-          : prev.player1,
-        player2: isP1
-          ? prev.player2
-          : { userId, username, score: 0, isReady: true },
+    if (typeof window === "undefined") return;
+
+    const host = window.location.hostname || "localhost";
+    const port = process.env.NEXT_PUBLIC_PARTYKIT_PORT || "1999";
+    const wsUrl = `ws://${host}:${port}/parties/game/${roomId}`;
+
+    let ws: WebSocket | null = null;
+    try {
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        setIsConnectedToSocket(true);
+        console.log("🔌 [GameRoom] Canlı WebSocket sunucusuna bağlanıldı:", wsUrl);
+        ws?.send(
+          JSON.stringify({
+            type: "PLAYER_JOIN",
+            userId,
+            username,
+          })
+        );
       };
-    });
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+
+          switch (data.type) {
+            case "ROOM_STATE_SYNC":
+              setRoomState(data.state);
+              break;
+
+            case "TIMER_START":
+              setServerSecondsLeft(data.duration);
+              break;
+
+            case "TIMER_TICK":
+              setServerSecondsLeft(data.secondsLeft);
+              break;
+
+            case "ROUND_RESULT":
+              setLastRoundWinner({
+                username: data.winnerUserId === userId ? username : data.winnerUserId ? "Rakip" : null,
+                correctAnswer: data.correctAnswer || "Tur Tamamlandı",
+                isDraw: !!data.isDraw,
+              });
+              setRoomState(data.state);
+              setTimeout(() => {
+                setLastRoundWinner(null);
+                setMySelectedTeam(null);
+              }, 3000);
+              break;
+          }
+        } catch (parseErr) {
+          console.error("[GameRoom] Mesaj işleme hatası:", parseErr);
+        }
+      };
+
+      ws.onclose = () => {
+        setIsConnectedToSocket(false);
+      };
+
+      ws.onerror = () => {
+        setIsConnectedToSocket(false);
+      };
+
+      wsRef.current = ws;
+    } catch {
+      setIsConnectedToSocket(false);
+    }
+
+    return () => {
+      if (ws) ws.close();
+    };
   }, [roomId, userId, username]);
 
-  // 3. Kullanıcı Takımını Yazdı/Kilitledi (5 saniye dolana kadar gizli kalır)
-  const handleSelectTeam = useCallback((team: Team) => {
-    setMySelectedTeam(team);
-  }, []);
+  // 3. Kullanıcı Takım Seçimi
+  const handleSelectTeam = useCallback(
+    (team: Team) => {
+      setMySelectedTeam(team);
 
-  // 4. 5 Saniye Doldu -> Karşılıklı Takımları Aç (Reveal)
-  const handleRevealTeams = useCallback(() => {
-    if (allTeams.length === 0) return;
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(
+          JSON.stringify({
+            type: "TEAM_PICKED",
+            userId,
+            team,
+          })
+        );
+      }
+    },
+    [userId]
+  );
 
-    // Popüler Avrupa ve Türkiye devlerini filtrele (Arjantin/Brezilya hariç)
-    const popularClubs = allTeams.filter((t) =>
-      POPULAR_CLUB_NAMES.some((name) =>
-        t.name.toLowerCase().includes(name.toLowerCase())
-      )
-    );
-
-    const fallbackClubs = popularClubs.length > 0 ? popularClubs : allTeams;
-
-    // Kullanıcı takım seçmediyse popüler bir takım ata
-    const chosenTeam =
-      mySelectedTeam ||
-      fallbackClubs[Math.floor(Math.random() * fallbackClubs.length)];
-
-    // Rakip bot: Kullanıcının takımından farklı, popüler ve bilinen bir Avrupa/Türkiye devi seçer
-    const availableOpponentClubs = fallbackClubs.filter(
-      (t) => t.id !== chosenTeam.id
-    );
-    const opponentTeam =
-      availableOpponentClubs[
-        Math.floor(Math.random() * availableOpponentClubs.length)
-      ] || allTeams[0];
-
-    setRoomState((prev) => ({
-      ...prev,
-      team1: chosenTeam,
-      team2: opponentTeam,
-      roundStatus: "answering",
-      roundStartTime: Date.now(),
-    }));
-  }, [allTeams, mySelectedTeam]);
-
-  // 5. Cevap Gönderme ve Doğrulama
+  // 4. Cevap Gönderme ve Doğrulama
   const handleSubmitAnswer = useCallback(
     async (submittedName: string) => {
       if (!roomState.team1 || !roomState.team2 || isSubmitting) return;
@@ -154,44 +194,45 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
         const data = await res.json();
 
         if (data.isCorrect && data.player) {
-          setLastRoundWinner({
-            username,
-            correctAnswer: data.player.fullName,
-            isDraw: false,
-          });
+          // Doğru bildi -> Sunucuya kazananı bildir
+          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.send(
+              JSON.stringify({
+                type: "ROUND_WINNER",
+                winnerUserId: userId,
+                correctAnswer: data.player.fullName,
+              })
+            );
+          } else {
+            // Lokal bot modu fallback
+            setLastRoundWinner({
+              username,
+              correctAnswer: data.player.fullName,
+              isDraw: false,
+            });
 
-          setRoomState((prev) => {
-            const isP1 = prev.player1?.userId === userId;
-            return {
+            setRoomState((prev) => ({
               ...prev,
               roundStatus: "round_finished",
-              player1: prev.player1
-                ? { ...prev.player1, score: prev.player1.score + (isP1 ? 1 : 0) }
-                : null,
-              player2: prev.player2
-                ? { ...prev.player2, score: prev.player2.score + (!isP1 ? 1 : 0) }
-                : null,
-            };
-          });
+              player1: prev.player1 ? { ...prev.player1, score: prev.player1.score + 1 } : null,
+            }));
 
-          setTimeout(() => {
-            setLastRoundWinner(null);
-            setMySelectedTeam(null);
-            setRoomState((prev) => {
-              if (prev.currentRound >= prev.maxRounds) {
-                return { ...prev, status: "match_finished" };
-              }
-              return {
+            setTimeout(() => {
+              setLastRoundWinner(null);
+              setMySelectedTeam(null);
+              setRoomState((prev) => ({
                 ...prev,
                 currentRound: prev.currentRound + 1,
                 roundStatus: "picking_teams",
                 team1: null,
                 team2: null,
-              };
-            });
-          }, 3500);
+              }));
+            }, 3000);
+          }
         } else {
+          // Kural 12: Yanlış cevap -> anında hata bildirimi (Input bileşeni otomatik temizleyip odaklayacak)
           setHasErrorFeedback(true);
+          setTimeout(() => setHasErrorFeedback(false), 800);
         }
       } catch (err) {
         console.error("Cevap gönderim hatası:", err);
@@ -202,40 +243,34 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
     [roomState.team1, roomState.team2, isSubmitting, userId, username]
   );
 
-  // 6. Sayaç Bittiğinde
+  // 5. Süre Dolduğunda (Local Fallback)
   const handleTimeExpired = useCallback(() => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      if (roomState.roundStatus === "answering") {
+        wsRef.current.send(JSON.stringify({ type: "ROUND_TIMEOUT" }));
+      }
+      return;
+    }
+
+    // Lokal Bot Fallback:
     if (roomState.roundStatus === "picking_teams") {
-      handleRevealTeams();
-    } else if (roomState.roundStatus === "answering") {
-      setLastRoundWinner({
-        username: null,
-        correctAnswer: "Süre doldu!",
-        isDraw: true,
-      });
+      const popular = allTeams.filter((t) =>
+        POPULAR_CLUB_NAMES.some((n) => t.name.toLowerCase().includes(n.toLowerCase()))
+      );
+      const pool = popular.length > 0 ? popular : allTeams;
+      const t1 = mySelectedTeam || pool[Math.floor(Math.random() * pool.length)];
+      const remaining = pool.filter((t) => t.id !== t1.id);
+      const t2 = remaining[Math.floor(Math.random() * remaining.length)] || allTeams[0];
 
       setRoomState((prev) => ({
         ...prev,
-        roundStatus: "round_finished",
+        team1: t1,
+        team2: t2,
+        roundStatus: "answering",
+        roundStartTime: Date.now(),
       }));
-
-      setTimeout(() => {
-        setLastRoundWinner(null);
-        setMySelectedTeam(null);
-        setRoomState((prev) => {
-          if (prev.currentRound >= prev.maxRounds) {
-            return { ...prev, status: "match_finished" };
-          }
-          return {
-            ...prev,
-            currentRound: prev.currentRound + 1,
-            roundStatus: "picking_teams",
-            team1: null,
-            team2: null,
-          };
-        });
-      }, 3500);
     }
-  }, [roomState.roundStatus, handleRevealTeams]);
+  }, [roomState.roundStatus, allTeams, mySelectedTeam]);
 
   return {
     roomState,
@@ -244,6 +279,8 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
     mySelectedTeam,
     isSubmitting,
     hasErrorFeedback,
+    serverSecondsLeft,
+    isConnectedToSocket,
     lastRoundWinner,
     handleSelectTeam,
     handleSubmitAnswer,

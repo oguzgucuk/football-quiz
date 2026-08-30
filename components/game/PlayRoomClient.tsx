@@ -30,6 +30,8 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
     mySelectedTeam,
     isSubmitting,
     hasErrorFeedback,
+    serverSecondsLeft,
+    isConnectedToSocket,
     lastRoundWinner,
     handleSelectTeam,
     handleSubmitAnswer,
@@ -126,7 +128,11 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
             {roomState.roundStatus === "picking_teams" && (
               <div className="w-full flex flex-col items-center animate-fadeIn">
                 <div className="mb-6">
-                  <RoundTimer durationSeconds={5} onTimeExpired={handleTimeExpired} />
+                  <RoundTimer
+                    durationSeconds={5}
+                    serverSecondsLeft={serverSecondsLeft}
+                    onTimeExpired={handleTimeExpired}
+                  />
                 </div>
                 <TeamPicker
                   teams={allTeams}
@@ -140,7 +146,11 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
             {roomState.roundStatus === "answering" && (
               <div className="w-full flex flex-col items-center animate-fadeIn">
                 <div className="mb-4">
-                  <RoundTimer durationSeconds={15} onTimeExpired={handleTimeExpired} />
+                  <RoundTimer
+                    durationSeconds={15}
+                    serverSecondsLeft={serverSecondsLeft}
+                    onTimeExpired={handleTimeExpired}
+                  />
                 </div>
 
                 <VersusDisplay team1={roomState.team1} team2={roomState.team2} />
@@ -170,7 +180,15 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
       </main>
 
       {/* Alt Bar */}
-      <footer className="py-4 border-t border-zinc-800/60 bg-zinc-950/40 text-center text-xs text-zinc-500">
+      <footer className="py-4 border-t border-zinc-800/60 bg-zinc-950/40 text-center text-xs text-zinc-500 flex items-center justify-between px-6 max-w-4xl w-full mx-auto">
+        <div className="flex items-center gap-2">
+          <div
+            className={`w-2 h-2 rounded-full ${
+              isConnectedToSocket ? "bg-emerald-400 animate-pulse shadow-sm shadow-emerald-400" : "bg-amber-400"
+            }`}
+          />
+          <span>{isConnectedToSocket ? "Canlı 1v1 Çok Oyunculu Aktif" : "Tek Oyunculu Mod"}</span>
+        </div>
         <span>Oda: #{roomId} • İki takımda da forma giymiş futbolcuyu en hızlı yazan kazanır</span>
       </footer>
     </div>

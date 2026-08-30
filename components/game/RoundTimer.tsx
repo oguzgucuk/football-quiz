@@ -5,12 +5,14 @@ import { Timer } from "lucide-react";
 
 interface RoundTimerProps {
   durationSeconds: number;
+  serverSecondsLeft?: number | null;
   onTimeExpired?: () => void;
   isPaused?: boolean;
 }
 
 export function RoundTimer({
   durationSeconds,
+  serverSecondsLeft,
   onTimeExpired,
   isPaused = false,
 }: RoundTimerProps) {
@@ -21,10 +23,21 @@ export function RoundTimer({
     onExpiredRef.current = onTimeExpired;
   }, [onTimeExpired]);
 
+  // Sunucudan gelen yetkili zaman damgası varsa onu kullan (Server-Side Timer)
   useEffect(() => {
-    setTimeLeft(durationSeconds);
-  }, [durationSeconds]);
+    if (serverSecondsLeft !== undefined && serverSecondsLeft !== null) {
+      setTimeLeft(serverSecondsLeft);
+    }
+  }, [serverSecondsLeft]);
 
+  // Yeni tur başlangıcı için yerel süreyi güncelle
+  useEffect(() => {
+    if (serverSecondsLeft === undefined || serverSecondsLeft === null) {
+      setTimeLeft(durationSeconds);
+    }
+  }, [durationSeconds, serverSecondsLeft]);
+
+  // Yerel fallback sayacı (Sunucu saniyeleri gelmediğinde devreye girer)
   useEffect(() => {
     if (isPaused) return;
 
@@ -33,12 +46,15 @@ export function RoundTimer({
       return;
     }
 
+    // Sunucudan aktif tick geliyorsa yerel timeout tetikleme
+    if (serverSecondsLeft !== undefined && serverSecondsLeft !== null) return;
+
     const timer = setTimeout(() => {
       setTimeLeft((prev) => prev - 1);
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [isPaused, timeLeft]);
+  }, [isPaused, timeLeft, serverSecondsLeft]);
 
   const isLowTime = timeLeft <= 3 && timeLeft > 0;
 
