@@ -1,13 +1,13 @@
 /**
  * Oyun odası durumunu (RoomState), serbest takım yazımını, 5sn bitiminde karşılıklı açılmayı,
- * akıllı popüler rakip takım seçimini, cevap doğrulamasını ve tur geçişlerini yöneten React hook'u.
+ * akıllı popüler Avrupa & Türkiye devleri rakip takım seçimini, cevap doğrulamasını ve tur geçişlerini yöneten React hook'u.
  */
 
 import { useState, useEffect, useCallback } from "react";
 import { RoomState, createInitialRoomState } from "@/lib/realtime/roomState";
 import { Team, PlayerSearchItem } from "@/types/game";
 
-// Bot/Rakip eşleşmesinde ve otomatik seçimde öncelik verilecek popüler dünya ve Türkiye devleri
+// Bot/Rakip eşleşmesinde ve otomatik seçimde öncelik verilecek Avrupa & Türkiye devleri
 const POPULAR_CLUB_NAMES = [
   "Real Madrid",
   "FC Barcelona",
@@ -26,10 +26,9 @@ const POPULAR_CLUB_NAMES = [
   "Borussia Dortmund",
   "Paris Saint-Germain",
   "Atlético Madrid",
-  "Boca Juniors",
-  "River Plate",
-  "Flamengo",
   "Trabzonspor",
+  "SSC Napoli",
+  "Tottenham Hotspur",
 ];
 
 interface UseGameRoomProps {
@@ -101,7 +100,7 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
   const handleRevealTeams = useCallback(() => {
     if (allTeams.length === 0) return;
 
-    // Popüler takımları filtrele
+    // Popüler Avrupa ve Türkiye devlerini filtrele (Arjantin/Brezilya hariç)
     const popularClubs = allTeams.filter((t) =>
       POPULAR_CLUB_NAMES.some((name) =>
         t.name.toLowerCase().includes(name.toLowerCase())
@@ -115,7 +114,7 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
       mySelectedTeam ||
       fallbackClubs[Math.floor(Math.random() * fallbackClubs.length)];
 
-    // Rakip bot: Kullanıcının takımından farklı, popüler ve bilinen dev bir kulüp seçer
+    // Rakip bot: Kullanıcının takımından farklı, popüler ve bilinen bir Avrupa/Türkiye devi seçer
     const availableOpponentClubs = fallbackClubs.filter(
       (t) => t.id !== chosenTeam.id
     );
