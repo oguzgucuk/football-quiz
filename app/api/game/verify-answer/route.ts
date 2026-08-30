@@ -1,11 +1,12 @@
 /**
  * Kullanıcının gönderdiği futbolcu ismini iki takımın ortak oyuncu havuzunda doğrular.
- * Aksan, tam isim, tek kelimelik soyadı/isim (örn: "Pique", "Bale", "Zidane") ve çoklu isim toleransı içerir.
+ * Aksan temizleme, tam isim, tek kelimelik soyadı/isim ve Levenshtein typo toleransı içerir.
  */
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/client";
 import { normalizeText } from "@/lib/validation/normalizeText";
+import { isTypoMatch } from "@/lib/validation/levenshtein";
 import { z } from "zod";
 
 const verifyAnswerInputSchema = z.object({
@@ -46,20 +47,30 @@ export async function POST(req: Request) {
       },
     });
 
-    // İsim tam eşleşme, parçalı kelime eşleşmesi veya alt dize kontrolü
+    // İsim tam eşleşme, parçalı kelime eşleşmesi, Levenshtein typo toleransı
     const matchedPlayer = commonPlayers.find((p) => {
       const normalizedPlayerName = normalizeText(p.fullName);
 
-      // 1. Birebir tam eşleşme (örn: "gareth bale" === "gareth bale")
+      // 1. Birebir tam eşleşme veya tüm isimde 1-2 harf typo toleransı
       if (normalizedPlayerName === normalizedInput) return true;
+      if (isTypoMatch(normalizedInput, normalizedPlayerName)) return true;
 
-      // 2. İsim parçaları kontrolü (örn: "Gerard Pique Bernabeu" -> ["gerard", "pique", "bernabeu"])
+      // 2. İsim parçaları kontrolü (örn: "Rüştü Reçber" -> ["rustu", "recber"])
       const nameParts = normalizedPlayerName.split(" ").filter((part) => part.length >= 2);
-      if (nameParts.includes(normalizedInput)) return true;
+      const inputParts = normalizedInput.split(" ").filter((part) => part.length >= 2);
 
-      // 3. Kullanıcı adı tam ismin başlangıcı veya alt dizesi mi? (örn: "gerard pique" in "gerard pique bernabeu")
-      if (normalizedInput.length >= 4) {
-        if (normalizedPlayerName.includes(normalizedInput)) return true;
+      // Gönderilen herhangi bir kelime parçası (örn: "rustu" veya "recber" veya "recoberi")
+      for (const inputPart of inputParts) {
+        for (const namePart of nameParts) {
+          if (isTypoMatch(inputPart, namePart)) {
+            return true;
+          }
+        }
+      }
+
+      // 3. Alt dize kontrolü
+      if (normalizedInput.length >= 4 && normalizedPlayerName.includes(normalizedInput)) {
+        return true;
       }
 
       return false;

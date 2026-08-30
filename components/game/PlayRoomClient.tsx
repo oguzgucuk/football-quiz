@@ -8,19 +8,20 @@ import { VersusDisplay } from "./VersusDisplay";
 import { PlayerAnswerInput } from "./PlayerAnswerInput";
 import { RoundTimer } from "./RoundTimer";
 import { RoundResultModal } from "./RoundResultModal";
+import { SandboxMode } from "./SandboxMode";
 import { useGameRoom } from "@/hooks/useGameRoom";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Trophy, RotateCcw } from "lucide-react";
+import { Trophy, RotateCcw, Wrench, Play } from "lucide-react";
 
 interface PlayRoomClientProps {
   roomId: string;
 }
 
 export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
-  // Rastgele kullanıcı profili
   const [currentUserId] = useState(() => `user_${Math.random().toString(36).substring(2, 8)}`);
   const [username] = useState(() => `Oyuncu_${Math.floor(100 + Math.random() * 900)}`);
+  const [isSandboxActive, setIsSandboxActive] = useState(false);
 
   const {
     roomState,
@@ -92,49 +93,79 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
         currentUserId={currentUserId}
       />
 
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-8 flex flex-col items-center justify-center">
-        {/* FAZ 1: Serbest Takım Yazma Ekranı (5 sn) */}
-        {roomState.roundStatus === "picking_teams" && (
-          <div className="w-full flex flex-col items-center animate-fadeIn">
-            <div className="mb-6">
-              <RoundTimer durationSeconds={5} onTimeExpired={handleTimeExpired} />
-            </div>
-            <TeamPicker
-              teams={allTeams}
-              selectedTeam={mySelectedTeam}
-              onSelectTeam={handleSelectTeam}
-            />
-          </div>
-        )}
+      {/* Mod Değiştirme Butonu (Sandbox Test Modu Toggle) */}
+      <div className="w-full max-w-4xl mx-auto px-4 pt-4 flex justify-end">
+        <Button
+          variant={isSandboxActive ? "primary" : "outline"}
+          size="sm"
+          onClick={() => setIsSandboxActive(!isSandboxActive)}
+          className="text-xs font-bold"
+        >
+          {isSandboxActive ? (
+            <>
+              <Play className="w-3.5 h-3.5 mr-1" />
+              1v1 Maç Moduna Dön
+            </>
+          ) : (
+            <>
+              <Wrench className="w-3.5 h-3.5 mr-1" />
+              Test / Sandbox Modu (2 Takımı Kendin Seç & Süresiz)
+            </>
+          )}
+        </Button>
+      </div>
 
-        {/* FAZ 2: Cevap Yazma Ekranı (15 sn) */}
-        {roomState.roundStatus === "answering" && (
-          <div className="w-full flex flex-col items-center animate-fadeIn">
-            <div className="mb-4">
-              <RoundTimer durationSeconds={15} onTimeExpired={handleTimeExpired} />
-            </div>
+      <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-6 flex flex-col items-center justify-center">
+        {/* MOD 1: TEST / SANDBOX MODU (2 Takımı da Kendin Seç & Süresiz) */}
+        {isSandboxActive ? (
+          <SandboxMode teams={allTeams} playerList={playerList} />
+        ) : (
+          /* MOD 2: 1v1 MAÇ MODU (5sn Seçim + 15sn Cevap) */
+          <>
+            {/* FAZ 1: Serbest Takım Yazma Ekranı (5 sn) */}
+            {roomState.roundStatus === "picking_teams" && (
+              <div className="w-full flex flex-col items-center animate-fadeIn">
+                <div className="mb-6">
+                  <RoundTimer durationSeconds={5} onTimeExpired={handleTimeExpired} />
+                </div>
+                <TeamPicker
+                  teams={allTeams}
+                  selectedTeam={mySelectedTeam}
+                  onSelectTeam={handleSelectTeam}
+                />
+              </div>
+            )}
 
-            <VersusDisplay team1={roomState.team1} team2={roomState.team2} />
+            {/* FAZ 2: Cevap Yazma Ekranı (15 sn) */}
+            {roomState.roundStatus === "answering" && (
+              <div className="w-full flex flex-col items-center animate-fadeIn">
+                <div className="mb-4">
+                  <RoundTimer durationSeconds={15} onTimeExpired={handleTimeExpired} />
+                </div>
 
-            <div className="w-full mt-4">
-              <PlayerAnswerInput
-                playerList={playerList}
-                onSubmitAnswer={handleSubmitAnswer}
-                isSubmitting={isSubmitting}
-                hasErrorFeedback={hasErrorFeedback}
+                <VersusDisplay team1={roomState.team1} team2={roomState.team2} />
+
+                <div className="w-full mt-4">
+                  <PlayerAnswerInput
+                    playerList={playerList}
+                    onSubmitAnswer={handleSubmitAnswer}
+                    isSubmitting={isSubmitting}
+                    hasErrorFeedback={hasErrorFeedback}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Tur Bittiğinde Kazanan Modalı */}
+            {lastRoundWinner && (
+              <RoundResultModal
+                roundNumber={roomState.currentRound}
+                winnerUsername={lastRoundWinner.username}
+                correctAnswer={lastRoundWinner.correctAnswer}
+                isDraw={lastRoundWinner.isDraw}
               />
-            </div>
-          </div>
-        )}
-
-        {/* Tur Bittiğinde Kazanan Modalı */}
-        {lastRoundWinner && (
-          <RoundResultModal
-            roundNumber={roomState.currentRound}
-            winnerUsername={lastRoundWinner.username}
-            correctAnswer={lastRoundWinner.correctAnswer}
-            isDraw={lastRoundWinner.isDraw}
-          />
+            )}
+          </>
         )}
       </main>
 
