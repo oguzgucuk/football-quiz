@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Timer } from "lucide-react";
 
 interface RoundTimerProps {
@@ -15,27 +15,30 @@ export function RoundTimer({
   isPaused = false,
 }: RoundTimerProps) {
   const [timeLeft, setTimeLeft] = useState(durationSeconds);
+  const onExpiredRef = useRef(onTimeExpired);
+
+  useEffect(() => {
+    onExpiredRef.current = onTimeExpired;
+  }, [onTimeExpired]);
 
   useEffect(() => {
     setTimeLeft(durationSeconds);
   }, [durationSeconds]);
 
   useEffect(() => {
-    if (isPaused || timeLeft <= 0) return;
+    if (isPaused) return;
 
-    const interval = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          onTimeExpired?.();
-          return 0;
-        }
-        return prev - 1;
-      });
+    if (timeLeft <= 0) {
+      onExpiredRef.current?.();
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setTimeLeft((prev) => prev - 1);
     }, 1000);
 
-    return () => clearInterval(interval);
-  }, [isPaused, timeLeft, onTimeExpired]);
+    return () => clearTimeout(timer);
+  }, [isPaused, timeLeft]);
 
   const isLowTime = timeLeft <= 3 && timeLeft > 0;
 
