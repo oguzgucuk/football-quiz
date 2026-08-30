@@ -34,7 +34,7 @@ const LEGEND_QIDS: { qId: string; canonicalName: string }[] = [
   { qId: "Q44182", canonicalName: "Andrés Iniesta" },
   { qId: "Q4434", canonicalName: "Carles Puyol" },
   { qId: "Q48332", canonicalName: "Sergio Ramos" },
-  { qId: "Q5613", canonicalName: "Gerard Piqué" },
+  { qId: "Q17507", canonicalName: "Gerard Piqué" },
   { qId: "Q172721", canonicalName: "Dani Alves" },
   { qId: "Q134183", canonicalName: "Marcelo" },
   { qId: "Q70122", canonicalName: "Karim Benzema" },

@@ -1,5 +1,6 @@
 /**
  * Kullanıcının gönderdiği futbolcu ismini iki takımın ortak oyuncu havuzunda doğrular.
+ * Aksan, tam isim, tek kelimelik soyadı/isim (örn: "Pique", "Bale", "Zidane") ve çoklu isim toleransı içerir.
  */
 
 import { NextResponse } from "next/server";
@@ -28,6 +29,10 @@ export async function POST(req: Request) {
     const { team1Id, team2Id, submittedName } = parsed.data;
     const normalizedInput = normalizeText(submittedName);
 
+    if (!normalizedInput || normalizedInput.length < 2) {
+      return NextResponse.json({ isCorrect: false, player: null });
+    }
+
     // Her iki takımda da oynamış tüm ortak oyuncuları getir
     const commonPlayers = await prisma.player.findMany({
       where: {
@@ -41,22 +46,20 @@ export async function POST(req: Request) {
       },
     });
 
-    // İsim tam eşleşme, soyadı eşleşmesi veya takma ad kontrolü
+    // İsim tam eşleşme, parçalı kelime eşleşmesi veya alt dize kontrolü
     const matchedPlayer = commonPlayers.find((p) => {
       const normalizedPlayerName = normalizeText(p.fullName);
 
-      // 1. Tam isim eşleşmesi (örn: "cristiano ronaldo" === "cristiano ronaldo")
+      // 1. Birebir tam eşleşme (örn: "gareth bale" === "gareth bale")
       if (normalizedPlayerName === normalizedInput) return true;
 
-      // 2. Tek kelimelik meşhur soyadı/isim girişi (örn: "Zidane", "Hagi", "Maradona", "Sneijder")
-      const nameParts = normalizedPlayerName.split(" ");
-      const lastName = nameParts[nameParts.length - 1];
-      const firstName = nameParts[0];
+      // 2. İsim parçaları kontrolü (örn: "Gerard Pique Bernabeu" -> ["gerard", "pique", "bernabeu"])
+      const nameParts = normalizedPlayerName.split(" ").filter((part) => part.length >= 2);
+      if (nameParts.includes(normalizedInput)) return true;
 
+      // 3. Kullanıcı adı tam ismin başlangıcı veya alt dizesi mi? (örn: "gerard pique" in "gerard pique bernabeu")
       if (normalizedInput.length >= 4) {
-        if (lastName === normalizedInput || firstName === normalizedInput) {
-          return true;
-        }
+        if (normalizedPlayerName.includes(normalizedInput)) return true;
       }
 
       return false;
