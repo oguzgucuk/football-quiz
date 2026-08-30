@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { Trophy, Zap, Users, Play, Sparkles, ArrowRight } from "lucide-react";
+import { Trophy, Zap, Users, Play, Sparkles, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -23,10 +23,13 @@ export default function HomePage() {
           </div>
 
           <div className="flex items-center gap-3">
+            <Link href="/sandbox">
+              <Button variant="outline" size="sm" className="border-amber-500/40 text-amber-300 hover:bg-amber-500/10">
+                <Wrench className="w-3.5 h-3.5 mr-1" />
+                Sandbox (Test Modu)
+              </Button>
+            </Link>
             <Badge variant="brand">v0.1.0 MVP</Badge>
-            <Button variant="outline" size="sm">
-              Giriş Yap
-            </Button>
           </div>
         </div>
       </header>
@@ -54,14 +57,14 @@ export default function HomePage() {
         <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto mb-16">
           <Link href={`/play/${randomRoomId}`} className="w-full sm:w-auto">
             <Button size="lg" className="w-full sm:w-auto text-base">
-              <Play className="w-5 h-5 fill-current" />
+              <Play className="w-5 h-5 fill-current mr-1" />
               Hızlı Maç Bul (1v1)
             </Button>
           </Link>
-          <Link href={`/play/${randomRoomId}`} className="w-full sm:w-auto">
-            <Button variant="secondary" size="lg" className="w-full sm:w-auto">
-              Arkadaşını Davet Et
-              <ArrowRight className="w-4 h-4" />
+          <Link href="/sandbox" className="w-full sm:w-auto">
+            <Button variant="secondary" size="lg" className="w-full sm:w-auto border border-amber-500/30 text-amber-300 hover:bg-amber-500/10">
+              <Wrench className="w-4 h-4 mr-1 text-amber-400" />
+              Sandbox Modu (2 Takımı Seç & Süresiz)
             </Button>
           </Link>
         </div>
@@ -82,9 +85,9 @@ export default function HomePage() {
             <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
               <Trophy className="w-5 h-5" />
             </div>
-            <h2 className="font-bold text-lg text-zinc-100">ELO & Rank Sistemi</h2>
+            <h2 className="font-bold text-lg text-zinc-100">Sandbox Test Özgürlüğü</h2>
             <p className="text-sm text-zinc-400 leading-normal">
-              1000 puanla başla; Bronz'dan Elmas lige kadar futbol bilgini sıralamada kanıtla.
+              İstediğin iki kulübü seçerek süre kısıtlaması olmadan eşleşmeleri dene.
             </p>
           </Card>
 
@@ -94,7 +97,7 @@ export default function HomePage() {
             </div>
             <h2 className="font-bold text-lg text-zinc-100">50.000+ Futbolcu Havuzu</h2>
             <p className="text-sm text-zinc-400 leading-normal">
-              Kaggle + Wikidata kaynaklı 2.900+ kulüp ve 95.000+ transfer geçmişi.
+              Kaggle + Wikidata kaynaklı 2.850+ kulüp ve 95.000+ transfer geçmişi.
             </p>
           </Card>
         </div>
