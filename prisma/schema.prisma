@@ -1,0 +1,97 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Player {
+  id           String              @id @default(cuid())
+  fullName     String              @map("full_name")
+  birthDate    DateTime?           @map("birth_date")
+  nationality  String?
+  position     String?
+  externalRef  String?             @map("external_ref")
+  createdAt    DateTime            @default(now()) @map("created_at")
+  teamsHistory PlayerTeamHistory[]
+
+  @@map("players")
+}
+
+model Team {
+  id             String              @id @default(cuid())
+  name           String
+  country        String
+  league         String
+  logoUrl        String?             @map("logo_url")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  playersHistory PlayerTeamHistory[]
+
+  @@map("teams")
+}
+
+model PlayerTeamHistory {
+  id             String   @id @default(cuid())
+  playerId       String   @map("player_id")
+  teamId         String   @map("team_id")
+  seasonStart    Int?     @map("season_start")
+  seasonEnd      Int?     @map("season_end")
+  isNationalTeam Boolean  @default(false) @map("is_national_team")
+  player         Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  team           Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([playerId, teamId])
+  @@map("player_team_history")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  email     String   @unique
+  eloRating Int      @default(1000) @map("elo_rating")
+  rankTier  String   @default("bronze") @map("rank_tier")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("users")
+}
+
+model Match {
+  id        String       @id @default(cuid())
+  player1Id String       @map("player1_id")
+  player2Id String       @map("player2_id")
+  mode      String       @default("team_vs_team")
+  ranked    Boolean      @default(true)
+  createdAt DateTime     @default(now()) @map("created_at")
+  rounds    MatchRound[]
+
+  @@map("matches")
+}
+
+model MatchRound {
+  id           String    @id @default(cuid())
+  matchId      String    @map("match_id")
+  roundNumber  Int       @map("round_number")
+  entity1Id    String    @map("entity1_id")
+  entity1Type  String    @default("team") @map("entity1_type")
+  entity2Id    String    @map("entity2_id")
+  entity2Type  String    @default("team") @map("entity2_type")
+  winnerUserId String?   @map("winner_user_id")
+  answerGiven  String?   @map("answer_given")
+  answeredAt   DateTime? @map("answered_at")
+  timeTakenMs  Int?      @map("time_taken_ms")
+  match        Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@map("match_rounds")
+}
+
+model MissingAnswerLog {
+  id            String   @id @default(cuid())
+  submittedName String   @map("submitted_name")
+  team1Id       String   @map("team1_id")
+  team2Id       String   @map("team2_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("missing_answers_log")
+}
