@@ -140,6 +140,8 @@ bağımlı olması) baştan engeller.
 - Tüm Prisma sorguları `/lib/db` altında, konularına göre dosyalanmış olsun
   (`players.ts`, `matches.ts`, `users.ts`) — tek bir dev `db.ts` dosyasına
   hepsini doldurma.
+- **Veri import/seed script'lerinde yeni kulüp veya oyuncu kaydı oluşturmadan önce fuzzy match / alias kontrolü yapılır:**
+  Wikidata veya diğer harici kaynaklardan veri aktarırken doğrudan körü körüne `create` yapılmaz; mevcut `teams` tablosunda isim normalizasyonu, Levenshtein mesafesi ve `aliases` kontrolü yapılarak var olan kayda bağlanır, kopya kulüp/oyuncu oluşması baştan engellenir.
 - Migration'lar açıklayıcı isimlerle (`add_elo_rating_to_users`), asla
   `update1`, `fix` gibi belirsiz isimlerle oluşturulmasın.
 - N+1 sorgu riskine dikkat: ilişkili veri çekerken `include`/`select`

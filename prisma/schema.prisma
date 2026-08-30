@@ -25,9 +25,10 @@ model Team {
   id             String              @id @default(cuid())
   name           String
   country        String
-  league         String
+  league         String?
   logoUrl        String?             @map("logo_url")
   externalRef    String?             @unique @map("external_ref")
+  aliases        String[]            @default([])
   createdAt      DateTime            @default(now()) @map("created_at")
   playersHistory PlayerTeamHistory[]
 
