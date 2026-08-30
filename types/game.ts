@@ -9,6 +9,8 @@ export interface Player {
   nationality?: string | null;
   position?: string | null;
   externalRef?: string | null;
+  kaggleId?: string | null;
+  wikidataId?: string | null;
 }
 
 export interface Team {
