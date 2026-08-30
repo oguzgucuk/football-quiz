@@ -17,6 +17,7 @@ export interface Team {
   country: string;
   league: string;
   logoUrl?: string | null;
+  aliases?: string[];
 }
 
 export interface PlayerTeamHistory {

@@ -34,7 +34,10 @@ export function SandboxMode({ teams, playerList }: SandboxModeProps) {
 
   const fuseTeams = useMemo(() => {
     return new Fuse(teams, {
-      keys: ["name"],
+      keys: [
+        { name: "name", weight: 0.7 },
+        { name: "aliases", weight: 0.3 },
+      ],
       threshold: 0.35,
       minMatchCharLength: 2,
     });

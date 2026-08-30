@@ -13,6 +13,7 @@ export async function GET() {
         name: true,
         country: true,
         league: true,
+        aliases: true,
       },
       orderBy: {
         name: "asc",
