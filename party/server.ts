@@ -1,6 +1,6 @@
 /**
  * Realtime WebSocket Oyun ve Oda Sunucusu (PartyKit Protokolü Uyumlu).
- * Server-side Timer, Oda Yönetimi, Ping-Pong Bağlantı Testi ve 1v1 Eşleşme.
+ * Kesintisiz Server-Side Timer, Otomatik Tur Geçişi, 5sn Takım Seçimi ve 15sn Cevap Sayacı.
  */
 
 import { createServer } from "http";
@@ -13,10 +13,23 @@ const ROUNDS_PER_MATCH = 5;
 const PICK_TIME_SECONDS = 5;
 const ANSWER_TIME_SECONDS = 15;
 
+const DEFAULT_POPULAR_TEAMS: Team[] = [
+  { id: "cmtfrb4090001u6k4realmadrid", name: "Real Madrid", country: "Spain", league: "La Liga" },
+  { id: "cmtfrb4090002u6k4barcelona", name: "FC Barcelona", country: "Spain", league: "La Liga" },
+  { id: "cmtfrb4090003u6k4galatasaray", name: "Galatasaray", country: "Turkey", league: "Süper Lig" },
+  { id: "cmtfrb4090004u6k4fenerbahce", name: "Fenerbahçe", country: "Turkey", league: "Süper Lig" },
+  { id: "cmtfrb4090005u6k4milan", name: "AC Milan", country: "Italy", league: "Serie A" },
+  { id: "cmtfrb4090006u6k4inter", name: "Inter Milan", country: "Italy", league: "Serie A" },
+  { id: "cmtfrb4090007u6k4manutd", name: "Manchester United", country: "England", league: "Premier League" },
+  { id: "cmtfrb4090008u6k4liverpool", name: "Liverpool FC", country: "England", league: "Premier League" },
+  { id: "cmtfrb4090009u6k4bayern", name: "Bayern München", country: "Germany", league: "Bundesliga" },
+  { id: "cmtfrb4090010u6k4arsenal", name: "Arsenal FC", country: "England", league: "Premier League" },
+];
+
 interface Room {
   id: string;
   state: RoomState;
-  clients: Set<WebSocket>;
+  clients: Map<WebSocket, { userId?: string; username?: string }>;
   timer?: NodeJS.Timeout;
   timerSecondsLeft?: number;
 }
@@ -40,7 +53,6 @@ const server = createServer((req, res) => {
 
 const wss = new WebSocketServer({ noServer: true });
 
-// URL'den roomId ayrıştırma (Örn: /parties/game/oda-123 veya /rooms/oda-123 veya /oda-123)
 function extractRoomId(url: string | undefined): string {
   if (!url) return "default";
   const cleanUrl = url.split("?")[0];
@@ -54,7 +66,7 @@ function getOrCreateRoom(roomId: string): Room {
     room = {
       id: roomId,
       state: createInitialRoomState(roomId),
-      clients: new Set(),
+      clients: new Map(),
     };
     room.state.maxRounds = ROUNDS_PER_MATCH;
     rooms.set(roomId, room);
@@ -64,7 +76,7 @@ function getOrCreateRoom(roomId: string): Room {
 
 function broadcastToRoom(room: Room, message: object) {
   const payload = JSON.stringify(message);
-  for (const client of room.clients) {
+  for (const [client] of room.clients) {
     if (client.readyState === WebSocket.OPEN) {
       client.send(payload);
     }
@@ -79,7 +91,6 @@ function broadcastRoomState(room: Room) {
   });
 }
 
-// Server-Side Timer Yönetimi (Adil, senkronize geri sayım)
 function startServerTimer(room: Room, durationSeconds: number, onComplete: () => void) {
   if (room.timer) {
     clearInterval(room.timer);
@@ -99,6 +110,11 @@ function startServerTimer(room: Room, durationSeconds: number, onComplete: () =>
       clearInterval(room.timer);
       room.timer = undefined;
       room.timerSecondsLeft = 0;
+      broadcastToRoom(room, {
+        type: "TIMER_TICK",
+        secondsLeft: 0,
+        serverTimestamp: Date.now(),
+      });
       onComplete();
     } else {
       room.timerSecondsLeft -= 1;
@@ -111,6 +127,76 @@ function startServerTimer(room: Room, durationSeconds: number, onComplete: () =>
   }, 1000);
 }
 
+// 5sn Takım Seçimi tamamlandığında takımları kilitleyip 15sn Cevaplama aşamasına geçiş
+function transitionToAnsweringPhase(room: Room) {
+  if (room.timer) {
+    clearInterval(room.timer);
+    room.timer = undefined;
+  }
+
+  // Oyuncular takım seçmediyse varsayılan popüler takımları ata
+  if (!room.state.team1) {
+    room.state.team1 = DEFAULT_POPULAR_TEAMS[0];
+    if (room.state.player1) room.state.player1.selectedTeamId = room.state.team1.id;
+  }
+
+  if (!room.state.team2) {
+    const available = DEFAULT_POPULAR_TEAMS.filter((t) => t.id !== room.state.team1?.id);
+    room.state.team2 = available[0] || DEFAULT_POPULAR_TEAMS[1];
+    if (room.state.player2) room.state.player2.selectedTeamId = room.state.team2.id;
+  }
+
+  room.state.roundStatus = "answering";
+  room.state.roundStartTime = Date.now();
+  broadcastRoomState(room);
+
+  // 15 saniyelik cevap sayacını başlat
+  startServerTimer(room, ANSWER_TIME_SECONDS, () => {
+    // 15 sn içinde kimse bilemediğinde tur berabere biter
+    handleRoundTimeout(room);
+  });
+}
+
+// Zaman aşımı (Kimse bilemedi)
+function handleRoundTimeout(room: Room) {
+  if (room.state.roundStatus !== "answering") return;
+
+  room.state.roundStatus = "round_finished";
+  broadcastToRoom(room, {
+    type: "ROUND_RESULT",
+    winnerUserId: null,
+    correctAnswer: "Süre Doldu!",
+    isDraw: true,
+    state: room.state,
+  });
+
+  scheduleNextRound(room);
+}
+
+// Tur sonrası 3sn bekleyip yeni tura veya maç sonuna geçiş
+function scheduleNextRound(room: Room) {
+  setTimeout(() => {
+    if (room.state.currentRound >= (room.state.maxRounds || ROUNDS_PER_MATCH)) {
+      room.state.status = "match_finished";
+      broadcastRoomState(room);
+    } else {
+      room.state.currentRound += 1;
+      room.state.roundStatus = "picking_teams";
+      room.state.team1 = null;
+      room.state.team2 = null;
+      if (room.state.player1) room.state.player1.selectedTeamId = null;
+      if (room.state.player2) room.state.player2.selectedTeamId = null;
+
+      broadcastRoomState(room);
+
+      // Yeni tur için 5sn takım seçimi sayacını başlat
+      startServerTimer(room, PICK_TIME_SECONDS, () => {
+        transitionToAnsweringPhase(room);
+      });
+    }
+  }, 3000);
+}
+
 server.on("upgrade", (request, socket, head) => {
   const roomId = extractRoomId(request.url);
 
@@ -121,11 +207,11 @@ server.on("upgrade", (request, socket, head) => {
 
 wss.on("connection", (ws: WebSocket, request: any, roomId: string) => {
   const room = getOrCreateRoom(roomId);
-  room.clients.add(ws);
+  room.clients.set(ws, {});
 
-  console.log(`[WebSocket] Client bağlandı. Oda: "${roomId}" (Aktif bağlantı: ${room.clients.size})`);
+  console.log(`[WebSocket] Client bağlandı. Oda: "${roomId}" (Toplam: ${room.clients.size})`);
 
-  // İlk bağlantıda mevcut oda durumunu gönder
+  // İlk bağlantı senkronizasyonu
   ws.send(
     JSON.stringify({
       type: "ROOM_STATE_SYNC",
@@ -139,7 +225,6 @@ wss.on("connection", (ws: WebSocket, request: any, roomId: string) => {
       const data = JSON.parse(rawMessage.toString());
 
       switch (data.type) {
-        // --- 1. Minimal Sanity Check (Ping/Pong / Chat) ---
         case "PING": {
           ws.send(JSON.stringify({ type: "PONG", clientTimestamp: data.timestamp, serverTimestamp: Date.now() }));
           break;
@@ -155,33 +240,37 @@ wss.on("connection", (ws: WebSocket, request: any, roomId: string) => {
           break;
         }
 
-        // --- 2. Oyuncu Katılımı (1v1) ---
         case "PLAYER_JOIN": {
           const { userId, username } = data;
-          if (!room.state.player1) {
-            room.state.player1 = { userId, username, score: 0, isReady: true };
-          } else if (!room.state.player2 && room.state.player1.userId !== userId) {
-            room.state.player2 = { userId, username, score: 0, isReady: true };
-            // İki oyuncu da odaya girdi -> Maç başlasın ve 1. Tur takım seçimi başlasın
+          const clientMeta = room.clients.get(ws);
+          if (clientMeta) {
+            clientMeta.userId = userId;
+            clientMeta.username = username;
+          }
+
+          if (!room.state.player1 || room.state.player1.userId === userId) {
+            room.state.player1 = { userId, username, score: room.state.player1?.score || 0, isReady: true };
+          } else if (!room.state.player2 || room.state.player2.userId === userId) {
+            room.state.player2 = { userId, username, score: room.state.player2?.score || 0, isReady: true };
+          }
+
+          // İki oyuncu da hazır olduğunda maçı ve 1. Turu başlat
+          if (room.state.player1 && room.state.player2 && room.state.status === "waiting_for_players") {
             room.state.status = "in_round";
             room.state.roundStatus = "picking_teams";
             room.state.currentRound = 1;
             broadcastRoomState(room);
 
-            // Server-side 5sn takım seçimi sayacını başlat
             startServerTimer(room, PICK_TIME_SECONDS, () => {
-              // 5 saniye dolunca takımları aç ve cevaplama aşamasına geç
-              room.state.roundStatus = "answering";
-              room.state.roundStartTime = Date.now();
-              broadcastRoomState(room);
+              transitionToAnsweringPhase(room);
             });
             break;
           }
+
           broadcastRoomState(room);
           break;
         }
 
-        // --- 3. Takım Seçimi (Oyuncu bağımsız seçer) ---
         case "TEAM_PICKED": {
           const { userId, team } = data as { userId: string; team: Team };
           if (room.state.player1?.userId === userId) {
@@ -192,24 +281,24 @@ wss.on("connection", (ws: WebSocket, request: any, roomId: string) => {
             room.state.team2 = team;
           }
 
-          // İki oyuncu da süreden önce takım seçtiyse hemen cevaplama aşamasına geç
+          // İki oyuncu da 5 sn dolmadan takım seçtiyse hemen cevaplama aşamasına geç
           if (room.state.team1 && room.state.team2 && room.state.roundStatus === "picking_teams") {
-            if (room.timer) {
-              clearInterval(room.timer);
-              room.timer = undefined;
-            }
-            room.state.roundStatus = "answering";
-            room.state.roundStartTime = Date.now();
+            transitionToAnsweringPhase(room);
+            return;
           }
 
           broadcastRoomState(room);
           break;
         }
 
-        // --- 4. Tur Kazananı / Doğru Cevap Bildirimi ---
         case "ROUND_WINNER": {
           const { winnerUserId, correctAnswer } = data;
-          if (room.state.roundStatus !== "answering") return; // Tur zaten bittiyse çift puan vermeyi engelle
+          if (room.state.roundStatus !== "answering") return;
+
+          if (room.timer) {
+            clearInterval(room.timer);
+            room.timer = undefined;
+          }
 
           if (room.state.player1 && room.state.player1.userId === winnerUserId) {
             room.state.player1.score += 1;
@@ -225,54 +314,12 @@ wss.on("connection", (ws: WebSocket, request: any, roomId: string) => {
             state: room.state,
           });
 
-          // 3 saniye sonra bir sonraki tura geç veya maçı bitir
-          setTimeout(() => {
-            if (room.state.currentRound >= (room.state.maxRounds || ROUNDS_PER_MATCH)) {
-              room.state.status = "match_finished";
-            } else {
-              room.state.currentRound += 1;
-              room.state.roundStatus = "picking_teams";
-              room.state.team1 = null;
-              room.state.team2 = null;
-              if (room.state.player1) room.state.player1.selectedTeamId = null;
-              if (room.state.player2) room.state.player2.selectedTeamId = null;
-
-              // Yeni tur için 5sn sayacını başlat
-              startServerTimer(room, PICK_TIME_SECONDS, () => {
-                room.state.roundStatus = "answering";
-                room.state.roundStartTime = Date.now();
-                broadcastRoomState(room);
-              });
-            }
-            broadcastRoomState(room);
-          }, 3000);
+          scheduleNextRound(room);
           break;
         }
 
-        // --- 5. Zaman Aşımı (Kimse cevap veremediğinde) ---
         case "ROUND_TIMEOUT": {
-          if (room.state.roundStatus !== "answering") return;
-          room.state.roundStatus = "round_finished";
-          broadcastToRoom(room, {
-            type: "ROUND_RESULT",
-            winnerUserId: null,
-            isDraw: true,
-            state: room.state,
-          });
-
-          setTimeout(() => {
-            if (room.state.currentRound >= (room.state.maxRounds || ROUNDS_PER_MATCH)) {
-              room.state.status = "match_finished";
-            } else {
-              room.state.currentRound += 1;
-              room.state.roundStatus = "picking_teams";
-              room.state.team1 = null;
-              room.state.team2 = null;
-              if (room.state.player1) room.state.player1.selectedTeamId = null;
-              if (room.state.player2) room.state.player2.selectedTeamId = null;
-            }
-            broadcastRoomState(room);
-          }, 3000);
+          handleRoundTimeout(room);
           break;
         }
       }

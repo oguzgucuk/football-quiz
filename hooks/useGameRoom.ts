@@ -108,6 +108,9 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
           switch (data.type) {
             case "ROOM_STATE_SYNC":
               setRoomState(data.state);
+              if (data.state.roundStatus === "picking_teams" && !data.state.team1 && !data.state.team2) {
+                setMySelectedTeam(null);
+              }
               break;
 
             case "TIMER_START":
