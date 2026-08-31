@@ -167,7 +167,7 @@ export function PlayerAnswerInput({
       )}
 
       {isDropdownOpen && suggestions.length > 0 && (
-        <ul className="absolute z-50 w-full mt-2 py-1.5 bg-zinc-900/95 backdrop-blur-xl border border-zinc-800/90 rounded-xl shadow-2xl overflow-hidden animate-fadeIn">
+        <ul className="absolute z-50 w-full mt-2 py-1.5 bg-zinc-900/95 backdrop-blur-xl border border-zinc-800/90 rounded-xl shadow-2xl overflow-y-auto max-h-[220px] sm:max-h-[260px] custom-scrollbar animate-fadeIn">
           {suggestions.map((player, index) => {
             const isSelected = index === selectedIndex;
             return (

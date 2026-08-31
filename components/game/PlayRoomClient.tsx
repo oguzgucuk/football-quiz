@@ -126,7 +126,7 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#090a0f] text-zinc-100">
+    <div className="flex flex-col h-screen overflow-hidden bg-[#090a0f] text-zinc-100">
       {/* Üst Maç Başlığı */}
       <MatchHeader
         currentRound={roomState.currentRound}

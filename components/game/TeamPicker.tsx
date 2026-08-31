@@ -162,7 +162,7 @@ export function TeamPicker({
           </div>
 
           {isDropdownOpen && suggestions.length > 0 && (
-            <ul className="absolute z-50 w-full mt-2 py-2 bg-zinc-900/95 backdrop-blur-2xl border border-zinc-700/80 rounded-2xl shadow-2xl overflow-hidden text-left animate-fadeIn">
+            <ul className="absolute z-50 w-full mt-2 py-1.5 bg-zinc-900/95 backdrop-blur-2xl border border-zinc-700/80 rounded-2xl shadow-2xl overflow-y-auto max-h-[220px] sm:max-h-[260px] custom-scrollbar text-left animate-fadeIn">
               {suggestions.map((team, index) => {
                 const isSelected = index === selectedIndex;
                 return (
