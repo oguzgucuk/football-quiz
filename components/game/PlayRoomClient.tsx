@@ -25,9 +25,11 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
   const [username, setUsername] = useState("");
   const [isSandboxActive, setIsSandboxActive] = useState(false);
 
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
 
   useEffect(() => {
+    if (isLoading) return;
+
     if (user) {
       setCurrentUserId(user.id);
       setUsername(user.username);
@@ -39,18 +41,18 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
     let savedName = typeof window !== "undefined" ? sessionStorage.getItem("football_quiz_username") : null;
 
     if (!savedId) {
-      savedId = `user_${Math.random().toString(36).substring(2, 8)}`;
+      savedId = `guest_${Math.random().toString(36).substring(2, 8)}`;
       sessionStorage.setItem("football_quiz_user_id", savedId);
     }
     if (!savedName) {
-      savedName = `Oyuncu_${Math.floor(100 + Math.random() * 900)}`;
+      savedName = `Misafir_${Math.floor(100 + Math.random() * 900)}`;
       sessionStorage.setItem("football_quiz_username", savedName);
     }
 
     setCurrentUserId(savedId);
     setUsername(savedName);
     setMounted(true);
-  }, [user]);
+  }, [user, isLoading]);
 
   const {
     roomState,
@@ -67,6 +69,16 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
     handleTimeExpired,
     addBotOpponent,
   } = useGameRoom({ roomId, userId: currentUserId, username });
+
+  if (!mounted || !currentUserId) {
+    return (
+      <div className="flex flex-col min-h-screen bg-[#090a0f] text-zinc-100 items-center justify-center p-4">
+        <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 animate-pulse">
+          <RotateCcw className="w-6 h-6 animate-spin" />
+        </div>
+      </div>
+    );
+  }
 
   // Maç Tamamlandı Ekranı
   if (roomState.status === "match_finished") {

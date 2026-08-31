@@ -401,12 +401,19 @@ wss.on("connection", (ws: WebSocket, request: any, roomId: string) => {
 
         case "TEAM_PICKED": {
           const { userId, team } = data as { userId: string; team: Team };
-          if (room.state.player1?.userId === userId) {
+          const clientMeta = room.clients.get(ws);
+          const effectiveUserId = userId || clientMeta?.userId;
+
+          if (room.state.player1 && (room.state.player1.userId === effectiveUserId || clientMeta?.userId === room.state.player1.userId)) {
             room.state.player1.selectedTeamId = team.id;
             room.state.team1 = team;
-          } else if (room.state.player2?.userId === userId) {
+            console.log(`[TEAM_PICKED] Player 1 (${room.state.player1.username}) takım seçti: ${team.name}`);
+          } else if (room.state.player2 && (room.state.player2.userId === effectiveUserId || clientMeta?.userId === room.state.player2.userId)) {
             room.state.player2.selectedTeamId = team.id;
             room.state.team2 = team;
+            console.log(`[TEAM_PICKED] Player 2 (${room.state.player2.username}) takım seçti: ${team.name}`);
+          } else {
+            console.warn(`[TEAM_PICKED] Eşleşmeyen userId: ${userId}, clientMeta: ${clientMeta?.userId}`);
           }
 
           if (room.state.team1 && room.state.team2 && room.state.roundStatus === "picking_teams") {

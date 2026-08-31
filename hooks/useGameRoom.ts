@@ -114,7 +114,7 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
               break;
 
             case "TIMER_START":
-              setServerSecondsLeft(data.duration);
+              setServerSecondsLeft(data.durationSeconds || data.duration || 5);
               break;
 
             case "TIMER_TICK":
