@@ -30,6 +30,7 @@ export function PlayerAnswerInput({
       keys: ["name"],
       includeScore: true,
       threshold: 0.4,
+      ignoreLocation: true, // İsim içerisinde nerede geçerse geçsin (soyadı dahil) ceza kesmez
       minMatchCharLength: 2,
     });
   }, [playerList]);
@@ -37,20 +38,21 @@ export function PlayerAnswerInput({
   const suggestions = useMemo(() => {
     if (!inputValue || inputValue.trim().length < 2) return [];
     const lowerQuery = inputValue.toLowerCase().trim();
-    const results = fuse.search(inputValue, { limit: 16 });
+    const results = fuse.search(inputValue, { limit: 30 });
 
     const scored = results.map((r) => {
       // Fuse score yön düzeltmesi (0 = mükemmel, 1 = hiç eşleşme yok -> 1 - score)
       const textMatchScore = 1 - (r.score ?? 1);
       const normalizedPopularity = (r.item.popularityScore ?? 0) / 100;
 
-      // Kelime başlangıcı eşleşmesi bonusu (örn: "messi" -> "Lionel Messi")
+      // Kelime başlangıcı veya tam içerme bonusu (örn: "ronaldo" -> "Cristiano Ronaldo")
       const lowerName = r.item.name.toLowerCase();
       const words = lowerName.split(/\s+/);
       const exactWordMatch = words.some((w) => w.startsWith(lowerQuery));
+      const containsBonus = lowerName.includes(lowerQuery) ? 0.2 : 0;
       const wordBonus = exactWordMatch ? 0.15 : 0;
 
-      const finalScore = textMatchScore * 0.55 + normalizedPopularity * 0.35 + wordBonus;
+      const finalScore = textMatchScore * 0.4 + normalizedPopularity * 0.4 + wordBonus + containsBonus;
       return { item: r.item, finalScore };
     });
 
