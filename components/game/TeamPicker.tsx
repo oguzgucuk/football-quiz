@@ -20,6 +20,7 @@ export function TeamPicker({
 }: TeamPickerProps) {
   const [inputValue, setInputValue] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const fuse = useMemo(() => {
@@ -39,6 +40,10 @@ export function TeamPicker({
   }, [fuse, inputValue]);
 
   useEffect(() => {
+    setSelectedIndex(0);
+  }, [suggestions]);
+
+  useEffect(() => {
     if (!selectedTeam) {
       inputRef.current?.focus();
     }
@@ -51,9 +56,23 @@ export function TeamPicker({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
+    if (e.key === "ArrowDown") {
       e.preventDefault();
       if (suggestions.length > 0) {
+        setIsDropdownOpen(true);
+        setSelectedIndex((prev) => (prev + 1) % suggestions.length);
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (suggestions.length > 0) {
+        setIsDropdownOpen(true);
+        setSelectedIndex((prev) => (prev <= 0 ? suggestions.length - 1 : prev - 1));
+      }
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (suggestions.length > 0 && selectedIndex >= 0 && selectedIndex < suggestions.length) {
+        handlePick(suggestions[selectedIndex]);
+      } else if (suggestions.length > 0) {
         handlePick(suggestions[0]);
       } else if (inputValue.trim().length > 0) {
         const exactMatch = teams.find(
@@ -61,6 +80,8 @@ export function TeamPicker({
         );
         if (exactMatch) handlePick(exactMatch);
       }
+    } else if (e.key === "Escape") {
+      setIsDropdownOpen(false);
     }
   };
 
@@ -119,28 +140,52 @@ export function TeamPicker({
 
           {isDropdownOpen && suggestions.length > 0 && (
             <ul className="absolute z-50 w-full mt-2 py-2 bg-zinc-900/95 backdrop-blur-2xl border border-zinc-700/80 rounded-2xl shadow-2xl overflow-hidden text-left animate-fadeIn">
-              {suggestions.map((team) => (
-                <li
-                  key={team.id}
-                  onClick={() => handlePick(team)}
-                  className="px-4 py-3 hover:bg-zinc-800/80 text-zinc-200 hover:text-white cursor-pointer transition-colors duration-150 flex items-center justify-between border-b border-zinc-800/40 last:border-0"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-400">
-                      <Shield className="w-4 h-4" />
+              {suggestions.map((team, index) => {
+                const isSelected = index === selectedIndex;
+                return (
+                  <li
+                    key={team.id}
+                    onClick={() => handlePick(team)}
+                    onMouseEnter={() => setSelectedIndex(index)}
+                    className={`px-4 py-3 cursor-pointer transition-all duration-150 flex items-center justify-between border-b border-zinc-800/40 last:border-0 ${
+                      isSelected
+                        ? "bg-emerald-500/20 text-white border-l-4 border-l-emerald-400 pl-3"
+                        : "hover:bg-zinc-800/80 text-zinc-300 hover:text-white"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                          isSelected ? "bg-emerald-500/30 text-emerald-300" : "bg-zinc-800 text-zinc-400"
+                        }`}
+                      >
+                        <Shield className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span
+                          className={`font-bold text-sm block ${
+                            isSelected ? "text-emerald-300" : "text-zinc-100"
+                          }`}
+                        >
+                          {team.name}
+                        </span>
+                        <span className="text-xs text-zinc-400">
+                          {team.league} • {team.country}
+                        </span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="font-bold text-sm text-zinc-100 block">{team.name}</span>
-                      <span className="text-xs text-zinc-400">
-                        {team.league} • {team.country}
-                      </span>
-                    </div>
-                  </div>
-                  <span className="text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg">
-                    Seç
-                  </span>
-                </li>
-              ))}
+                    <span
+                      className={`text-xs font-semibold px-2 py-1 rounded-lg transition-colors ${
+                        isSelected
+                          ? "bg-emerald-500 text-zinc-950 font-bold"
+                          : "text-emerald-400 bg-emerald-500/10"
+                      }`}
+                    >
+                      Seç (Enter)
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

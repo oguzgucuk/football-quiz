@@ -22,6 +22,7 @@ export function PlayerAnswerInput({
 }: PlayerAnswerInputProps) {
   const [inputValue, setInputValue] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const fuse = useMemo(() => {
@@ -38,6 +39,10 @@ export function PlayerAnswerInput({
   }, [fuse, inputValue]);
 
   useEffect(() => {
+    setSelectedIndex(-1);
+  }, [suggestions]);
+
+  useEffect(() => {
     if (hasErrorFeedback) {
       setInputValue("");
       inputRef.current?.focus();
@@ -52,9 +57,28 @@ export function PlayerAnswerInput({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
+    if (e.key === "ArrowDown") {
       e.preventDefault();
-      handleSubmit(inputValue);
+      if (suggestions.length > 0) {
+        setIsDropdownOpen(true);
+        setSelectedIndex((prev) => (prev + 1) % suggestions.length);
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (suggestions.length > 0) {
+        setIsDropdownOpen(true);
+        setSelectedIndex((prev) => (prev <= 0 ? suggestions.length - 1 : prev - 1));
+      }
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (selectedIndex >= 0 && suggestions[selectedIndex]) {
+        setInputValue(suggestions[selectedIndex].name);
+        handleSubmit(suggestions[selectedIndex].name);
+      } else {
+        handleSubmit(inputValue);
+      }
+    } else if (e.key === "Escape") {
+      setIsDropdownOpen(false);
     }
   };
 
@@ -106,19 +130,37 @@ export function PlayerAnswerInput({
 
       {isDropdownOpen && suggestions.length > 0 && (
         <ul className="absolute z-50 w-full mt-2 py-1.5 bg-zinc-900/95 backdrop-blur-xl border border-zinc-800/90 rounded-xl shadow-2xl overflow-hidden animate-fadeIn">
-          {suggestions.map((player) => (
-            <li
-              key={player.id}
-              onClick={() => {
-                setInputValue(player.name);
-                handleSubmit(player.name);
-              }}
-              className="px-4 py-2.5 hover:bg-zinc-800/70 text-zinc-200 hover:text-white cursor-pointer transition-colors duration-150 text-sm font-medium flex items-center justify-between"
-            >
-              <span>{player.name}</span>
-              <span className="text-xs text-zinc-500 font-normal">Seç & Gönder</span>
-            </li>
-          ))}
+          {suggestions.map((player, index) => {
+            const isSelected = index === selectedIndex;
+            return (
+              <li
+                key={player.id}
+                onClick={() => {
+                  setInputValue(player.name);
+                  handleSubmit(player.name);
+                }}
+                onMouseEnter={() => setSelectedIndex(index)}
+                className={`px-4 py-2.5 cursor-pointer transition-all duration-150 text-sm font-medium flex items-center justify-between border-b border-zinc-800/40 last:border-0 ${
+                  isSelected
+                    ? "bg-emerald-500/20 text-white border-l-4 border-l-emerald-400 pl-3"
+                    : "hover:bg-zinc-800/70 text-zinc-300 hover:text-white"
+                }`}
+              >
+                <span className={isSelected ? "text-emerald-300 font-bold" : ""}>
+                  {player.name}
+                </span>
+                <span
+                  className={`text-xs px-2 py-0.5 rounded-md font-medium transition-colors ${
+                    isSelected
+                      ? "bg-emerald-500 text-zinc-950 font-bold"
+                      : "text-zinc-500 font-normal"
+                  }`}
+                >
+                  {isSelected ? "Gönder (Enter)" : "Seç & Gönder"}
+                </span>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
