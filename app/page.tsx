@@ -5,34 +5,15 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 
+import { Navbar } from "@/components/layout/Navbar";
+
 export default function HomePage() {
   const randomRoomId = `duel_${Math.floor(1000 + Math.random() * 9000)}`;
 
   return (
     <div className="flex flex-col min-h-screen">
       {/* Header / Navbar */}
-      <header className="border-b border-zinc-800/80 bg-zinc-950/60 backdrop-blur-xl sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-black text-lg shadow-sm">
-              ⚽
-            </div>
-            <span className="font-bold text-lg tracking-tight text-white">
-              Futbol<span className="text-emerald-400">Quiz</span>
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Link href="/sandbox">
-              <Button variant="outline" size="sm" className="border-amber-500/40 text-amber-300 hover:bg-amber-500/10">
-                <Wrench className="w-3.5 h-3.5 mr-1" />
-                Sandbox (Test Modu)
-              </Button>
-            </Link>
-            <Badge variant="brand">v0.1.0 MVP</Badge>
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
       {/* Hero Section */}
       <main className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-16 sm:py-24 max-w-5xl mx-auto text-center">

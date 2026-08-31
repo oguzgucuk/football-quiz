@@ -53,12 +53,17 @@ model PlayerTeamHistory {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  username  String   @unique
-  email     String   @unique
-  eloRating Int      @default(1000) @map("elo_rating")
-  rankTier  String   @default("bronze") @map("rank_tier")
-  createdAt DateTime @default(now()) @map("created_at")
+  id           String   @id @default(cuid())
+  username     String   @unique
+  email        String?  @unique
+  passwordHash String?  @map("password_hash")
+  avatarUrl    String?  @map("avatar_url")
+  eloRating    Int      @default(1000) @map("elo_rating")
+  rankTier     String   @default("bronze") @map("rank_tier")
+  matchesWon   Int      @default(0) @map("matches_won")
+  matchesLost  Int      @default(0) @map("matches_lost")
+  isGuest      Boolean  @default(false) @map("is_guest")
+  createdAt    DateTime @default(now()) @map("created_at")
 
   @@map("users")
 }

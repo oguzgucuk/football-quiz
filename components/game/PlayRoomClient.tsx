@@ -18,13 +18,24 @@ interface PlayRoomClientProps {
   roomId: string;
 }
 
+import { useAuth } from "@/hooks/useAuth";
+
 export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
   const [mounted, setMounted] = useState(false);
   const [currentUserId, setCurrentUserId] = useState("");
   const [username, setUsername] = useState("");
   const [isSandboxActive, setIsSandboxActive] = useState(false);
 
+  const { user } = useAuth();
+
   useEffect(() => {
+    if (user) {
+      setCurrentUserId(user.id);
+      setUsername(user.username);
+      setMounted(true);
+      return;
+    }
+
     let savedId = typeof window !== "undefined" ? sessionStorage.getItem("football_quiz_user_id") : null;
     let savedName = typeof window !== "undefined" ? sessionStorage.getItem("football_quiz_username") : null;
 
@@ -40,7 +51,7 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
     setCurrentUserId(savedId);
     setUsername(savedName);
     setMounted(true);
-  }, []);
+  }, [user]);
 
   const {
     roomState,
