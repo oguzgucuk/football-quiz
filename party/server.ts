@@ -306,7 +306,7 @@ server.on("upgrade", (request, socket, head) => {
 });
 
 wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) => {
-  if (roomId === "matchmaking") {
+  if (roomId === "matchmaking" || request.url?.includes("/parties/matchmaking")) {
     handleMatchmakingConnection(ws);
     return;
   }

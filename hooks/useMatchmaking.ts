@@ -64,7 +64,7 @@ export function useMatchmaking() {
       }, 1000);
 
       try {
-        const wsUrl = getWebSocketUrl("/parties/matchmaking");
+        const wsUrl = getWebSocketUrl("/parties/matchmaking/queue");
 
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
