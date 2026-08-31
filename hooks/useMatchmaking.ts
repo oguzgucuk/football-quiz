@@ -15,6 +15,7 @@ export interface MatchedData {
   matchId: string;
   opponent: MatchedOpponent;
   isBot?: boolean;
+  roundDuration?: number;
 }
 
 export function useMatchmaking() {
@@ -22,11 +23,11 @@ export function useMatchmaking() {
   const [waitingSeconds, setWaitingSeconds] = useState(0);
   const [queueSize, setQueueSize] = useState(1);
   const [matchedData, setMatchedData] = useState<MatchedData | null>(null);
+  const [selectedDuration, setSelectedDuration] = useState<number>(15);
   const [error, setError] = useState<string | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  // Stale closure'dan kaçınmak için status'u ref'te tut
   const statusRef = useRef<MatchmakingStatus>("idle");
 
   const cleanup = useCallback(() => {
@@ -52,8 +53,9 @@ export function useMatchmaking() {
   }, [cleanup]);
 
   const startMatchmaking = useCallback(
-    (userId: string, username: string, eloRating: number = 1000) => {
+    (userId: string, username: string, eloRating: number = 1000, roundDuration: number = 15) => {
       cleanup();
+      setSelectedDuration(roundDuration);
       setStatus("searching");
       setWaitingSeconds(0);
       setMatchedData(null);
@@ -76,6 +78,7 @@ export function useMatchmaking() {
               userId,
               username,
               eloRating,
+              roundDuration,
             })
           );
         };
@@ -94,6 +97,7 @@ export function useMatchmaking() {
                 matchId: data.matchId,
                 opponent: data.opponent || { username: "Rakip", eloRating: 1000 },
                 isBot: Boolean(data.isBot),
+                roundDuration: data.roundDuration || roundDuration,
               });
               setStatus("matched");
             } else if (data.type === "QUEUE_STATUS") {
@@ -110,7 +114,6 @@ export function useMatchmaking() {
         };
 
         ws.onclose = () => {
-          // statusRef kullan: stale closure'dan kaçın
           if (statusRef.current === "searching") {
             setError("Bağlantı kesildi. Tekrar deneyin.");
             setStatus("error");
@@ -131,18 +134,20 @@ export function useMatchmaking() {
     setWaitingSeconds(0);
   }, [cleanup]);
 
-  const requestBotMatch = useCallback(() => {
+  const requestBotMatch = useCallback((duration: number = selectedDuration) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: "REQUEST_BOT_MATCH" }));
+      wsRef.current.send(JSON.stringify({ type: "REQUEST_BOT_MATCH", roundDuration: duration }));
     }
-  }, []);
+  }, [selectedDuration]);
 
   return {
     status,
     waitingSeconds,
     queueSize,
     matchedData,
+    selectedDuration,
     error,
+    setSelectedDuration,
     startMatchmaking,
     cancelMatchmaking,
     requestBotMatch,

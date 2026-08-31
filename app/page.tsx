@@ -20,17 +20,27 @@ export default function HomePage() {
     status: matchmakingStatus,
     waitingSeconds,
     matchedData,
+    selectedDuration,
+    setSelectedDuration,
     startMatchmaking,
     cancelMatchmaking,
     requestBotMatch,
   } = useMatchmaking();
 
-  const handleStartQuickMatch = () => {
+  const handleStartQuickMatch = (duration: number = selectedDuration) => {
     setIsMatchmakingOpen(true);
     const userId = user?.id || `guest_${Math.random().toString(36).substring(2, 7)}`;
     const username = user?.username || "Misafir Oyuncu";
     const elo = user?.eloRating || 1000;
-    startMatchmaking(userId, username, elo);
+    startMatchmaking(userId, username, elo, duration);
+  };
+
+  const handleSelectDuration = (duration: number) => {
+    setSelectedDuration(duration);
+    const userId = user?.id || `guest_${Math.random().toString(36).substring(2, 7)}`;
+    const username = user?.username || "Misafir Oyuncu";
+    const elo = user?.eloRating || 1000;
+    startMatchmaking(userId, username, elo, duration);
   };
 
   const handleCancelMatchmaking = () => {
@@ -67,7 +77,7 @@ export default function HomePage() {
           <Button
             size="lg"
             variant="primary"
-            onClick={handleStartQuickMatch}
+            onClick={() => handleStartQuickMatch()}
             className="w-full sm:w-auto text-base shadow-xl shadow-emerald-500/20 font-black px-6"
           >
             <Zap className="w-5 h-5 mr-2 fill-current" />
@@ -136,8 +146,10 @@ export default function HomePage() {
         status={matchmakingStatus}
         waitingSeconds={waitingSeconds}
         matchedData={matchedData}
+        selectedDuration={selectedDuration}
+        onSelectDuration={handleSelectDuration}
         onCancel={handleCancelMatchmaking}
-        onRequestBot={requestBotMatch}
+        onRequestBot={() => requestBotMatch(selectedDuration)}
       />
 
       {/* Özel Oda ve Arkadaş Davet Modalı */}

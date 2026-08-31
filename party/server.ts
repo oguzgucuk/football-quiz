@@ -47,6 +47,7 @@ interface QueuedPlayer {
   userId: string;
   username: string;
   eloRating?: number;
+  roundDuration: number;
   joinedAt: number;
 }
 
@@ -86,6 +87,10 @@ function getOrCreateRoom(roomId: string): Room {
       clients: new Map(),
     };
     room.state.maxRounds = ROUNDS_PER_MATCH;
+    const match = roomId.match(/_(\d+)s_/);
+    if (match && match[1]) {
+      room.state.roundDuration = parseInt(match[1], 10);
+    }
     rooms.set(roomId, room);
   }
   return room;
@@ -162,8 +167,9 @@ function transitionToAnsweringPhase(room: Room) {
   room.state.roundStartTime = Date.now();
   broadcastRoomState(room);
 
-  // 15 saniyelik cevap sayacını başlat
-  startServerTimer(room, ANSWER_TIME_SECONDS, () => {
+  // Dinamik cevap sayacını başlat (5, 10, 15, 20 sn)
+  const duration = room.state.roundDuration || ANSWER_TIME_SECONDS;
+  startServerTimer(room, duration, () => {
     handleRoundTimeout(room);
   });
 }
@@ -209,7 +215,8 @@ function scheduleNextRound(room: Room) {
       room.state.passVotes = [];
       broadcastRoomState(room);
 
-      startServerTimer(room, PICK_TIME_SECONDS, () => {
+      const pickDuration = room.state.roundDuration || PICK_TIME_SECONDS;
+      startServerTimer(room, pickDuration, () => {
         transitionToAnsweringPhase(room);
       });
     }
@@ -226,6 +233,9 @@ function handleMatchmakingConnection(ws: WebSocket) {
 
       if (data.type === "MATCHMAKING_JOIN") {
         const { userId, username, eloRating } = data;
+        const roundDuration = [5, 10, 15, 20].includes(Number(data.roundDuration))
+          ? Number(data.roundDuration)
+          : 15;
         playerInfo = { userId, username, eloRating };
 
         // Kuyruktaki ölü bağlantıları temizle
@@ -233,18 +243,21 @@ function handleMatchmakingConnection(ws: WebSocket) {
           (p) => p.ws.readyState === WebSocket.OPEN && p.userId !== userId
         );
 
-        // Kuyrukta bekleyen başka bir oyuncu var mı?
-        if (matchmakingQueue.length > 0) {
-          const opponent = matchmakingQueue.shift()!;
-          const matchId = `match_${Math.random().toString(36).substring(2, 8)}`;
+        // Kuyrukta AYNI SÜREYİ seçmiş başka bir oyuncu var mı?
+        const opponentIndex = matchmakingQueue.findIndex((p) => p.roundDuration === roundDuration);
 
-          console.log(`🎉 [Matchmaking] Eşleşme bulundu: ${username} vs ${opponent.username} -> Oda: ${matchId}`);
+        if (opponentIndex !== -1) {
+          const opponent = matchmakingQueue.splice(opponentIndex, 1)[0];
+          const matchId = `match_${roundDuration}s_${Math.random().toString(36).substring(2, 8)}`;
+
+          console.log(`🎉 [Matchmaking] Eşleşme bulundu (${roundDuration}s): ${username} vs ${opponent.username} -> Oda: ${matchId}`);
 
           // Her iki oyuncuya bildirim gönder
           opponent.ws.send(
             JSON.stringify({
               type: "MATCH_FOUND",
               matchId,
+              roundDuration,
               opponent: { userId, username, eloRating },
             })
           );
@@ -253,6 +266,7 @@ function handleMatchmakingConnection(ws: WebSocket) {
             JSON.stringify({
               type: "MATCH_FOUND",
               matchId,
+              roundDuration,
               opponent: { userId: opponent.userId, username: opponent.username, eloRating: opponent.eloRating },
             })
           );
@@ -263,22 +277,27 @@ function handleMatchmakingConnection(ws: WebSocket) {
             userId,
             username,
             eloRating,
+            roundDuration,
             joinedAt: Date.now(),
           });
 
-          console.log(`⏱️ [Matchmaking] Kuyruğa katıldı: ${username} (Kuyruk boyutu: ${matchmakingQueue.length})`);
-          ws.send(JSON.stringify({ type: "QUEUE_STATUS", queueSize: matchmakingQueue.length }));
+          console.log(`⏱️ [Matchmaking] Kuyruğa katıldı (${roundDuration}s): ${username} (Kuyruk boyutu: ${matchmakingQueue.length})`);
+          ws.send(JSON.stringify({ type: "QUEUE_STATUS", queueSize: matchmakingQueue.filter((p) => p.roundDuration === roundDuration).length }));
         }
       } else if (data.type === "MATCHMAKING_LEAVE") {
         matchmakingQueue = matchmakingQueue.filter((p) => p.ws !== ws);
         console.log(`👋 [Matchmaking] Kuyruktan ayrıldı (Kalan: ${matchmakingQueue.length})`);
       } else if (data.type === "REQUEST_BOT_MATCH") {
+        const roundDuration = [5, 10, 15, 20].includes(Number(data.roundDuration))
+          ? Number(data.roundDuration)
+          : 15;
         matchmakingQueue = matchmakingQueue.filter((p) => p.ws !== ws);
-        const matchId = `match_bot_${Math.random().toString(36).substring(2, 8)}`;
+        const matchId = `match_bot_${roundDuration}s_${Math.random().toString(36).substring(2, 8)}`;
         ws.send(
           JSON.stringify({
             type: "MATCH_FOUND",
             matchId,
+            roundDuration,
             isBot: true,
             opponent: { userId: "bot_ai", username: "Yapay Zeka 🤖", eloRating: 1000 },
           })

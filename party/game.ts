@@ -1,8 +1,8 @@
 /**
  * PartyKit Cloud Canlı Oyun Odası Sunucusu (GameRoom Server).
  * - 1v1 Oyun Yönetimi
- * - Server-Side 5sn Takım Seçimi & 15sn Cevap Sayacı
- * - Tur ve Maç Bitimi Senkronizasyonu
+ * - Dinamik Süre Ayarı (5s, 10s, 15s, 20s - hem Takım Seçimi hem Cevaplama için)
+ * - Server-Side Sayacı, Pas Mekanizması & Tur Senkronizasyonu
  */
 
 import type * as Party from "partykit/server";
@@ -10,8 +10,6 @@ import { RoomState, createInitialRoomState } from "../lib/realtime/roomState";
 import { Team } from "../types/game";
 
 const ROUNDS_PER_MATCH = 5;
-const PICK_TIME_SECONDS = 5;
-const ANSWER_TIME_SECONDS = 15;
 
 const DEFAULT_POPULAR_TEAMS: Team[] = [
   { id: "cmtfrb40e00dtu6k4wklez572", name: "Real Madrid", country: "Spain", league: "La Liga" },
@@ -36,6 +34,12 @@ export default class GameRoomServer implements Party.Server {
   constructor(readonly room: Party.Room) {
     this.state = createInitialRoomState(this.room.id);
     this.state.maxRounds = ROUNDS_PER_MATCH;
+
+    // Oda ID'sinden seçilen süreyi çöz (örn: match_10s_xxx)
+    const match = this.room.id.match(/_(\d+)s_/);
+    if (match && match[1]) {
+      this.state.roundDuration = parseInt(match[1], 10);
+    }
   }
 
   onConnect(conn: Party.Connection) {
@@ -117,7 +121,8 @@ export default class GameRoomServer implements Party.Server {
     this.state.roundStartTime = Date.now();
     this.broadcastState();
 
-    this.startServerTimer(ANSWER_TIME_SECONDS, () => {
+    const duration = this.state.roundDuration || 15;
+    this.startServerTimer(duration, () => {
       this.handleRoundTimeout();
     });
   }
@@ -160,7 +165,8 @@ export default class GameRoomServer implements Party.Server {
 
         this.state.passVotes = [];
         this.broadcastState();
-        this.startServerTimer(PICK_TIME_SECONDS, () => {
+        const pickDuration = this.state.roundDuration || 15;
+        this.startServerTimer(pickDuration, () => {
           this.transitionToAnsweringPhase();
         });
       }
@@ -173,7 +179,11 @@ export default class GameRoomServer implements Party.Server {
 
       switch (data.type) {
         case "PLAYER_JOIN": {
-          const { userId, username } = data;
+          const { userId, username, roundDuration } = data;
+          if (roundDuration && [5, 10, 15, 20].includes(Number(roundDuration))) {
+            this.state.roundDuration = Number(roundDuration);
+          }
+
           if (!this.state.player1) {
             this.state.player1 = { userId, username, score: 0, isReady: true };
           } else if (!this.state.player2 && this.state.player1.userId !== userId) {
@@ -181,7 +191,8 @@ export default class GameRoomServer implements Party.Server {
             this.state.status = "in_round";
             this.state.roundStatus = "picking_teams";
             this.state.passVotes = [];
-            this.startServerTimer(PICK_TIME_SECONDS, () => {
+            const pickDuration = this.state.roundDuration || 15;
+            this.startServerTimer(pickDuration, () => {
               this.transitionToAnsweringPhase();
             });
           }
@@ -207,7 +218,8 @@ export default class GameRoomServer implements Party.Server {
             this.state.team2 = botTeam;
 
             this.broadcastState();
-            this.startServerTimer(PICK_TIME_SECONDS, () => {
+            const pickDuration = this.state.roundDuration || 15;
+            this.startServerTimer(pickDuration, () => {
               this.transitionToAnsweringPhase();
             });
           }
@@ -306,7 +318,8 @@ export default class GameRoomServer implements Party.Server {
             this.state.player2.selectedTeamId = null;
           }
           this.broadcastState();
-          this.startServerTimer(PICK_TIME_SECONDS, () => {
+          const pickDuration = this.state.roundDuration || 15;
+          this.startServerTimer(pickDuration, () => {
             this.transitionToAnsweringPhase();
           });
           break;

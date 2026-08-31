@@ -88,11 +88,19 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
       ws.onopen = () => {
         setIsConnectedToSocket(true);
         console.log("🔌 [GameRoom] Canlı WebSocket sunucusuna bağlanıldı:", wsUrl);
+
+        let roundDuration = 15;
+        const match = roomId.match(/_(\d+)s_/);
+        if (match && match[1]) {
+          roundDuration = parseInt(match[1], 10);
+        }
+
         ws?.send(
           JSON.stringify({
             type: "PLAYER_JOIN",
             userId,
             username,
+            roundDuration,
           })
         );
       };

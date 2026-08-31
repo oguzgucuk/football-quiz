@@ -1,5 +1,7 @@
 /**
  * PartyKit Cloud Canlı Matchmaking Havuzu (Eşleştirme Sunucusu).
+ * - Süre Bazlı Eşleştirme (5s, 10s, 15s, 20s)
+ * - Sadece aynı süreyi seçen oyuncular birbiriyle eşleşir.
  */
 
 import type * as Party from "partykit/server";
@@ -9,6 +11,7 @@ interface QueuedPlayer {
   userId: string;
   username: string;
   eloRating?: number;
+  roundDuration: number;
   joinedAt: number;
 }
 
@@ -36,20 +39,27 @@ export default class MatchmakingServer implements Party.Server {
 
       if (data.type === "MATCHMAKING_JOIN") {
         const { userId, username, eloRating } = data;
+        const roundDuration = [5, 10, 15, 20].includes(Number(data.roundDuration))
+          ? Number(data.roundDuration)
+          : 15;
 
         // Eski bağlantıyı temizle
         this.queue = this.queue.filter((p) => p.connectionId !== sender.id && p.userId !== userId);
 
-        if (this.queue.length > 0) {
+        // Kuyrukta AYNI SÜREYİ seçmiş başka bir oyuncu var mı?
+        const opponentIndex = this.queue.findIndex((p) => p.roundDuration === roundDuration);
+
+        if (opponentIndex !== -1) {
           // Rakip bulundu!
-          const opponent = this.queue.shift()!;
-          const matchId = `match_${Math.random().toString(36).substring(2, 8)}`;
+          const opponent = this.queue.splice(opponentIndex, 1)[0];
+          const matchId = `match_${roundDuration}s_${Math.random().toString(36).substring(2, 8)}`;
 
           // 1. Yeni katılan oyuncuya bildir
           sender.send(
             JSON.stringify({
               type: "MATCH_FOUND",
               matchId,
+              roundDuration,
               opponent: {
                 userId: opponent.userId,
                 username: opponent.username,
@@ -65,6 +75,7 @@ export default class MatchmakingServer implements Party.Server {
               JSON.stringify({
                 type: "MATCH_FOUND",
                 matchId,
+                roundDuration,
                 opponent: {
                   userId,
                   username,
@@ -74,31 +85,37 @@ export default class MatchmakingServer implements Party.Server {
             );
           }
         } else {
-          // Kuyrukta kimse yok, sıraya gir
+          // Kuyrukta bu süre için kimse yok, sıraya gir
           this.queue.push({
             connectionId: sender.id,
             userId,
             username,
             eloRating,
+            roundDuration,
             joinedAt: Date.now(),
           });
 
           sender.send(
             JSON.stringify({
               type: "QUEUE_STATUS",
-              queueSize: this.queue.length,
+              queueSize: this.queue.filter((p) => p.roundDuration === roundDuration).length,
+              roundDuration,
             })
           );
         }
       } else if (data.type === "MATCHMAKING_LEAVE") {
         this.queue = this.queue.filter((p) => p.connectionId !== sender.id);
       } else if (data.type === "REQUEST_BOT_MATCH") {
+        const roundDuration = [5, 10, 15, 20].includes(Number(data.roundDuration))
+          ? Number(data.roundDuration)
+          : 15;
         this.queue = this.queue.filter((p) => p.connectionId !== sender.id);
-        const matchId = `match_bot_${Math.random().toString(36).substring(2, 8)}`;
+        const matchId = `match_bot_${roundDuration}s_${Math.random().toString(36).substring(2, 8)}`;
         sender.send(
           JSON.stringify({
             type: "MATCH_FOUND",
             matchId,
+            roundDuration,
             isBot: true,
             opponent: { userId: "bot_ai", username: "Yapay Zeka 🤖", eloRating: 1000 },
           })

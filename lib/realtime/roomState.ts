@@ -24,6 +24,7 @@ export interface RoomState {
   team2: Team | null;
   roundStartTime: number | null;
   passVotes: string[];
+  roundDuration: number;
 }
 
 export function createInitialRoomState(roomId: string): RoomState {
@@ -39,5 +40,6 @@ export function createInitialRoomState(roomId: string): RoomState {
     team2: null,
     roundStartTime: null,
     passVotes: [],
+    roundDuration: 15,
   };
 }

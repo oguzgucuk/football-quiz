@@ -230,7 +230,7 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
               <div className="w-full flex flex-col items-center animate-fadeIn">
                 <div className="mb-6">
                   <RoundTimer
-                    durationSeconds={5}
+                    durationSeconds={roomState.roundDuration || 15}
                     serverSecondsLeft={serverSecondsLeft}
                     onTimeExpired={handleTimeExpired}
                   />
@@ -243,12 +243,12 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
               </div>
             )}
 
-            {/* FAZ 2: Cevap Yazma Ekranı (15 sn) */}
+            {/* FAZ 2: Cevap Yazma Ekranı (Dinamik Süre) */}
             {roomState.status === "in_round" && roomState.roundStatus === "answering" && (
               <div className="w-full flex flex-col items-center animate-fadeIn">
                 <div className="mb-4">
                   <RoundTimer
-                    durationSeconds={15}
+                    durationSeconds={roomState.roundDuration || 15}
                     serverSecondsLeft={serverSecondsLeft}
                     onTimeExpired={handleTimeExpired}
                   />
