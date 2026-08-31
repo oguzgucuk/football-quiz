@@ -1,12 +1,22 @@
 /**
- * İstemci tarafı Fuse.js fuzzy arama motoru için hafif {id, name} oyuncu listesini döndürür.
+ * İstemci tarafı Fuse.js fuzzy arama motoru için hafif {id, name, popularityScore} oyuncu listesini döndürür.
+ * Popülerlik puanına göre sıralı olarak teslim edilir.
  */
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/client";
 
+interface CachedPlayer {
+  id: string;
+  name: string;
+  nationality: string | null;
+  birthYear: number | null;
+  position: string | null;
+  popularityScore: number;
+}
+
 // Bellek içi önbellek (Sunucu ömrü boyunca tek sorgu)
-let cachedPlayers: { id: string; name: string }[] | null = null;
+let cachedPlayers: CachedPlayer[] | null = null;
 let cacheTime = 0;
 const CACHE_DURATION_MS = 1000 * 60 * 30; // 30 dakika
 
@@ -29,9 +39,10 @@ export async function GET() {
         nationality: true,
         birthDate: true,
         position: true,
+        popularityScore: true,
       },
       orderBy: {
-        fullName: "asc",
+        popularityScore: "desc",
       },
     });
 
@@ -41,6 +52,7 @@ export async function GET() {
       nationality: p.nationality,
       birthYear: p.birthDate ? p.birthDate.getFullYear() : null,
       position: p.position,
+      popularityScore: p.popularityScore || 0,
     }));
     cacheTime = now;
 

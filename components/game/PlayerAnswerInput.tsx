@@ -28,14 +28,36 @@ export function PlayerAnswerInput({
   const fuse = useMemo(() => {
     return new Fuse(playerList, {
       keys: ["name"],
-      threshold: 0.35,
+      includeScore: true,
+      threshold: 0.4,
       minMatchCharLength: 2,
     });
   }, [playerList]);
 
   const suggestions = useMemo(() => {
     if (!inputValue || inputValue.trim().length < 2) return [];
-    return fuse.search(inputValue).slice(0, 6).map((res) => res.item);
+    const lowerQuery = inputValue.toLowerCase().trim();
+    const results = fuse.search(inputValue, { limit: 16 });
+
+    const scored = results.map((r) => {
+      // Fuse score yön düzeltmesi (0 = mükemmel, 1 = hiç eşleşme yok -> 1 - score)
+      const textMatchScore = 1 - (r.score ?? 1);
+      const normalizedPopularity = (r.item.popularityScore ?? 0) / 100;
+
+      // Kelime başlangıcı eşleşmesi bonusu (örn: "messi" -> "Lionel Messi")
+      const lowerName = r.item.name.toLowerCase();
+      const words = lowerName.split(/\s+/);
+      const exactWordMatch = words.some((w) => w.startsWith(lowerQuery));
+      const wordBonus = exactWordMatch ? 0.15 : 0;
+
+      const finalScore = textMatchScore * 0.55 + normalizedPopularity * 0.35 + wordBonus;
+      return { item: r.item, finalScore };
+    });
+
+    return scored
+      .sort((a, b) => b.finalScore - a.finalScore)
+      .slice(0, 6)
+      .map((s) => s.item);
   }, [fuse, inputValue]);
 
   useEffect(() => {

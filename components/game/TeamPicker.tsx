@@ -29,14 +29,34 @@ export function TeamPicker({
         { name: "name", weight: 0.7 },
         { name: "aliases", weight: 0.3 },
       ],
-      threshold: 0.35,
+      includeScore: true,
+      threshold: 0.4,
       minMatchCharLength: 2,
     });
   }, [teams]);
 
   const suggestions = useMemo(() => {
     if (!inputValue || inputValue.trim().length < 2) return [];
-    return fuse.search(inputValue).slice(0, 6).map((res) => res.item);
+    const lowerQuery = inputValue.toLowerCase().trim();
+    const results = fuse.search(inputValue, { limit: 16 });
+
+    const scored = results.map((r) => {
+      const textMatchScore = 1 - (r.score ?? 1);
+      const normalizedPopularity = (r.item.popularityScore ?? 0) / 100;
+
+      const lowerName = r.item.name.toLowerCase();
+      const words = lowerName.split(/\s+/);
+      const exactWordMatch = words.some((w) => w.startsWith(lowerQuery));
+      const wordBonus = exactWordMatch ? 0.15 : 0;
+
+      const finalScore = textMatchScore * 0.55 + normalizedPopularity * 0.35 + wordBonus;
+      return { item: r.item, finalScore };
+    });
+
+    return scored
+      .sort((a, b) => b.finalScore - a.finalScore)
+      .slice(0, 6)
+      .map((s) => s.item);
   }, [fuse, inputValue]);
 
   useEffect(() => {

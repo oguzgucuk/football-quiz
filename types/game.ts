@@ -20,6 +20,7 @@ export interface Team {
   league: string;
   logoUrl?: string | null;
   aliases?: string[];
+  popularityScore?: number;
 }
 
 export interface PlayerTeamHistory {
@@ -53,4 +54,5 @@ export interface PlayerSearchItem {
   nationality?: string | null;
   birthYear?: number | null;
   position?: string | null;
+  popularityScore?: number;
 }

@@ -9,30 +9,33 @@ generator client {
 }
 
 model Player {
-  id           String              @id @default(cuid())
-  fullName     String              @map("full_name")
-  birthDate    DateTime?           @map("birth_date")
-  nationality  String?
-  position     String?
-  externalRef  String?             @unique @map("external_ref")
-  kaggleId     String?             @unique @map("kaggle_id")
-  wikidataId   String?             @unique @map("wikidata_id")
-  createdAt    DateTime            @default(now()) @map("created_at")
-  teamsHistory PlayerTeamHistory[]
+  id              String              @id @default(cuid())
+  fullName        String              @map("full_name")
+  birthDate       DateTime?           @map("birth_date")
+  nationality     String?
+  position        String?
+  marketValueEur  Int?                @map("market_value_eur")
+  popularityScore Int                 @default(0) @map("popularity_score")
+  externalRef     String?             @unique @map("external_ref")
+  kaggleId        String?             @unique @map("kaggle_id")
+  wikidataId      String?             @unique @map("wikidata_id")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  teamsHistory    PlayerTeamHistory[]
 
   @@map("players")
 }
 
 model Team {
-  id             String              @id @default(cuid())
-  name           String
-  country        String
-  league         String?
-  logoUrl        String?             @map("logo_url")
-  externalRef    String?             @unique @map("external_ref")
-  aliases        String[]            @default([])
-  createdAt      DateTime            @default(now()) @map("created_at")
-  playersHistory PlayerTeamHistory[]
+  id              String              @id @default(cuid())
+  name            String
+  country         String
+  league          String?
+  logoUrl         String?             @map("logo_url")
+  popularityScore Int                 @default(0) @map("popularity_score")
+  externalRef     String?             @unique @map("external_ref")
+  aliases         String[]            @default([])
+  createdAt       DateTime            @default(now()) @map("created_at")
+  playersHistory  PlayerTeamHistory[]
 
   @@map("teams")
 }

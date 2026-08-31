@@ -1,6 +1,6 @@
 /**
- * İstemci tarafı Fuse.js serbest takım araması için tüm aktif kulüpleri döndürür.
- * Sonuçlar 30 dakika boyunca bellekte önbelleğe alınır (oyuncu API'siyle aynı strateji).
+ * İstemci tarafı Fuse.js serbest takım araması için tüm aktif ve seçkin kulüpleri döndürür.
+ * Popülerlik puanına göre sıralı olarak teslim edilir.
  */
 
 import { NextResponse } from "next/server";
@@ -13,6 +13,7 @@ interface CachedTeam {
   country: string | null;
   league: string | null;
   aliases: string[];
+  popularityScore: number;
 }
 
 // Bellek içi önbellek (Sunucu ömrü boyunca tek sorgu)
@@ -39,14 +40,24 @@ export async function GET() {
         country: true,
         league: true,
         aliases: true,
+        popularityScore: true,
       },
       orderBy: {
-        name: "asc",
+        popularityScore: "desc",
       },
     });
 
     // Sadece izin verilen liglerdeki ve ülkelerdeki takımları filtrele
-    const playableTeams = dbTeams.filter((t) => isTeamPlayableInGame(t));
+    const playableTeams = dbTeams
+      .filter((t) => isTeamPlayableInGame(t))
+      .map((t) => ({
+        id: t.id,
+        name: t.name,
+        country: t.country,
+        league: t.league,
+        aliases: t.aliases,
+        popularityScore: t.popularityScore || 0,
+      }));
 
     cachedTeams = playableTeams;
     cacheTime = now;
