@@ -7,49 +7,18 @@
 
 ---
 
-## 🔴 Öncelik 1 — Şimdi Düzeltilmeli (Çekirdek Oyun Döngüsünü Etkiliyor)
+## 🔴 Öncelik 1 — Tamamlandı ✅
 
-### 1.1 Matchmaking'deki ELO Referansını Düzelt
+### 1.1 Matchmaking'deki ELO Referansını Düzelt ✅
+- **Yapıldı:** Matchmaking'in şu an **saf FIFO** çalıştığı doğrulandı. `TECHNICAL_OVERVIEW.md` dosyasındaki yanıltıcı ifade güncellendi ve Faz 2 ELO entegrasyonu ile ELO Bracket eşleştirmesine geçeceği belirtildi.
 
-**Sorun:** `TECHNICAL_OVERVIEW.md` Bölüm 4'te matchmaking kuyruğunun "FIFO +
-ELO yakınlığı mantığıyla" eşleştirme yaptığı yazıyor, ancak ELO sistemi
-henüz implemente edilmemiş (Bölüm 6'da gelecek adım olarak listelenmiş).
-Bu bir dokümantasyon hatası mı yoksa kodda gerçekten var olmayan bir
-mantığa referans mı veriyor, netleştirilmeli.
+### 1.2 Round Timeout Sonrası En Genç 3-5 Doğru Cevap Örneği Gösterimi ✅
+- **Yapıldı:** `/api/teams/common-players` endpoint'i ve `getCommonPlayersByTeams` DB fonksiyonu oluşturuldu.
+- **Kural:** İki takımın ortak oyuncuları doğum tarihine göre en gençten en yaşlıya sıralanarak (`birthDate desc`) en fazla 5 adet çekiliyor (3'ten az varsa olduğu kadar).
+- `RoundResultModal.tsx` güncellendi; süre dolduğunda veya pas geçildiğinde *"Oynayabilecek Ortak Futbolcular (En Genç)"* başlığıyla çipler halinde listeleniyor. Biri doğru bildiğinde ise *"Diğer Ortak Futbolcular"* olarak gösteriliyor.
 
-**Yapılacak:**
-- Matchmaking kodunu incele: şu an gerçekte hangi mantıkla eşleştirme
-  yapılıyor (saf FIFO mu, yoksa sabit/varsayılan bir ELO değeriyle mi)?
-- ELO sistemi henüz yokken matchmaking'i **saf FIFO** olarak çalıştır,
-  dokümandaki yanıltıcı ifadeyi düzelt.
-- ELO sistemi eklendiğinde (bkz. Öncelik 3) matchmaking mantığı buna göre
-  güncellenecek — şimdilik bu bağımlılığı net şekilde işaretle.
-
-### 1.2 Round Timeout Sonrası Davranışı Gözden Geçir
-
-**Mevcut durum:** 15 saniyelik cevap süresi dolunca puansız bir sonraki
-tura geçiliyor — bu makul bir varsayılan, ama şu ek durumlar test edilip
-netleştirilmeli:
-
-- [ ] Süre dolduğunda **doğru cevap oyunculara gösteriliyor mu?**
-      (Gösterilmesi öneriliyor — kullanıcı "peki doğru cevap neydi"
-      diye merak eder, göstermemek can sıkıcı bir deneyim yaratır.)
-- [ ] Round'lar arası geçişte kısa bir "sonuç ekranı" (round kazananı/
-      berabere, doğru cevap) var mı? Yoksa direkt bir sonraki takım
-      seçimine mi geçiliyor? Kullanıcı deneyimi için bir ara ekran (2-3
-      saniyelik) önerilir.
-- [ ] Timeout'lu round'lar `match_rounds` tablosuna nasıl kaydediliyor —
-      `winner_user_id` null mu yazılıyor? İleri fazda istatistik
-      (örn. "en çok timeout olan takım çiftleri") çıkarmak istersen bu
-      alanın tutarlı doldurulması önemli.
-
-### 1.3 Yanlış Cevap Sonrası Input Davranışını Doğrula
-
-AGENTS.md Bölüm 12'de tanımlanan kural: yanlış cevap sonrası input
-**anında temizlenmeli ve otomatik fokuslanmalı**, kullanıcı elle silmeden
-direkt yeni deneme yazabilmeli. Bu davranış implement edildi mi, edilmediyse
-şimdi eklensin — bu, oyunun "hız hissi" için kritik bir detay ve sonradan
-gözden kaçması kolay bir şey.
+### 1.3 Yanlış Cevap Sonrası Input Davranışı ✅
+- **Doğrulandı:** `PlayerAnswerInput.tsx` içinde yanlış cevap verildiğinde input anında temizleniyor (`setInputValue("")`), kırmızı sarsıntı animasyonu oynatılıyor ve `inputRef.current?.focus()` ile otomatik odaklanma yapılıyor.
 
 ---
 
