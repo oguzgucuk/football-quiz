@@ -26,6 +26,9 @@ export async function GET() {
       select: {
         id: true,
         fullName: true,
+        nationality: true,
+        birthDate: true,
+        position: true,
       },
       orderBy: {
         fullName: "asc",
@@ -35,6 +38,9 @@ export async function GET() {
     cachedPlayers = dbPlayers.map((p) => ({
       id: p.id,
       name: p.fullName,
+      nationality: p.nationality,
+      birthYear: p.birthDate ? p.birthDate.getFullYear() : null,
+      position: p.position,
     }));
     cacheTime = now;
 

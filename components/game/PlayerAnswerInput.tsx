@@ -158,9 +158,16 @@ export function PlayerAnswerInput({
                     : "hover:bg-zinc-800/70 text-zinc-300 hover:text-white"
                 }`}
               >
-                <span className={isSelected ? "text-emerald-300 font-bold" : ""}>
-                  {player.name}
-                </span>
+                <div className="flex flex-col text-left">
+                  <span className={isSelected ? "text-emerald-300 font-bold" : "text-zinc-100"}>
+                    {player.name}
+                  </span>
+                  {(player.nationality || player.birthYear) && (
+                    <span className="text-[11px] text-zinc-400 font-normal mt-0.5">
+                      {[player.nationality, player.birthYear, player.position].filter(Boolean).join(" • ")}
+                    </span>
+                  )}
+                </div>
                 <span
                   className={`text-xs px-2 py-0.5 rounded-md font-medium transition-colors ${
                     isSelected

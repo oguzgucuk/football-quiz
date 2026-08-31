@@ -50,4 +50,7 @@ export interface MatchRound {
 export interface PlayerSearchItem {
   id: string;
   name: string;
+  nationality?: string | null;
+  birthYear?: number | null;
+  position?: string | null;
 }
