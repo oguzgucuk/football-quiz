@@ -98,7 +98,7 @@ stateDiagram-v2
         15sn_Cevap_Sayaci --> round_finished: Biri Bilir / Süre Biter / Çift Pas
     }
     
-    answering --> round_finished: Kazanan Belirlenir
+    answering --> round_finished: Kazanan Belirlenir + Örnek Ortak Oyuncular Listelenir
     round_finished --> picking_teams: Tur < 5 (Yeni Tur)
     round_finished --> match_finished: Tur == 5 (Maç Sonu)
 ```
@@ -110,7 +110,12 @@ stateDiagram-v2
    - Ekranı kapatan pop-up açılmaz; diğer oyuncunun butonunda *"⚡ Rakip Pas İstiyor (1/2)"* bildirimi parlar.
    - İki oyuncu da pas verdiğinde (veya tek kişilik bot maçında) tur puan kaybedilmeden atlanır.
 3. **1v1 Matchmaking Kuyruğu:**
-   - Global `/parties/matchmaking/queue` odasında bekleyen oyuncular FIFO + ELO yakınlığı mantığıyla anında eşleştirilir ve dinamik `match_xxxx` odasına aktarılır.
+   - **Mevcut Durum:** Global `/parties/matchmaking/queue` odasında bekleyen oyuncular **saf FIFO** (İlk Gelen İlk Eşleşir) mantığıyla anında eşleştirilir.
+   - **Faz 2 Planı:** ELO sistemi veritabanına bağlandığında ELO aralığına göre (örn. ±100 puan toleransı) dinamik eşleştirme yapılacaktır.
+4. **Tur Sonu Örnek Doğru Cevap Gösterimi:**
+   - Süre dolduğunda veya tur bittiğinde o iki takımda oynamış en genç 3-5 ortak futbolcu `/api/teams/common-players` endpoint'i üzerinden çekilip sonuç modalında gösterilir.
+5. **Yanlış Cevap UX'i:**
+   - Yanlış cevap girildiğinde input alanı anında temizlenir (`setInputValue("")`), kırmızı sarsıntı animasyonu oynatılır ve `inputRef.current?.focus()` ile fareye gerek kalmadan anında yeni deneme için odaklanılır.
 
 ---
 
@@ -122,19 +127,16 @@ stateDiagram-v2
 | **Realtime WebSocket** | **PartyKit Cloud (Cloudflare Edge)** | `wss://football-quiz.oguzgucuk.partykit.dev` |
 | **Veritabanı** | **Supabase (AWS Frankfurt eu-central-1)** | PgBouncer Transaction Pooler (Port 6543) |
 
-### Dinamik WebSocket Çözümleyici (`lib/realtime/getWebSocketUrl.ts`)
-* Ortam algılama (Localhost vs Vercel Production vs LAN).
-* Otomatik `ws://` $\rightarrow$ `wss://` TLS yükseltmesi.
-* Ortam değişkeni `NEXT_PUBLIC_PARTYKIT_HOST` üzerinden sıfır konfigürasyonla çalışabilme.
-
 ---
 
 ## 6. 🗺️ Gelecek Yol Haritası (Next Steps)
 
 1. **🏆 ELO & Dereceli Rütbe Sistemi:**
-   - $R_{\text{yeni}} = R_{\text{eski}} + K \times (S - E)$ ELO formülü implementasyonu ($K=32$).
+   - Değişken K-Factor ($K=40 \rightarrow K=20$).
    - Rütbeler: *Bronz (0-1199), Gümüş (1200-1399), Altın (1400-1599), Platin (1600-1799), Elmas (1800-1999), Efsane (2000+)*.
-2. **📊 Liderlik Tablosu (`/leaderboard`):**
-   - Top 100 oyuncu listesi, galibiyet serileri (win-streak) ve detaylı kullanıcı istatistikleri.
-3. **🔊 Web Audio API & Game Feel:**
-   - Son 3 saniye sayaç gerilim efekti, doğru cevapta başarı akoru, yanlışta sarsıntı animasyonu ve maç sonu zafer konfetisi.
+2. **🔌 Reconnect / Grace Period:**
+   - Kopan oyuncuya 10-15 saniye geri dönme hakkı tanınması.
+3. **📊 Liderlik Tablosu (`/leaderboard`):**
+   - Top 100 oyuncu listesi ve maç geçmişi özetleri.
+4. **🔊 Web Audio API & Game Feel:**
+   - Sayaç nabız sesi, doğru cevap akoru, zafer kutlaması.

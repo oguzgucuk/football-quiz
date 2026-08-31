@@ -60,12 +60,47 @@ export async function getAllPlayerSearchItems(): Promise<PlayerSearchItem[]> {
       id: true,
       fullName: true,
     },
+    orderBy: {
+      fullName: "asc",
+    },
   });
 
-  return players.map((player) => ({
-    id: player.id,
-    name: player.fullName,
+  return players.map((p) => ({
+    id: p.id,
+    name: p.fullName,
   }));
+}
+
+export async function getCommonPlayersByTeams(
+  team1Id: string,
+  team2Id: string,
+  limit: number = 5
+) {
+  return prisma.player.findMany({
+    where: {
+      teamsHistory: {
+        some: { teamId: team1Id },
+      },
+      AND: [
+        {
+          teamsHistory: {
+            some: { teamId: team2Id },
+          },
+        },
+      ],
+    },
+    select: {
+      id: true,
+      fullName: true,
+      nationality: true,
+      birthDate: true,
+    },
+    orderBy: [
+      { birthDate: { sort: "desc", nulls: "last" } },
+      { fullName: "asc" },
+    ],
+    take: limit,
+  });
 }
 
 export async function logMissingAnswer(

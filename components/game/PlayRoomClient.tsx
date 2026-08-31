@@ -306,6 +306,8 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
                 winnerUsername={lastRoundWinner.username}
                 correctAnswer={lastRoundWinner.correctAnswer}
                 isDraw={lastRoundWinner.isDraw}
+                team1Id={roomState.team1?.id}
+                team2Id={roomState.team2?.id}
               />
             )}
           </>
