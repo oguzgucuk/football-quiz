@@ -5,6 +5,7 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/client";
+import { isTeamPlayableInGame } from "@/lib/db/allowedTeams";
 
 interface CachedTeam {
   id: string;
@@ -44,7 +45,10 @@ export async function GET() {
       },
     });
 
-    cachedTeams = dbTeams;
+    // Sadece izin verilen liglerdeki ve ülkelerdeki takımları filtrele
+    const playableTeams = dbTeams.filter((t) => isTeamPlayableInGame(t));
+
+    cachedTeams = playableTeams;
     cacheTime = now;
 
     return NextResponse.json({

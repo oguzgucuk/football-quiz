@@ -4,10 +4,11 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/client";
+import { isTeamPlayableInGame } from "@/lib/db/allowedTeams";
 
 export async function GET() {
   try {
-    // En az 10 oyuncu geçmişi olan popüler takımları getir
+    // En az 5 oyuncu geçmişi olan takımları getir
     const teams = await prisma.team.findMany({
       where: {
         playersHistory: {
@@ -21,10 +22,12 @@ export async function GET() {
         league: true,
         logoUrl: true,
       },
-      take: 80,
+      take: 200,
     });
 
-    const shuffled = [...teams].sort(() => 0.5 - Math.random());
+    // İzin verilen lig ve ülkelere göre filtrele
+    const playableTeams = teams.filter((t) => isTeamPlayableInGame(t));
+    const shuffled = [...playableTeams].sort(() => 0.5 - Math.random());
     const selectedTeams = shuffled.slice(0, 6);
 
     return NextResponse.json({
