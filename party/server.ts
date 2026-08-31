@@ -374,6 +374,7 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
           break;
         }
 
+        case "ADD_BOT":
         case "ADD_BOT_PLAYER": {
           if (room.state.status !== "waiting_for_players" || room.state.player2) break;
 

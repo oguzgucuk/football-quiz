@@ -189,7 +189,8 @@ export default class GameRoomServer implements Party.Server {
           break;
         }
 
-        case "ADD_BOT": {
+        case "ADD_BOT":
+        case "ADD_BOT_PLAYER": {
           if (!this.state.player2) {
             this.state.player2 = {
               userId: "bot_ai",

@@ -307,7 +307,20 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
     handleVotePass,
     addBotOpponent: () => {
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: "ADD_BOT" }));
         wsRef.current.send(JSON.stringify({ type: "ADD_BOT_PLAYER" }));
+      } else {
+        setRoomState((prev) => ({
+          ...prev,
+          player2: {
+            userId: "bot_ai",
+            username: "Yapay Zeka 🤖",
+            score: 0,
+            isReady: true,
+          },
+          status: "in_round",
+          roundStatus: "picking_teams",
+        }));
       }
     },
   };
