@@ -153,6 +153,7 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
         {isSandboxActive ? (
           <SandboxMode teams={allTeams} playerList={playerList} />
         ) : (
+          <>
             {/* FAZ 0: RAKİP BEKLENİYOR EKRANI (Tek oyuncu bağlandığında) */}
             {roomState.status === "waiting_for_players" && !roomState.player2 && (
               <div className="w-full max-w-md flex flex-col items-center text-center p-8 rounded-3xl bg-zinc-900/90 border border-zinc-800 shadow-2xl backdrop-blur-xl animate-fadeIn">
