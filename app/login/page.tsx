@@ -6,13 +6,13 @@ import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useAuth } from "@/hooks/useAuth";
-import { Zap, UserPlus, LogIn, Shield, ArrowRight, AlertCircle, CheckCircle2, Trophy } from "lucide-react";
+import { Zap, UserPlus, LogIn, Shield, ArrowRight, AlertCircle, Trophy } from "lucide-react";
 
 type AuthTab = "guest" | "login" | "register";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, register, loginAsGuest, user } = useAuth();
+  const { login, register, loginAsGuest } = useAuth();
 
   const [activeTab, setActiveTab] = useState<AuthTab>("guest");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -36,8 +36,9 @@ export default function LoginPage() {
     try {
       await loginAsGuest(guestUsername.trim());
       router.push("/");
-    } catch (err: any) {
-      setErrorMsg(err.message || "Misafir girişi yapılamadı.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Misafir girişi yapılamadı.";
+      setErrorMsg(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -53,8 +54,9 @@ export default function LoginPage() {
     try {
       await login(loginIdentifier.trim(), loginPassword);
       router.push("/");
-    } catch (err: any) {
-      setErrorMsg(err.message || "Giriş başarısız.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Giriş başarısız.";
+      setErrorMsg(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -70,8 +72,9 @@ export default function LoginPage() {
     try {
       await register(registerUsername.trim(), registerEmail.trim(), registerPassword);
       router.push("/");
-    } catch (err: any) {
-      setErrorMsg(err.message || "Kayıt işlemi başarısız.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Kayıt işlemi başarısız.";
+      setErrorMsg(message);
     } finally {
       setIsSubmitting(false);
     }

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Trophy, Award, Flame, Play, LogOut, ShieldCheck, UserCheck, ArrowLeft } from "lucide-react";
+import { Trophy, Play, LogOut, ShieldCheck, UserCheck, ArrowLeft } from "lucide-react";
 
 export default function ProfilePage() {
   const router = useRouter();

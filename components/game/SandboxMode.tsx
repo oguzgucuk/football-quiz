@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo } from "react";
 import Fuse from "fuse.js";
-import { Shield, Sparkles, CheckCircle2, RotateCcw, Search, Eye } from "lucide-react";
+import { Shield, Sparkles, CheckCircle2, RotateCcw, Search } from "lucide-react";
 import { Team, PlayerSearchItem } from "@/types/game";
 import { PlayerAnswerInput } from "./PlayerAnswerInput";
 import { VersusDisplay } from "./VersusDisplay";
@@ -22,7 +22,8 @@ export function SandboxMode({ teams, playerList }: SandboxModeProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasErrorFeedback, setHasErrorFeedback] = useState(false);
   const [lastCorrectAnswer, setLastCorrectAnswer] = useState<string | null>(null);
-  const [allCommonPlayers, setAllCommonPlayers] = useState<string[] | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_allCommonPlayers, setAllCommonPlayers] = useState<string[] | null>(null);
 
   // Takım 1 Arama
   const [t1Input, setT1Input] = useState("");

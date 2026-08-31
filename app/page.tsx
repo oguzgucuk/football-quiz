@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Trophy, Zap, Users, Play, Sparkles, Wrench, Swords, UserPlus } from "lucide-react";
+import { Trophy, Zap, Users, Sparkles, Wrench, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Navbar } from "@/components/layout/Navbar";

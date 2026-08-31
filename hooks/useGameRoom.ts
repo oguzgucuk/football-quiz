@@ -5,11 +5,9 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { RoomState, createInitialRoomState } from "@/lib/realtime/roomState";
+import { getWebSocketUrl } from "@/lib/realtime/getWebSocketUrl";
 import { Team, PlayerSearchItem } from "@/types/game";
 
-const ROUNDS_PER_MATCH = 5;
-const PICK_TIME_SECONDS = 5;
-const ANSWER_TIME_SECONDS = 15;
 
 const POPULAR_CLUB_NAMES = [
   "Real Madrid",
@@ -81,9 +79,7 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
   useEffect(() => {
     if (typeof window === "undefined" || !userId || !username) return;
 
-    const host = window.location.hostname || "localhost";
-    const port = process.env.NEXT_PUBLIC_PARTYKIT_PORT || "1999";
-    const wsUrl = `ws://${host}:${port}/parties/game/${roomId}`;
+    const wsUrl = getWebSocketUrl(`/parties/game/${roomId}`);
 
     let ws: WebSocket | null = null;
     try {
@@ -149,6 +145,7 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
 
       wsRef.current = ws;
     } catch {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsConnectedToSocket(false);
     }
 

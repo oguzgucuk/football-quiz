@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { MatchHeader } from "./MatchHeader";
 import { TeamPicker } from "./TeamPicker";
@@ -15,44 +15,39 @@ import { Card } from "@/components/ui/Card";
 import { Trophy, RotateCcw, Wrench, Play, ArrowLeft, Home } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
+function getOrInitGuestId(): string {
+  if (typeof window === "undefined") return "";
+  let savedId = sessionStorage.getItem("football_quiz_user_id");
+  if (!savedId) {
+    savedId = `guest_${Math.random().toString(36).substring(2, 8)}`;
+    sessionStorage.setItem("football_quiz_user_id", savedId);
+  }
+  return savedId;
+}
+
+function getOrInitGuestUsername(): string {
+  if (typeof window === "undefined") return "";
+  let savedName = sessionStorage.getItem("football_quiz_username");
+  if (!savedName) {
+    savedName = `Misafir_${Math.floor(100 + Math.random() * 900)}`;
+    sessionStorage.setItem("football_quiz_username", savedName);
+  }
+  return savedName;
+}
+
 interface PlayRoomClientProps {
   roomId: string;
 }
 
 export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
-  const [mounted, setMounted] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState("");
-  const [username, setUsername] = useState("");
   const [isSandboxActive, setIsSandboxActive] = useState(false);
+  const [guestId] = useState(getOrInitGuestId);
+  const [guestName] = useState(getOrInitGuestUsername);
 
   const { user, isLoading } = useAuth();
 
-  useEffect(() => {
-    if (isLoading) return;
-
-    if (user) {
-      setCurrentUserId(user.id);
-      setUsername(user.username);
-      setMounted(true);
-      return;
-    }
-
-    let savedId = typeof window !== "undefined" ? sessionStorage.getItem("football_quiz_user_id") : null;
-    let savedName = typeof window !== "undefined" ? sessionStorage.getItem("football_quiz_username") : null;
-
-    if (!savedId) {
-      savedId = `guest_${Math.random().toString(36).substring(2, 8)}`;
-      sessionStorage.setItem("football_quiz_user_id", savedId);
-    }
-    if (!savedName) {
-      savedName = `Misafir_${Math.floor(100 + Math.random() * 900)}`;
-      sessionStorage.setItem("football_quiz_username", savedName);
-    }
-
-    setCurrentUserId(savedId);
-    setUsername(savedName);
-    setMounted(true);
-  }, [user, isLoading]);
+  const currentUserId = user?.id || guestId;
+  const username = user?.username || guestName;
 
   const {
     roomState,
@@ -70,7 +65,7 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
     addBotOpponent,
   } = useGameRoom({ roomId, userId: currentUserId, username });
 
-  if (!mounted || !currentUserId) {
+  if (isLoading || !currentUserId) {
     return (
       <div className="flex flex-col min-h-screen bg-[#090a0f] text-zinc-100 items-center justify-center p-4">
         <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 animate-pulse">

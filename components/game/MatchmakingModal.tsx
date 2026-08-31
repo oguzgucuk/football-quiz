@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { MatchedData, MatchmakingStatus } from "@/hooks/useMatchmaking";
-import { Zap, Bot, X, CheckCircle2, Swords, Radio } from "lucide-react";
+import { Bot, X, CheckCircle2, Swords, Radio } from "lucide-react";
 
 interface MatchmakingModalProps {
   isOpen: boolean;

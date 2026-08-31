@@ -5,7 +5,7 @@
  * - 5sn Takım Seçimi ve 15sn Cevap Sayacı
  */
 
-import { createServer } from "http";
+import { createServer, IncomingMessage } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { RoomState, createInitialRoomState } from "../lib/realtime/roomState";
 import { Team } from "../types/game";
@@ -290,6 +290,9 @@ function handleMatchmakingConnection(ws: WebSocket) {
 
   ws.on("close", () => {
     matchmakingQueue = matchmakingQueue.filter((p) => p.ws !== ws);
+    if (playerInfo.username) {
+      console.log(`👋 [Matchmaking] ${playerInfo.username} ayrıldı (Kalan: ${matchmakingQueue.length})`);
+    }
   });
 }
 
@@ -301,7 +304,7 @@ server.on("upgrade", (request, socket, head) => {
   });
 });
 
-wss.on("connection", (ws: WebSocket, request: any, roomId: string) => {
+wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) => {
   if (roomId === "matchmaking") {
     handleMatchmakingConnection(ws);
     return;

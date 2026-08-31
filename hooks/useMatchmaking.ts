@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { getWebSocketUrl } from "@/lib/realtime/getWebSocketUrl";
 
 export type MatchmakingStatus = "idle" | "searching" | "matched" | "error";
 
@@ -25,6 +26,8 @@ export function useMatchmaking() {
 
   const wsRef = useRef<WebSocket | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  // Stale closure'dan kaçınmak için status'u ref'te tut
+  const statusRef = useRef<MatchmakingStatus>("idle");
 
   const cleanup = useCallback(() => {
     if (timerRef.current) {
@@ -39,6 +42,10 @@ export function useMatchmaking() {
       wsRef.current = null;
     }
   }, []);
+
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
 
   useEffect(() => {
     return () => cleanup();
@@ -57,9 +64,7 @@ export function useMatchmaking() {
       }, 1000);
 
       try {
-        const host = typeof window !== "undefined" ? window.location.hostname : "localhost";
-        const port = process.env.NEXT_PUBLIC_PARTYKIT_PORT || "1999";
-        const wsUrl = `ws://${host}:${port}/parties/matchmaking`;
+        const wsUrl = getWebSocketUrl("/parties/matchmaking");
 
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
@@ -105,16 +110,19 @@ export function useMatchmaking() {
         };
 
         ws.onclose = () => {
-          if (status === "searching") {
-            // beklenmeyen kopma
+          // statusRef kullan: stale closure'dan kaçın
+          if (statusRef.current === "searching") {
+            setError("Bağlantı kesildi. Tekrar deneyin.");
+            setStatus("error");
           }
         };
-      } catch (err: any) {
-        setError(err.message || "Bağlantı hatası");
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Bağlantı hatası";
+        setError(message);
         setStatus("error");
       }
     },
-    [cleanup, status]
+    [cleanup]
   );
 
   const cancelMatchmaking = useCallback(() => {

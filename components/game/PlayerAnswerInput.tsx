@@ -39,6 +39,7 @@ export function PlayerAnswerInput({
   }, [fuse, inputValue]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedIndex(-1);
   }, [suggestions]);
 
@@ -52,6 +53,7 @@ export function PlayerAnswerInput({
 
   useEffect(() => {
     if (hasErrorFeedback) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setInputValue("");
       inputRef.current?.focus();
     }

@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Radio, Send, Activity, MessageSquare, CheckCircle2, AlertCircle } from "lucide-react";
+import { Radio, Send, Activity, MessageSquare, CheckCircle2 } from "lucide-react";
 
 interface ChatMessage {
   sender: string;
@@ -11,27 +11,36 @@ interface ChatMessage {
   timestamp: number;
 }
 
+interface RoomStatePreview {
+  status?: string;
+  roundStatus?: string;
+  maxRounds?: number;
+}
+
 export default function TestPartyPage() {
-  const [roomId, setRoomId] = useState("test-room");
-  const [username, setUsername] = useState("Oyuncu_1");
+  const roomId = "test-room";
+  const [username] = useState(() => `Oyuncu_${Math.floor(100 + Math.random() * 900)}`);
   const [isConnected, setIsConnected] = useState(false);
   const [latency, setLatency] = useState<number | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState("");
-  const [serverState, setServerState] = useState<any>(null);
-
-  useEffect(() => {
-    setUsername(`Oyuncu_${Math.floor(100 + Math.random() * 900)}`);
-  }, []);
+  const [serverState, setServerState] = useState<RoomStatePreview | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
 
-  const connect = () => {
+  const sendPing = useCallback((targetWs?: WebSocket) => {
+    const ws = targetWs || wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "PING", clientTimestamp: Date.now() }));
+    }
+  }, []);
+
+  const connect = useCallback(() => {
     if (wsRef.current) {
       wsRef.current.close();
     }
 
-    const host = window.location.hostname || "localhost";
+    const host = typeof window !== "undefined" ? window.location.hostname || "localhost" : "localhost";
     const wsUrl = `ws://${host}:1999/parties/game/${roomId}`;
     const ws = new WebSocket(wsUrl);
 
@@ -58,7 +67,7 @@ export default function TestPartyPage() {
           setServerState(data.state);
         }
       } catch (err) {
-        console.error("[TestParty] Mesaj parse hatası:", err);
+        console.error("Mesaj ayrıştırma hatası:", err);
       }
     };
 
@@ -69,19 +78,12 @@ export default function TestPartyPage() {
     };
 
     ws.onerror = (err) => {
-      console.error("[TestParty] WebSocket hatası:", err);
+      console.error("[TestParty] WebSocket Hatası:", err);
       setIsConnected(false);
     };
 
     wsRef.current = ws;
-  };
-
-  const sendPing = (wsInstance?: WebSocket) => {
-    const ws = wsInstance || wsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: "PING", timestamp: Date.now() }));
-    }
-  };
+  }, [roomId, username, sendPing]);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,7 +110,7 @@ export default function TestPartyPage() {
       clearInterval(interval);
       if (wsRef.current) wsRef.current.close();
     };
-  }, [roomId]);
+  }, [connect, sendPing]);
 
   return (
     <main className="min-h-screen bg-[#090a0f] text-zinc-100 flex flex-col items-center justify-center p-4">

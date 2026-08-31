@@ -15,7 +15,7 @@ export function CreateCustomRoomModal({ isOpen, onClose }: CreateCustomRoomModal
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"create" | "join">("create");
   const [copied, setCopied] = useState(false);
-  const [customRoomId, setCustomRoomId] = useState(() => `oda_${Math.floor(1000 + Math.random() * 9000)}`);
+  const [customRoomId] = useState(() => `oda_${Math.floor(1000 + Math.random() * 9000)}`);
   const [joinCode, setJoinCode] = useState("");
 
   if (!isOpen) return null;
@@ -132,7 +132,7 @@ export function CreateCustomRoomModal({ isOpen, onClose }: CreateCustomRoomModal
                 className="text-xs border-emerald-600/40 text-emerald-400 hover:bg-emerald-500/10"
               >
                 <Share2 className="w-3.5 h-3.5 mr-1" />
-                WhatsApp'ta Paylaş
+                WhatsApp&apos;ta Paylaş
               </Button>
 
               <Button

@@ -1,0 +1,9 @@
+{
+  "name": "football-quiz",
+  "main": "party/game.ts",
+  "parties": {
+    "game": "party/game.ts",
+    "matchmaking": "party/matchmaking.ts"
+  },
+  "compatibilityDate": "2024-04-03"
+}

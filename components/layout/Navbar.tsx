@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { Trophy, Wrench, User, LogIn, ShieldCheck } from "lucide-react";
+import { Wrench, User, LogIn } from "lucide-react";
 
 export function Navbar() {
   const { user, isAuthenticated, isLoading } = useAuth();

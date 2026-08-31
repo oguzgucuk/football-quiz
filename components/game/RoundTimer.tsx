@@ -26,6 +26,7 @@ export function RoundTimer({
   // Sunucudan gelen yetkili zaman damgası varsa onu kullan (Server-Side Timer)
   useEffect(() => {
     if (serverSecondsLeft !== undefined && serverSecondsLeft !== null) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTimeLeft(serverSecondsLeft);
     }
   }, [serverSecondsLeft]);
@@ -33,6 +34,7 @@ export function RoundTimer({
   // Yeni tur başlangıcı için yerel süreyi güncelle
   useEffect(() => {
     if (serverSecondsLeft === undefined || serverSecondsLeft === null) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTimeLeft(durationSeconds);
     }
   }, [durationSeconds, serverSecondsLeft]);

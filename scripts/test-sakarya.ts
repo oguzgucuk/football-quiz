@@ -9,7 +9,10 @@ async function testSakarya() {
   const res = await fetch("https://query.wikidata.org/sparql?format=json&query=" + encodeURIComponent(query), {
     headers: { "User-Agent": "FootballQuiz/1.0" },
   });
-  const data = await res.json();
-  console.log("Sakaryaspor Q1369461 Oyuncuları:", data.results.bindings.map((b: any) => b.playerName.value));
+  interface WikidataPlayerBinding {
+    playerName: { value: string };
+  }
+  const data = (await res.json()) as { results: { bindings: WikidataPlayerBinding[] } };
+  console.log("Sakaryaspor Q1369461 Oyuncuları:", data.results.bindings.map((b) => b.playerName.value));
 }
 testSakarya();

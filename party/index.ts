@@ -31,6 +31,7 @@ export default class GameRoomServer {
     );
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async onMessage(message: string, _sender: PartyConnection) {
     try {
       const data = JSON.parse(message);

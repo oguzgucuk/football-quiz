@@ -4,8 +4,12 @@
 
 import { SignJWT, jwtVerify } from "jose";
 
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === "production") {
+  console.warn("⚠️ [Auth] PRODUCTION ortamında JWT_SECRET tanımlanmamış! Güvenlik için lütfen .env içinde JWT_SECRET belirleyin.");
+}
+
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "football-quiz-secret-super-key-2026"
+  process.env.JWT_SECRET || "football-quiz-dev-secret-key-2026-super-secure"
 );
 
 export const AUTH_COOKIE_NAME = "football_quiz_token";
