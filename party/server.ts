@@ -14,16 +14,22 @@ const PICK_TIME_SECONDS = 5;
 const ANSWER_TIME_SECONDS = 15;
 
 const DEFAULT_POPULAR_TEAMS: Team[] = [
-  { id: "cmtfrb4090001u6k4realmadrid", name: "Real Madrid", country: "Spain", league: "La Liga" },
-  { id: "cmtfrb4090002u6k4barcelona", name: "FC Barcelona", country: "Spain", league: "La Liga" },
-  { id: "cmtfrb4090003u6k4galatasaray", name: "Galatasaray", country: "Turkey", league: "Süper Lig" },
-  { id: "cmtfrb4090004u6k4fenerbahce", name: "Fenerbahçe", country: "Turkey", league: "Süper Lig" },
-  { id: "cmtfrb4090005u6k4milan", name: "AC Milan", country: "Italy", league: "Serie A" },
-  { id: "cmtfrb4090006u6k4inter", name: "Inter Milan", country: "Italy", league: "Serie A" },
-  { id: "cmtfrb4090007u6k4manutd", name: "Manchester United", country: "England", league: "Premier League" },
-  { id: "cmtfrb4090008u6k4liverpool", name: "Liverpool FC", country: "England", league: "Premier League" },
-  { id: "cmtfrb4090009u6k4bayern", name: "Bayern München", country: "Germany", league: "Bundesliga" },
-  { id: "cmtfrb4090010u6k4arsenal", name: "Arsenal FC", country: "England", league: "Premier League" },
+  { id: "cmtfrb40e00dtu6k4wklez572", name: "Real Madrid", country: "Spain", league: "La Liga" },
+  { id: "cmtfrb40c003au6k4nfn56sus", name: "FC Barcelona", country: "Spain", league: "La Liga" },
+  { id: "cmtfrb40c003lu6k4drdv5sfi", name: "Galatasaray", country: "Türkiye", league: "Süper Lig" },
+  { id: "cmtfrb40e00bpu6k4hmbu9cbf", name: "Fenerbahçe", country: "Türkiye", league: "Süper Lig" },
+  { id: "cmtfrb40b001xu6k47fc7n16j", name: "Beşiktaş", country: "Türkiye", league: "Süper Lig" },
+  { id: "cmtfrb40f00f8u6k4sot14ojx", name: "AC Milan", country: "Italy", league: "Serie A" },
+  { id: "cmtfrb40f00elu6k4tgttd211", name: "Inter Milan", country: "Italy", league: "Serie A" },
+  { id: "cmtfrb40f00fdu6k4upvw15gj", name: "Juventus", country: "Italy", league: "Serie A" },
+  { id: "cmtfrb40g00lxu6k4zyc9ngsw", name: "Manchester United", country: "England", league: "Premier League" },
+  { id: "cmtfrb40d00a8u6k4m2d2ugpk", name: "Liverpool FC", country: "England", league: "Premier League" },
+  { id: "cmtfrb40b001eu6k42089qg7e", name: "Arsenal FC", country: "England", league: "Premier League" },
+  { id: "cmtfrb40f00hbu6k4ixa7ye8a", name: "Chelsea FC", country: "England", league: "Premier League" },
+  { id: "cmtfrb40d008pu6k4jemghzq0", name: "Bayern München", country: "Germany", league: "Bundesliga" },
+  { id: "cmtfrb40c004nu6k4gn075jtk", name: "Borussia Dortmund", country: "Germany", league: "Bundesliga" },
+  { id: "cmtfrb40f00gfu6k40vcq2xkq", name: "Paris Saint-Germain", country: "France", league: "Ligue 1" },
+  { id: "cmtfrb40c0036u6k463i99nss", name: "Atlético de Madrid", country: "Spain", league: "La Liga" },
 ];
 
 interface Room {
