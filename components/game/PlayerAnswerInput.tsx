@@ -43,6 +43,14 @@ export function PlayerAnswerInput({
   }, [suggestions]);
 
   useEffect(() => {
+    // Cevaplama aşaması başlar başlamaz fareye ihtiyaç olmadan doğrudan inputa odaklan
+    const timer = setTimeout(() => {
+      inputRef.current?.focus();
+    }, 50);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
     if (hasErrorFeedback) {
       setInputValue("");
       inputRef.current?.focus();
@@ -98,6 +106,10 @@ export function PlayerAnswerInput({
         <input
           ref={inputRef}
           type="text"
+          autoFocus
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
           value={inputValue}
           onChange={(e) => {
             setInputValue(e.target.value);
