@@ -12,13 +12,12 @@ import { SandboxMode } from "./SandboxMode";
 import { useGameRoom } from "@/hooks/useGameRoom";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Trophy, RotateCcw, Wrench, Play } from "lucide-react";
+import { Trophy, RotateCcw, Wrench, Play, ArrowLeft, Home } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 interface PlayRoomClientProps {
   roomId: string;
 }
-
-import { useAuth } from "@/hooks/useAuth";
 
 export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
   const [mounted, setMounted] = useState(false);
@@ -126,8 +125,19 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
         currentUserId={currentUserId}
       />
 
-      {/* Mod Değiştirme Butonu (Sandbox Test Modu Toggle) */}
-      <div className="w-full max-w-4xl mx-auto px-4 pt-4 flex justify-end">
+      {/* Üst Eylem Butonları (Ana Sayfa + Sandbox Test Modu Toggle) */}
+      <div className="w-full max-w-4xl mx-auto px-4 pt-4 flex items-center justify-between">
+        <Link href="/">
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs font-bold text-zinc-400 hover:text-white border-zinc-800 hover:bg-zinc-900"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 mr-1" />
+            Ana Sayfa
+          </Button>
+        </Link>
+
         <Button
           variant={isSandboxActive ? "primary" : "outline"}
           size="sm"
@@ -189,6 +199,17 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
                   >
                     🤖 Bot Rakip Ekle (Tek Başına Oyna)
                   </Button>
+
+                  <Link href="/" className="w-full mt-1">
+                    <Button
+                      size="md"
+                      variant="outline"
+                      className="w-full text-xs text-zinc-400 hover:text-white border-zinc-800 hover:bg-zinc-800/50"
+                    >
+                      <Home className="w-3.5 h-3.5 mr-1" />
+                      Ana Sayfaya Dön
+                    </Button>
+                  </Link>
                 </div>
               </div>
             )}
