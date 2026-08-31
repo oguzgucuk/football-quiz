@@ -191,7 +191,16 @@ function scheduleNextRound(room: Room) {
       room.state.team1 = null;
       room.state.team2 = null;
       if (room.state.player1) room.state.player1.selectedTeamId = null;
-      if (room.state.player2) room.state.player2.selectedTeamId = null;
+      if (room.state.player2) {
+        if (room.state.player2.userId.startsWith("bot_")) {
+          // Bot oyuncu için yeni turda otomatik rastgele popüler bir takım seç
+          const botTeam = DEFAULT_POPULAR_TEAMS[Math.floor(Math.random() * DEFAULT_POPULAR_TEAMS.length)];
+          room.state.player2.selectedTeamId = botTeam.id;
+          room.state.team2 = botTeam;
+        } else {
+          room.state.player2.selectedTeamId = null;
+        }
+      }
 
       broadcastRoomState(room);
 
@@ -274,6 +283,36 @@ wss.on("connection", (ws: WebSocket, request: any, roomId: string) => {
           }
 
           broadcastRoomState(room);
+          break;
+        }
+
+        case "ADD_BOT_PLAYER": {
+          if (room.state.status !== "waiting_for_players" || room.state.player2) break;
+
+          const botUserId = "bot_" + Math.random().toString(36).substring(2, 7);
+          const botNames = ["Yapay Zeka 🤖", "Hızlı Forvet ⚡", "Taktik Dehası 🧠", "Gol Makinesi ⚽"];
+          const randomBotName = botNames[Math.floor(Math.random() * botNames.length)];
+
+          room.state.player2 = {
+            userId: botUserId,
+            username: randomBotName,
+            score: 0,
+            isReady: true,
+          };
+
+          // Bot için rastgele popüler bir takım seç
+          const botTeam = DEFAULT_POPULAR_TEAMS[Math.floor(Math.random() * DEFAULT_POPULAR_TEAMS.length)];
+          room.state.player2.selectedTeamId = botTeam.id;
+          room.state.team2 = botTeam;
+
+          room.state.status = "in_round";
+          room.state.roundStatus = "picking_teams";
+          room.state.currentRound = 1;
+          broadcastRoomState(room);
+
+          startServerTimer(room, PICK_TIME_SECONDS, () => {
+            transitionToAnsweringPhase(room);
+          });
           break;
         }
 

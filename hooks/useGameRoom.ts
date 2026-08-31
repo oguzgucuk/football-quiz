@@ -288,5 +288,10 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
     handleSelectTeam,
     handleSubmitAnswer,
     handleTimeExpired,
+    addBotOpponent: () => {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: "ADD_BOT_PLAYER" }));
+      }
+    },
   };
 }
