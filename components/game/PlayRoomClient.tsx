@@ -12,7 +12,7 @@ import { SandboxMode } from "./SandboxMode";
 import { useGameRoom } from "@/hooks/useGameRoom";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Trophy, RotateCcw, Wrench, Play, ArrowLeft, Home } from "lucide-react";
+import { Trophy, RotateCcw, Wrench, Play, ArrowLeft, Home, FastForward } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 function getOrInitGuestId(): string {
@@ -59,9 +59,13 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
     serverSecondsLeft,
     isConnectedToSocket,
     lastRoundWinner,
+    hasVotedPass,
+    opponentWantsPass,
+    passVotesCount,
     handleSelectTeam,
     handleSubmitAnswer,
     handleTimeExpired,
+    handleVotePass,
     addBotOpponent,
   } = useGameRoom({ roomId, userId: currentUserId, username });
 
@@ -252,13 +256,45 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
 
                 <VersusDisplay team1={roomState.team1} team2={roomState.team2} />
 
-                <div className="w-full mt-4">
+                <div className="w-full mt-4 flex flex-col items-center gap-3">
                   <PlayerAnswerInput
                     playerList={playerList}
                     onSubmitAnswer={handleSubmitAnswer}
                     isSubmitting={isSubmitting}
                     hasErrorFeedback={hasErrorFeedback}
                   />
+
+                  {/* Pas Geçme Butonu & Bildirimi */}
+                  <div className="flex items-center justify-center pt-1">
+                    {hasVotedPass ? (
+                      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold animate-pulse shadow-sm shadow-amber-500/10">
+                        <FastForward className="w-3.5 h-3.5" />
+                        <span>Pas İsteğin İletildi ({passVotesCount}/2) • Rakibin onayı bekleniyor...</span>
+                      </div>
+                    ) : opponentWantsPass ? (
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        onClick={handleVotePass}
+                        disabled={isSubmitting}
+                        className="bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs px-4 py-2 rounded-xl shadow-lg shadow-amber-500/25 animate-bounce flex items-center gap-1.5"
+                      >
+                        <FastForward className="w-4 h-4" />
+                        ⚡ Rakip Pas İstiyor! Turu Geçmek İçin Tıkla (1/2)
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleVotePass}
+                        disabled={isSubmitting}
+                        className="text-xs text-zinc-400 hover:text-zinc-200 border-zinc-800 bg-zinc-900/40 hover:bg-zinc-800/80 px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5"
+                      >
+                        <FastForward className="w-3.5 h-3.5 text-zinc-500" />
+                        <span>Pas Geç (İki taraf da onaylarsa tur atlanır)</span>
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

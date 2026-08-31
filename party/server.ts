@@ -206,6 +206,7 @@ function scheduleNextRound(room: Room) {
         }
       }
 
+      room.state.passVotes = [];
       broadcastRoomState(room);
 
       startServerTimer(room, PICK_TIME_SECONDS, () => {
@@ -420,11 +421,47 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
           }
 
           if (room.state.team1 && room.state.team2 && room.state.roundStatus === "picking_teams") {
+            room.state.passVotes = [];
             transitionToAnsweringPhase(room);
             return;
           }
 
           broadcastRoomState(room);
+          break;
+        }
+
+        case "PASS_VOTE": {
+          const { userId } = data;
+          const clientMeta = room.clients.get(ws);
+          const effectiveUserId = userId || clientMeta?.userId;
+
+          if (!room.state.passVotes) room.state.passVotes = [];
+          if (effectiveUserId && !room.state.passVotes.includes(effectiveUserId)) {
+            room.state.passVotes.push(effectiveUserId);
+          }
+
+          const isVsBot = Boolean(room.state.player2?.userId.startsWith("bot_"));
+          const allVoted = room.state.passVotes.length >= 2 || (isVsBot && room.state.passVotes.length >= 1);
+
+          if (allVoted && room.state.roundStatus === "answering") {
+            if (room.timer) {
+              clearInterval(room.timer);
+              room.timer = undefined;
+            }
+
+            room.state.roundStatus = "round_finished";
+            broadcastToRoom(room, {
+              type: "ROUND_RESULT",
+              winnerUserId: null,
+              correctAnswer: "Tur Karşılıklı Pas Geçildi ⏩",
+              isDraw: true,
+              state: room.state,
+            });
+
+            scheduleNextRound(room);
+          } else {
+            broadcastRoomState(room);
+          }
           break;
         }
 

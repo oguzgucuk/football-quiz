@@ -158,6 +158,7 @@ export default class GameRoomServer implements Party.Server {
           }
         }
 
+        this.state.passVotes = [];
         this.broadcastState();
         this.startServerTimer(PICK_TIME_SECONDS, () => {
           this.transitionToAnsweringPhase();
@@ -179,6 +180,7 @@ export default class GameRoomServer implements Party.Server {
             this.state.player2 = { userId, username, score: 0, isReady: true };
             this.state.status = "in_round";
             this.state.roundStatus = "picking_teams";
+            this.state.passVotes = [];
             this.startServerTimer(PICK_TIME_SECONDS, () => {
               this.transitionToAnsweringPhase();
             });
@@ -197,6 +199,7 @@ export default class GameRoomServer implements Party.Server {
             };
             this.state.status = "in_round";
             this.state.roundStatus = "picking_teams";
+            this.state.passVotes = [];
 
             const botTeam = DEFAULT_POPULAR_TEAMS[Math.floor(Math.random() * DEFAULT_POPULAR_TEAMS.length)];
             this.state.player2.selectedTeamId = botTeam.id;
@@ -221,7 +224,37 @@ export default class GameRoomServer implements Party.Server {
           }
 
           if (this.state.team1 && this.state.team2 && this.state.roundStatus === "picking_teams") {
+            this.state.passVotes = [];
             this.transitionToAnsweringPhase();
+          } else {
+            this.broadcastState();
+          }
+          break;
+        }
+
+        case "PASS_VOTE": {
+          const { userId } = data;
+          if (!this.state.passVotes) this.state.passVotes = [];
+          if (!this.state.passVotes.includes(userId)) {
+            this.state.passVotes.push(userId);
+          }
+
+          const isVsBot = Boolean(this.state.player2?.userId.startsWith("bot_"));
+          const allVoted = this.state.passVotes.length >= 2 || (isVsBot && this.state.passVotes.length >= 1);
+
+          if (allVoted && this.state.roundStatus === "answering") {
+            this.clearServerTimer();
+            this.state.roundStatus = "round_finished";
+            this.broadcast({
+              type: "ROUND_RESULT",
+              winnerUserId: null,
+              winnerUsername: null,
+              correctAnswer: "Tur Karşılıklı Pas Geçildi ⏩",
+              isDraw: true,
+              state: this.state,
+            });
+
+            this.scheduleNextRound();
           } else {
             this.broadcastState();
           }
@@ -262,6 +295,7 @@ export default class GameRoomServer implements Party.Server {
           this.state.currentRound = 1;
           this.state.team1 = null;
           this.state.team2 = null;
+          this.state.passVotes = [];
           if (this.state.player1) {
             this.state.player1.score = 0;
             this.state.player1.selectedTeamId = null;

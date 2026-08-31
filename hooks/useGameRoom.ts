@@ -272,6 +272,22 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
     }
   }, [roomState.roundStatus, allTeams, mySelectedTeam]);
 
+    // 6. Pas Geçme İsteği Gönder (Mutual Skip)
+  const handleVotePass = useCallback(() => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(
+        JSON.stringify({
+          type: "PASS_VOTE",
+          userId,
+        })
+      );
+    }
+  }, [userId]);
+
+  const hasVotedPass = Boolean(roomState.passVotes?.includes(userId));
+  const opponentWantsPass = Boolean(roomState.passVotes?.some((id) => id !== userId));
+  const passVotesCount = roomState.passVotes?.length || 0;
+
   return {
     roomState,
     allTeams,
@@ -282,9 +298,13 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
     serverSecondsLeft,
     isConnectedToSocket,
     lastRoundWinner,
+    hasVotedPass,
+    opponentWantsPass,
+    passVotesCount,
     handleSelectTeam,
     handleSubmitAnswer,
     handleTimeExpired,
+    handleVotePass,
     addBotOpponent: () => {
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({ type: "ADD_BOT_PLAYER" }));
