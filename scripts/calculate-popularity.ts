@@ -1,30 +1,20 @@
 /**
- * YÜKSEK PERFORMANSLI POPÜLERLİK HESAPLAYICI (POPULARITY_RANKING.md Spesifikasyonu)
+ * TÜM VERİTABANI İÇİN OTOMATİK POPÜLERLİK HESAPLAMA MOTORU
  * 
- * 1. Piyasa Değeri Sinyali (Logaritmik Normalizasyon, %50 ağırlık)
- * 2. Transfer ve Lig Zenginliği (%30 ağırlık)
- * 3. Kulüp Prestij Sinyali (%20 ağırlık)
- * 
- * Tamamen veriden türetilir.
+ * Veriden türetilir, hiçbir elle müdahaleye izin verilmez.
  */
 
 import fs from "fs";
 import path from "path";
 import { parse } from "csv-parse/sync";
 import { prisma } from "../lib/db/client";
-
-function logNormalize(value: number, maxValue: number): number {
-  if (value <= 0) return 0;
-  return Math.log(value + 1) / Math.log(maxValue + 1);
-}
-
-function linearNormalize(value: number, maxValue: number): number {
-  if (value <= 0 || maxValue <= 0) return 0;
-  return Math.min(value / maxValue, 1);
-}
+import {
+  calculatePlayerPopularity,
+  calculateTeamPopularity,
+} from "../lib/popularity/calculatePopularity";
 
 async function runFastPopularityCalculation() {
-  console.log("🚀 [Popularity Engine] Yüksek Performanslı Hesaplama Başlatılıyor...\n");
+  console.log("🚀 [Popularity Engine] Otomatik Hesaplama Başlatılıyor...\n");
   const startTime = Date.now();
 
   // ADIM 1: CSV'den Piyasa Değerlerini Oku
@@ -54,7 +44,6 @@ async function runFastPopularityCalculation() {
   // ADIM 2: Kulüplerin Kadro Değerlerini ve Popülerliklerini Hesapla
   console.log("\n🏟️ [2/4] Kulüp Prestij Puanları Hesaplanıyor...");
 
-  // Hafif sorgu: Sadece ID ve kaggleId
   const allHistories = await prisma.playerTeamHistory.findMany({
     select: {
       teamId: true,
@@ -90,20 +79,19 @@ async function runFastPopularityCalculation() {
   const teamPopularityMap = new Map<string, number>();
   const allTeams = await prisma.team.findMany({ select: { id: true } });
 
-  // Toplu SQL ile takımları güncelle
   const teamUpdates: string[] = [];
   for (const team of allTeams) {
     const stats = teamSquadValues.get(team.id) || { squadValue: 0, playerCount: 0 };
-    const squadScore = logNormalize(stats.squadValue, maxSquadValue); // %70
-    const countScore = linearNormalize(stats.playerCount, 200); // %30
-    const rawScore = squadScore * 0.7 + countScore * 0.3;
-    const teamPopularity = Math.min(100, Math.max(5, Math.round(rawScore * 100)));
+    const teamPopularity = calculateTeamPopularity({
+      squadValueEur: stats.squadValue,
+      maxSquadValueInDb: maxSquadValue,
+      playerCount: stats.playerCount,
+    });
 
     teamPopularityMap.set(team.id, teamPopularity);
     teamUpdates.push(`('${team.id}', ${teamPopularity})`);
   }
 
-  // Postgres toplu UPDATE
   if (teamUpdates.length > 0) {
     const query = `
       UPDATE teams AS t
@@ -113,12 +101,11 @@ async function runFastPopularityCalculation() {
     `;
     await prisma.$executeRawUnsafe(query);
   }
-  console.log(`   ✅ ${allTeams.length} kulübün popülerlik puanı 1 saniyede kaydedildi.`);
+  console.log(`   ✅ ${allTeams.length} kulübün popülerlik puanı kaydedildi.`);
 
   // ADIM 3: Oyuncu Popülerlik Puanlarını Hesapla
   console.log("\n⚽ [3/4] Oyuncu Popülerlik Puanları Hesaplanıyor...");
 
-  // Oyuncuları ve oynadıkları takım ID'lerini çek
   const allPlayers = await prisma.player.findMany({
     select: {
       id: true,
@@ -132,23 +119,12 @@ async function runFastPopularityCalculation() {
     },
   });
 
-  const MAX_MARKET_VALUE = 200_000_000;
-  const MAX_TRANSFERS = 15;
-
   const playerUpdates: string[] = [];
 
   for (const player of allPlayers) {
     const kId = player.kaggleId;
     const marketValue = (kId && playerMarketValues.get(kId)) || player.marketValueEur || 0;
 
-    // 1. Piyasa Değeri Sinyali (Logaritmik, %50 ağırlık)
-    const marketValueScore = logNormalize(marketValue, MAX_MARKET_VALUE);
-
-    // 2. Transfer Sayısı Sinyali (%30 ağırlık)
-    const transferCount = player.teamsHistory.length;
-    const appearancesScore = linearNormalize(transferCount, MAX_TRANSFERS);
-
-    // 3. En Yüksek Prestijli Kulübün Skoru (%20 ağırlık)
     let maxClubScore = 10;
     for (const th of player.teamsHistory) {
       const clubPop = teamPopularityMap.get(th.teamId) || 10;
@@ -156,19 +132,16 @@ async function runFastPopularityCalculation() {
         maxClubScore = clubPop;
       }
     }
-    const clubPrestigeScore = maxClubScore / 100;
 
-    const rawPopularity =
-      marketValueScore * 0.5 +
-      appearancesScore * 0.3 +
-      clubPrestigeScore * 0.2;
-
-    const finalScore = Math.min(100, Math.max(1, Math.round(rawPopularity * 100)));
+    const finalScore = calculatePlayerPopularity({
+      marketValueEur: marketValue,
+      transferCount: player.teamsHistory.length,
+      maxClubPrestige: maxClubScore,
+    });
 
     playerUpdates.push(`('${player.id}', ${finalScore}, ${marketValue})`);
   }
 
-  // 5.000'lik parçalar halinde toplu raw SQL ile güncelle
   const BATCH_SIZE = 4000;
   for (let i = 0; i < playerUpdates.length; i += BATCH_SIZE) {
     const batch = playerUpdates.slice(i, i + BATCH_SIZE);
@@ -185,7 +158,7 @@ async function runFastPopularityCalculation() {
   }
 
   const durationSec = ((Date.now() - startTime) / 1000).toFixed(1);
-  console.log(`\n\n🎉 [4/4 TAMAMLANDI] ${allPlayers.length} Oyuncu ve ${allTeams.length} Takım ${durationSec} saniyede Başarıyla Güncellendi!`);
+  console.log(`\n\n🎉 [4/4 TAMAMLANDI] ${allPlayers.length} Oyuncu ve ${allTeams.length} Takım ${durationSec} saniyede Başarıyla Otomatik Hesaplandı!`);
 }
 
 runFastPopularityCalculation()

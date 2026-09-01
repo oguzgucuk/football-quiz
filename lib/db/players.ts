@@ -94,9 +94,11 @@ export async function getCommonPlayersByTeams(
       fullName: true,
       nationality: true,
       birthDate: true,
+      popularityScore: true,
     },
     orderBy: [
-      { birthDate: { sort: "desc", nulls: "last" } },
+      { popularityScore: "desc" },
+      { marketValueEur: { sort: "desc", nulls: "last" } },
       { fullName: "asc" },
     ],
     take: limit,

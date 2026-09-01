@@ -107,12 +107,12 @@ export function RoundResultModal({
           </div>
         )}
 
-        {/* Ortak Futbolcu Örnekleri (3-5 En Genç Oyuncu) */}
+        {/* Ortak Futbolcu Örnekleri (3-5 En Popüler Oyuncu) */}
         <div className="my-2 p-4 rounded-2xl bg-zinc-950/90 border border-zinc-800 w-full text-left">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-zinc-400 font-bold flex items-center gap-1.5">
               <Users className="w-3.5 h-3.5 text-cyan-400" />
-              {isDraw ? "Oynayabilecek Ortak Futbolcular (En Genç):" : "Diğer Ortak Futbolcular:"}
+              {isDraw ? "Oynayabilecek Ortak Futbolcular (En Popüler):" : "Diğer Popüler Ortak Futbolcular:"}
             </span>
             {commonPlayers.length > 0 && (
               <span className="text-[10px] text-zinc-500 font-mono">
