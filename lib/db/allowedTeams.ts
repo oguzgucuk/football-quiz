@@ -1,87 +1,66 @@
 /**
  * Oyunda takım seçimi (TeamPicker), rastgele takım üretimi ve Bot seçim havuzu için
  * izin verilen seçkin lig ve ülke filtreleri.
- * 
+ *
  * İzin Verilenler:
  * 1. Türkiye Ligleri (Süper Lig, 1. Lig, Köklü Kulüpler)
- * 2. Tüm Avrupa Ligleri (İngiltere, İspanya, İtalya, Almanya, Fransa, Portekiz, Hollanda, Belçika, İskoçya, Yunanistan vb.)
+ * 2. Tüm Avrupa Ligleri (İngiltere, İspanya, İtalya, Almanya, Fransa, Portekiz, Hollanda, Belçika, vb.)
  * 3. Arjantin & Brezilya Ligleri (Boca, River, Flamengo, Palmeiras, Santos, Corinthians vb.)
  * 4. Çin Süper Ligi (Chinese Super League)
  * 5. Suudi Arabistan Pro Ligi (Saudi Pro League)
  * 6. ABD & Kanada (Major League Soccer - MLS)
+ *
+ * NOT: normalize-country-names.ts çalıştırıldıktan sonra DB'deki tüm ülkeler
+ * İngilizce ISO 3166-1 standardına normalize edilmiştir. Türkçe varyantlar artık gerekli değil.
  */
 
 export const ALLOWED_GAME_COUNTRIES = new Set([
   // Türkiye
-  "türkiye",
   "turkey",
 
   // Avrupa (Top 5 + Tüm Avrupa)
-  "england",
+  // "England", "Scotland", "Birleşik Krallık" normalize sonrası → "united kingdom"
   "united kingdom",
-  "birleşik krallık",
-  "scotland",
   "spain",
-  "ispanya",
   "italy",
-  "italya",
   "germany",
-  "almanya",
   "france",
-  "fransa",
   "portugal",
-  "portekiz",
   "netherlands",
-  "hollanda",
   "belgium",
-  "belçika",
   "greece",
-  "yunanistan",
   "austria",
-  "avusturya",
   "switzerland",
-  "isviçre",
   "denmark",
-  "danimarka",
   "norway",
-  "norveç",
   "sweden",
-  "isveç",
   "croatia",
-  "hırvatistan",
   "serbia",
-  "sırbistan",
   "czech republic",
-  "çekya",
   "poland",
-  "polonya",
   "russia",
-  "rusya",
   "ukraine",
-  "ukrayna",
   "romania",
-  "romanya",
   "ireland",
-  "irlanda",
   "hungary",
-  "macaristan",
+  "scotland", // güvenlik: normalizasyon sonrasında kalan nadir kayıtlar için
+  "england",  // güvenlik: normalizasyon sonrasında kalan nadir kayıtlar için
 
   // Güney Amerika (Sadece Arjantin & Brezilya)
   "argentina",
-  "arjantin",
   "brazil",
-  "brezilya",
 
-  // Kullanıcının Özel İstediği Ek Ligler
+  // Ek Ligler
   "united states",
-  "usa",
   "canada",
-  "kanada",
   "saudi arabia",
-  "suudi arabistan",
-  "people's republic of china",
   "china",
-  "çin",
+  "south korea",    // "Korea, South" normalize edildi
+  "australia",
+  "mexico",
+  "colombia",
+  "chile",
+  "uruguay",
 ]);
 
 export const ALLOWED_LEAGUE_KEYWORDS = [
@@ -121,6 +100,7 @@ export const ALLOWED_LEAGUE_KEYWORDS = [
 
 /**
  * Bir takımın oyunda seçilebilir olup olmadığını belirler.
+ * Ülke kontrolü case-insensitive yapılır (DB normalize edildikten sonra lowercase dönüşümü yeterli).
  */
 export function isTeamPlayableInGame(team: { country?: string | null; league?: string | null }): boolean {
   const country = (team.country || "").trim().toLowerCase();

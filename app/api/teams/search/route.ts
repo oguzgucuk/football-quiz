@@ -14,6 +14,7 @@ interface CachedTeam {
   league: string | null;
   aliases: string[];
   popularityScore: number;
+  logoUrl: string | null;
 }
 
 // Bellek içi önbellek (Sunucu ömrü boyunca tek sorgu)
@@ -41,6 +42,7 @@ export async function GET() {
         league: true,
         aliases: true,
         popularityScore: true,
+        logoUrl: true,
       },
       orderBy: {
         popularityScore: "desc",
@@ -57,6 +59,7 @@ export async function GET() {
         league: t.league,
         aliases: t.aliases,
         popularityScore: t.popularityScore || 0,
+        logoUrl: t.logoUrl,
       }));
 
     cachedTeams = playableTeams;

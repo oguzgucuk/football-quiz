@@ -41,3 +41,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local logo storage (migrated to Supabase Storage)
+public/team-logos/
+public/suspicious-logos-contact-sheet.png

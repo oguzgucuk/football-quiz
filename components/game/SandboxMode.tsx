@@ -6,6 +6,7 @@ import { Shield, Sparkles, CheckCircle2, RotateCcw, Search } from "lucide-react"
 import { Team, PlayerSearchItem } from "@/types/game";
 import { PlayerAnswerInput } from "./PlayerAnswerInput";
 import { VersusDisplay } from "./VersusDisplay";
+import { TeamBadge } from "@/components/ui/TeamBadge";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -132,7 +133,12 @@ export function SandboxMode({ teams, playerList }: SandboxModeProps) {
               {team1 ? (
                 <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/40 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <Shield className="w-5 h-5 text-emerald-400" />
+                    <TeamBadge
+                      teamId={team1.id}
+                      teamName={team1.name}
+                      logoUrl={team1.logoUrl}
+                      size="md"
+                    />
                     <div>
                       <span className="font-bold text-white text-sm block">{team1.name}</span>
                       <span className="text-[11px] text-zinc-400">{team1.country}</span>
@@ -169,7 +175,15 @@ export function SandboxMode({ teams, playerList }: SandboxModeProps) {
                           }}
                           className="px-4 py-2.5 hover:bg-zinc-800 text-sm text-zinc-200 cursor-pointer flex items-center justify-between"
                         >
-                          <span className="font-bold">{t.name}</span>
+                          <div className="flex items-center gap-2.5">
+                            <TeamBadge
+                              teamId={t.id}
+                              teamName={t.name}
+                              logoUrl={t.logoUrl}
+                              size="sm"
+                            />
+                            <span className="font-bold">{t.name}</span>
+                          </div>
                           <span className="text-xs text-zinc-500">{t.country}</span>
                         </li>
                       ))}
@@ -187,7 +201,12 @@ export function SandboxMode({ teams, playerList }: SandboxModeProps) {
               {team2 ? (
                 <div className="p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/40 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <Shield className="w-5 h-5 text-cyan-400" />
+                    <TeamBadge
+                      teamId={team2.id}
+                      teamName={team2.name}
+                      logoUrl={team2.logoUrl}
+                      size="md"
+                    />
                     <div>
                       <span className="font-bold text-white text-sm block">{team2.name}</span>
                       <span className="text-[11px] text-zinc-400">{team2.country}</span>
@@ -224,7 +243,15 @@ export function SandboxMode({ teams, playerList }: SandboxModeProps) {
                           }}
                           className="px-4 py-2.5 hover:bg-zinc-800 text-sm text-zinc-200 cursor-pointer flex items-center justify-between"
                         >
-                          <span className="font-bold">{t.name}</span>
+                          <div className="flex items-center gap-2.5">
+                            <TeamBadge
+                              teamId={t.id}
+                              teamName={t.name}
+                              logoUrl={t.logoUrl}
+                              size="sm"
+                            />
+                            <span className="font-bold">{t.name}</span>
+                          </div>
                           <span className="text-xs text-zinc-500">{t.country}</span>
                         </li>
                       ))}

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Shield } from "lucide-react";
+import { TeamBadge } from "@/components/ui/TeamBadge";
 import { Team } from "@/types/game";
 
 interface VersusDisplayProps {
@@ -18,10 +18,10 @@ export function VersusDisplay({ team1, team2 }: VersusDisplayProps) {
 
       {/* Takım 1 (Sol) */}
       <div className="flex-1 flex flex-col items-center text-center animate-fadeIn">
-        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-zinc-800/90 border border-zinc-700/80 flex items-center justify-center text-emerald-400 mb-3 shadow-lg shadow-emerald-500/5">
-          <Shield className="w-8 h-8 sm:w-10 sm:h-10" />
+        <div className="mb-3">
+          <TeamBadge team={team1} size="xl" />
         </div>
-        <h3 className="text-base sm:text-xl font-bold text-white tracking-tight line-clamp-1">
+        <h3 className="text-base sm:text-xl font-black text-white tracking-tight line-clamp-1">
           {team1?.name || "Takım 1"}
         </h3>
         <span className="text-xs text-zinc-400 mt-0.5">
@@ -41,10 +41,10 @@ export function VersusDisplay({ team1, team2 }: VersusDisplayProps) {
 
       {/* Takım 2 (Sağ) */}
       <div className="flex-1 flex flex-col items-center text-center animate-fadeIn">
-        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-zinc-800/90 border border-zinc-700/80 flex items-center justify-center text-cyan-400 mb-3 shadow-lg shadow-cyan-500/5">
-          <Shield className="w-8 h-8 sm:w-10 sm:h-10" />
+        <div className="mb-3">
+          <TeamBadge team={team2} size="xl" />
         </div>
-        <h3 className="text-base sm:text-xl font-bold text-white tracking-tight line-clamp-1">
+        <h3 className="text-base sm:text-xl font-black text-white tracking-tight line-clamp-1">
           {team2?.name || "Takım 2"}
         </h3>
         <span className="text-xs text-zinc-400 mt-0.5">

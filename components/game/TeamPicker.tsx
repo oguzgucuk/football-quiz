@@ -2,7 +2,8 @@
 
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import Fuse from "fuse.js";
-import { Shield, CheckCircle2, Search, Lock } from "lucide-react";
+import { CheckCircle2, Search, Lock } from "lucide-react";
+import { TeamBadge } from "@/components/ui/TeamBadge";
 import { Team } from "@/types/game";
 
 interface TeamPickerProps {
@@ -121,11 +122,12 @@ export function TeamPicker({
 
       {selectedTeam ? (
         <div className="p-6 rounded-3xl bg-emerald-500/10 border-2 border-emerald-500/80 flex flex-col items-center justify-center animate-fadeIn shadow-xl shadow-emerald-500/10">
-          <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-3">
-            <CheckCircle2 className="w-8 h-8" />
+          <div className="mb-3">
+            <TeamBadge team={selectedTeam} size="xl" />
           </div>
           <div className="flex items-center gap-2 mb-1">
-            <Lock className="w-4 h-4 text-emerald-400" />
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <Lock className="w-3.5 h-3.5 text-emerald-400" />
             <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
               Takımın Kilitlendi
             </span>
@@ -177,13 +179,7 @@ export function TeamPicker({
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                          isSelected ? "bg-emerald-500/30 text-emerald-300" : "bg-zinc-800 text-zinc-400"
-                        }`}
-                      >
-                        <Shield className="w-4 h-4" />
-                      </div>
+                      <TeamBadge team={team} size="md" />
                       <div>
                         <span
                           className={`font-bold text-sm block ${
