@@ -1,15 +1,34 @@
 @import "tailwindcss";
 
 :root {
-  --background: #090a0f;
-  --foreground: #f4f4f5;
+  color-scheme: light;
+  --background: #f5f8f6;
+  --foreground: #141b16;
+  --card: #ffffff;
+  --card-foreground: #141b16;
+  --popover: #ffffff;
+  --popover-foreground: #141b16;
+  --primary: #15803d;
+  --primary-foreground: #ffffff;
+  --secondary: #eef3f0;
+  --secondary-foreground: #1b241e;
+  --muted: #f0f4f2;
+  --muted-foreground: #6b7770;
+  --accent: #e5efe9;
+  --accent-foreground: #15803d;
+  --destructive: #dc2626;
+  --border: #e2e8e4;
+  --input: #e2e8e4;
+  --ring: #15803d;
+  --radius: 0.75rem;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
   min-height: 100vh;
   overflow-x: hidden;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
 @keyframes shake {
@@ -31,18 +50,24 @@ body {
   animation: fadeIn 0.2s ease-out;
 }
 
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 /* İnce ve Şık Scrollbar */
-.custom-scrollbar::-webkit-scrollbar {
+::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(24, 24, 27, 0.6);
-  border-radius: 8px;
+::-webkit-scrollbar-track {
+  background: transparent;
 }
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(63, 63, 70, 0.8);
-  border-radius: 8px;
+::-webkit-scrollbar-thumb {
+  background: rgba(107, 119, 112, 0.3);
+  border-radius: 9999px;
 }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(16, 185, 129, 0.8);
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(21, 128, 61, 0.6);
 }
