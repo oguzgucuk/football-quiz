@@ -20,7 +20,7 @@ export function FriendsList({ onQuickInvite }: FriendsListProps) {
   const offline = filtered.filter((f) => f.status === "offline");
 
   return (
-    <aside className="flex w-72 shrink-0 flex-col border-l border-[#e2e8e4] bg-white select-none shadow-sm">
+    <aside className="flex w-72 shrink-0 flex-col border-l border-[#e2e8e4] bg-white select-none shadow-sm h-full">
       {/* Üst Profil Bölümü */}
       <div className="flex flex-col gap-3 p-4 border-b border-[#e2e8e4] bg-[#f5f8f6] shrink-0">
         <div className="flex items-center gap-3">

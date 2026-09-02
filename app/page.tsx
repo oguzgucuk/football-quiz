@@ -44,19 +44,22 @@ export default function Page() {
   };
 
   return (
-    <main className="flex h-screen w-full flex-col overflow-hidden bg-[#080C14] text-zinc-100 font-sans select-none">
-      <TopBar />
-      <div className="flex min-h-0 flex-1">
+    <main className="flex h-screen w-full overflow-hidden bg-[#f5f8f6] text-[#141b16] font-sans select-none">
+      {/* Sol / Ana Alan (TopBar + MainStage) */}
+      <div className="flex flex-col flex-1 min-w-0 h-full">
+        <TopBar />
         <MainStage
           onStartRanked={() => handleStartRanked(5)}
           onOpenCustomRoom={() => setIsCustomRoomOpen(true)}
         />
-        <FriendsList
-          onQuickInvite={(friendName) => {
-            setIsCustomRoomOpen(true);
-          }}
-        />
       </div>
+
+      {/* Sağ: Tam Boy Dikey Arkadaşlar ve Profil Paneli */}
+      <FriendsList
+        onQuickInvite={(friendName) => {
+          setIsCustomRoomOpen(true);
+        }}
+      />
 
       {/* Eşleşme (Matchmaking) Modalı */}
       <MatchmakingModal
