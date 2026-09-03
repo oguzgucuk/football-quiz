@@ -26,11 +26,10 @@ export function MatchHeader({
         {/* Oyuncu 1 (Sol) */}
         <div className="flex items-center gap-3">
           <div
-            className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm border ${
-              player1?.userId === currentUserId
+            className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm border ${player1?.userId === currentUserId
                 ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-400"
                 : "bg-zinc-900 border-zinc-800 text-zinc-300"
-            }`}
+              }`}
           >
             <User className="w-5 h-5" />
           </div>
@@ -83,11 +82,10 @@ export function MatchHeader({
             </div>
           </div>
           <div
-            className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm border ${
-              player2?.userId === currentUserId
+            className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm border ${player2?.userId === currentUserId
                 ? "bg-cyan-500/10 border-cyan-500/40 text-cyan-400"
                 : "bg-zinc-900 border-zinc-800 text-zinc-300"
-            }`}
+              }`}
           >
             <Shield className="w-5 h-5" />
           </div>

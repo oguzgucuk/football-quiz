@@ -7,9 +7,11 @@ import { useAuth } from "@/hooks/useAuth";
 
 interface FriendsListProps {
   onQuickInvite?: (friendName: string) => void;
+  onOpenProfile?: () => void;
+  onOpenStore?: () => void;
 }
 
-export function FriendsList({ onQuickInvite }: FriendsListProps) {
+export function FriendsList({ onQuickInvite, onOpenProfile, onOpenStore }: FriendsListProps) {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -23,15 +25,19 @@ export function FriendsList({ onQuickInvite }: FriendsListProps) {
     <aside className="flex w-72 shrink-0 flex-col border-l border-[#e2e8e4] bg-white select-none shadow-sm h-full">
       {/* Üst Profil Bölümü */}
       <div className="flex flex-col gap-3 p-4 border-b border-[#e2e8e4] bg-[#f5f8f6] shrink-0">
-        <div className="flex items-center gap-3">
+        <div
+          onClick={onOpenProfile}
+          className="flex items-center gap-3 p-1 rounded-xl hover:bg-white/80 transition-colors cursor-pointer group"
+          title="Profili Görüntüle"
+        >
           <div className="relative">
-            <div className="flex size-12 items-center justify-center rounded-full bg-[#15803d] text-sm font-black text-white shadow-sm">
+            <div className="flex size-12 items-center justify-center rounded-full bg-[#15803d] text-sm font-black text-white shadow-sm group-hover:scale-105 transition-transform">
               SEN
             </div>
             <span className="absolute -bottom-0.5 -right-0.5 size-3.5 rounded-full border-2 border-white bg-[#15803d]" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold text-[#141b16]">
+            <p className="truncate text-sm font-bold text-[#141b16] group-hover:text-[#15803d] transition-colors">
               {user?.username ? `${user.username} #TR0` : "Sen #TR0"}
             </p>
             <p className="truncate text-xs font-semibold text-[#15803d]">
@@ -39,16 +45,24 @@ export function FriendsList({ onQuickInvite }: FriendsListProps) {
             </p>
           </div>
         </div>
-        
+
         {/* Bakiye Bilgileri */}
         <div className="flex items-center justify-between gap-2">
-          <div className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-[#e2e8e4] bg-white py-1.5 shadow-sm">
+          <div
+            onClick={onOpenStore}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-[#e2e8e4] bg-white py-1.5 shadow-sm hover:border-amber-300 transition-colors cursor-pointer"
+            title="Mağazayı Aç"
+          >
             <Coins className="size-3.5 text-amber-500 fill-amber-500/20" />
             <span className="text-[11px] font-bold text-[#141b16] font-mono">12.450</span>
           </div>
-          <div className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-[#e2e8e4] bg-white py-1.5 shadow-sm">
+          <div
+            onClick={onOpenProfile}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-[#e2e8e4] bg-white py-1.5 shadow-sm hover:border-[#15803d]/40 transition-colors cursor-pointer"
+            title="Profil & ELO İncele"
+          >
             <Gem className="size-3.5 text-[#15803d]" />
-            <span className="text-[11px] font-bold text-[#15803d] font-mono">{user?.eloRating || 340}</span>
+            <span className="text-[11px] font-bold text-[#15803d] font-mono">{user?.eloRating || 1000}</span>
           </div>
         </div>
       </div>

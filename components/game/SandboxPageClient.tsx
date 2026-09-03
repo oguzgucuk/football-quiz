@@ -15,13 +15,26 @@ export function SandboxPageClient() {
   useEffect(() => {
     async function load() {
       try {
-        const [pRes, tRes] = await Promise.all([
-          fetch("/api/players/search"),
+        const [tRes, pRes] = await Promise.all([
           fetch("/api/teams/search"),
+          fetch("/data/players-index.json"),
         ]);
-        const [pData, tData] = await Promise.all([pRes.json(), tRes.json()]);
-        if (pData.players) setPlayerList(pData.players);
+        const [tData, pRaw] = await Promise.all([
+          tRes.json(),
+          pRes.json().catch(() => []),
+        ]);
+
         if (tData.teams) setTeams(tData.teams);
+
+        if (Array.isArray(pRaw)) {
+          setPlayerList(
+            pRaw.map((p: { id: string; n: string; p?: number }) => ({
+              id: p.id,
+              name: p.n,
+              popularityScore: p.p || 0,
+            }))
+          );
+        }
       } catch (err) {
         console.error("Yükleme hatası:", err);
       } finally {

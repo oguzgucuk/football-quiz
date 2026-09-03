@@ -3,29 +3,47 @@
 import { useState, useEffect, useCallback } from "react";
 import { AuthenticatedUser } from "@/lib/auth/session";
 
+let globalUserCache: AuthenticatedUser | null = null;
+let isInitialFetchDone = false;
+const listeners = new Set<(user: AuthenticatedUser | null) => void>();
+
+function setGlobalUser(newUser: AuthenticatedUser | null) {
+  globalUserCache = newUser;
+  isInitialFetchDone = true;
+  listeners.forEach((l) => l(newUser));
+}
+
 export function useAuth() {
-  const [user, setUser] = useState<AuthenticatedUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<AuthenticatedUser | null>(() => globalUserCache);
+  const [isLoading, setIsLoading] = useState(!isInitialFetchDone);
+
+  useEffect(() => {
+    listeners.add(setUser);
+    return () => {
+      listeners.delete(setUser);
+    };
+  }, []);
 
   const fetchUser = useCallback(async () => {
     try {
       const res = await fetch("/api/auth/me");
       if (res.ok) {
         const data = await res.json();
-        setUser(data.user);
+        setGlobalUser(data.user);
       } else {
-        setUser(null);
+        setGlobalUser(null);
       }
     } catch {
-      setUser(null);
+      setGlobalUser(null);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchUser();
+    if (!isInitialFetchDone) {
+      fetchUser();
+    }
   }, [fetchUser]);
 
   const login = async (identifier: string, password: string) => {
@@ -38,7 +56,7 @@ export function useAuth() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Giriş başarısız");
-      setUser(data.user);
+      setGlobalUser(data.user);
       return data.user;
     } finally {
       setIsLoading(false);
@@ -55,7 +73,7 @@ export function useAuth() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Kayıt başarısız");
-      setUser(data.user);
+      setGlobalUser(data.user);
       return data.user;
     } finally {
       setIsLoading(false);
@@ -72,7 +90,7 @@ export function useAuth() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Misafir girişi başarısız");
-      setUser(data.user);
+      setGlobalUser(data.user);
       return data.user;
     } finally {
       setIsLoading(false);
@@ -83,7 +101,7 @@ export function useAuth() {
     setIsLoading(true);
     try {
       await fetch("/api/auth/logout", { method: "POST" });
-      setUser(null);
+      setGlobalUser(null);
     } finally {
       setIsLoading(false);
     }

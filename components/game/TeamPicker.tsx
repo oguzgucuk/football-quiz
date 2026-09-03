@@ -172,19 +172,17 @@ export function TeamPicker({
                     key={team.id}
                     onClick={() => handlePick(team)}
                     onMouseEnter={() => setSelectedIndex(index)}
-                    className={`px-4 py-3 cursor-pointer transition-all duration-150 flex items-center justify-between border-b border-zinc-800/40 last:border-0 ${
-                      isSelected
+                    className={`px-4 py-3 cursor-pointer transition-all duration-150 flex items-center justify-between border-b border-zinc-800/40 last:border-0 ${isSelected
                         ? "bg-emerald-500/20 text-white border-l-4 border-l-emerald-400 pl-3"
                         : "hover:bg-zinc-800/80 text-zinc-300 hover:text-white"
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center gap-3">
                       <TeamBadge team={team} size="md" />
                       <div>
                         <span
-                          className={`font-bold text-sm block ${
-                            isSelected ? "text-emerald-300" : "text-zinc-100"
-                          }`}
+                          className={`font-bold text-sm block ${isSelected ? "text-emerald-300" : "text-zinc-100"
+                            }`}
                         >
                           {team.name}
                         </span>
@@ -194,11 +192,10 @@ export function TeamPicker({
                       </div>
                     </div>
                     <span
-                      className={`text-xs font-semibold px-2 py-1 rounded-lg transition-colors ${
-                        isSelected
+                      className={`text-xs font-semibold px-2 py-1 rounded-lg transition-colors ${isSelected
                           ? "bg-emerald-500 text-zinc-950 font-bold"
                           : "text-emerald-400 bg-emerald-500/10"
-                      }`}
+                        }`}
                     >
                       Seç (Enter)
                     </span>
