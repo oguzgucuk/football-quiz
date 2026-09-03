@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "next dev -H 0.0.0.0 -p 5000",
     "party": "tsx party/server.ts",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && tsx scripts/guard-logo-urls.ts && tsx scripts/generate-static-player-index.ts && next build",
+    "guard:logos": "tsx scripts/guard-logo-urls.ts",
+    "generate:index": "tsx scripts/generate-static-player-index.ts",
     "start": "next start -H 0.0.0.0 -p 5000",
     "party:deploy": "partykit deploy",
     "lint": "eslint",
