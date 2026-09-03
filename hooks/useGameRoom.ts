@@ -53,6 +53,15 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
   const [serverSecondsLeft, setServerSecondsLeft] = useState<number | null>(null);
   const [isConnectedToSocket, setIsConnectedToSocket] = useState(false);
 
+  const [matchEloResult, setMatchEloResult] = useState<{
+    matchId: string;
+    isDraw: boolean;
+    p1EloChange: number;
+    p2EloChange: number;
+    p1NewElo: number;
+    p2NewElo: number;
+  } | null>(null);
+
   const [lastRoundWinner, setLastRoundWinner] = useState<{
     username: string | null;
     correctAnswer: string | null;
@@ -214,6 +223,13 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
                     reason: data.reason,
                   },
                 }));
+              }
+              break;
+
+            case "MATCH_PERSISTED":
+              console.log("🏆 [GameRoom] Maç DB'ye işlendi ve ELO güncellendi:", data.result);
+              if (data.result) {
+                setMatchEloResult(data.result);
               }
               break;
 
@@ -424,6 +440,7 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
     serverSecondsLeft,
     isConnectedToSocket,
     lastRoundWinner,
+    matchEloResult,
     hasVotedPass,
     opponentWantsPass,
     passVotesCount,

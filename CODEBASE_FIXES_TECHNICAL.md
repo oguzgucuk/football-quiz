@@ -8,18 +8,18 @@
 
 ## 📊 Yapılan Ön İnceleme ve Canlı Ölçüm Bulguları
 
-| Madde | Teşhis | Canlı Kod/DB Durumu | Karar |
+| Madde | Teşhis | Canlı Kod/DB Durumu | Durum / Karar |
 |---|---|---|---|
-| **P0-1 (7.2 MB Payload)** | `/api/players/search` devasa veri taşıyor ve ana UI'ı donduruyor | Ölçüm: **51.613 oyuncu, 7.189 KB (7.18 MB)**. Parse süresi ~4 sn. Ana thread'de Fuse.js index'leniyor. | **Genişletilmiş Çözüm:** Statik JSON + Web Worker + Cache |
-| **P0-2 (Hile Açığı)** | İstemci cevabı doğrulatıp WS'ye "ben kazandım" diyor | `useGameRoom.ts` HTTP'den teyit alıp `{ type: "ROUND_WINNER" }` gönderiyor; sunucu sorgusuz kabul ediyor! | **Kesin Çözüm:** Sunucu-taraflı atomik `SUBMIT_ANSWER` |
-| **P0-3 (Logo 404)** | Veritabanında `/team-logos/` kalmış olabilir | DB sorgusu: `localCount: 0`, `remoteCount: 205`. DB temiz! Ancak `party/game.ts` ve `party/server.ts` içinde 17 elit takım hardcoded `/team-logos/` kullanıyor. | **Hedef Çözüm:** Sunucu dosya sabitlerini Supabase URL'lerine çek + Build Guard ekle |
-| **P1-4 (Log Spam)** | `missing_answers_log` her yanlış cevapta yeni satır açıyor | Doğrulandı. Dedup yok, her yanlış deneme DB'de yeni satır oluşturuyor. | **Kesin Çözüm:** `attemptCount` + compound unique index ile `upsert` |
-| **P1-5 (Prisma Singleton)** | Singleton hatalı, her istekte yeni instance açılıyor | **YANLIŞ TEŞHİS.** `lib/db/client.ts` resmi Prisma Next.js kalıbıdır. `.env`'de port 6543 (PgBouncer) zaten etkindir. | **Karar:** KOD DEĞİŞTİRİLMEYECEK (İptal) |
-| **P1-6 (İndeksler)** | B-Tree indeks substring aramasını hızlandırmaz | Doğrulandı. `Player.fullName`, `Team.name` indekssiz; `PlayerTeamHistory.teamId` tekil indekssiz. | **Kesin Çözüm:** `pg_trgm` GIN index + `team_id` B-tree index |
-| **P1-7 (Reconnect)** | Kopan oyuncu odaya dönemiyor, slot kilitleniyor | Doğrulandı. `onClose` sadece socket'i siliyor; reconnect ve session token yok. | **Kesin Çözüm:** Session Token + 10s Grace Period |
-| **P1-8 (ELO & Maç Kaydı)** | ELO hesap fonksiyonu var ama maç sonunda DB'ye kaydedilmiyor | Doğrulandı. `calculateEloChange.ts` mevcut ama hiçbir yerden çağrılmıyor. `Match` tablosu boş kalıyor. | **Kesin Çözüm:** `$transaction` + Idempotency korumalı maç bitiş servisi |
-| **P2-9 (Ortak Oyuncu Cache)** | Her tahminde 2 takımın ortak oyuncuları DB'den tekrar çekiliyor | Doğrulandı. Tur boyunca aynı iki takım için DB'ye N defa sorgu atılıyor. | **Kesin Çözüm:** In-Memory Round Cache (30 sn TTL) |
-| **P2-10 & P2-12 (Atıl Kodlar)** | Çift WS sunucusu ve ölü dosyalar var | `party/index.ts` (112 satır) ve `components/dashboard/main-stage.tsx` (479 satır) tamamen atıl. | **Kesin Çözüm:** Atıl dosyaları sil, oda mantığını ortaklaştır |
+| **P0-1 (7.2 MB Payload)** | `/api/players/search` devasa veri taşıyor ve ana UI'ı donduruyor | Ölçüm: 15.873 oyuncu, 1.64 MB (%82 küçülme). Web Worker off-thread Fuse.js arama motoru. | ✅ **TAMAMLANDI** (`workers/playerSearch.worker.ts`) |
+| **P0-2 (Hile Açığı)** | İstemci cevabı doğrulatıp WS'ye "ben kazandım" diyor | Sunucu-taraflı atomik `SUBMIT_ANSWER`, race-condition lock ve çift tur koruması. | ✅ **TAMAMLANDI** (`verifyPlayerAnswerInServer.ts`) |
+| **P0-3 (Logo 404)** | 17 elit takım hardcoded `/team-logos/` kullanıyor | Supabase CDN URL'leri tanımlandı, `guard-logo-urls.ts` build pipeline'a bağlandı. | ✅ **TAMAMLANDI** (`guard-logo-urls.ts`) |
+| **P1-4 (Log Spam)** | `missing_answers_log` her yanlış cevapta yeni satır açıyor | Doğrulandı. Dedup yok, her yanlış deneme DB'de yeni satır oluşturuyor. | ⏳ **SIRADA** (`attemptCount` + upsert) |
+| **P1-5 (Prisma Singleton)** | Singleton hatalı, her istekte yeni instance açılıyor | **YANLIŞ TEŞHİS.** `lib/db/client.ts` resmi Prisma Next.js kalıbıdır. PgBouncer devrede. | ❌ **İPTAL EDİLDİ** (Gerek yok) |
+| **P1-6 (İndeksler)** | B-Tree indeks substring aramasını hızlandırmaz | `pg_trgm` GIN index + `popularityScore` & `teamId` B-tree index'leri uygulandı. | ✅ **TAMAMLANDI** (0.106 ms ILIKE sorgu süresi) |
+| **P1-7 (Reconnect)** | Kopan oyuncu odaya dönemiyor, slot kilitleniyor | UUID `sessionToken`, 10s Grace Period, `REJOIN` protokolü ve hükmen galibiyet. | ✅ **TAMAMLANDI** (`sessionManager.ts`) |
+| **P1-8 (ELO & Maç Kaydı)** | ELO hesap fonksiyonu var ama maç sonunda DB'ye kaydedilmiyor | `finalizeMatchAndPersistElo` servisi `$transaction` ve idempotency ile hazırlandı. | 🟡 **SERVİS HAZIR / BAĞLANIYOR** (`matches.ts`) |
+| **P2-9 (Ortak Oyuncu Cache)** | Her tahminde 2 takımın ortak oyuncuları DB'den tekrar çekiliyor | Doğrulandı. Tur boyunca aynı iki takım için DB'ye N defa sorgu atılıyor. | ⏳ **PLANLANDI** (In-Memory Round Cache) |
+| **P2-10 & P2-12 (Atıl Kodlar)** | Çift WS sunucusu ve ölü dosyalar var | `party/index.ts` ve `main-stage.tsx` silindi, kod temizlendi. | ✅ **TAMAMLANDI** |
 
 ---
 

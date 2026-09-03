@@ -10,6 +10,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { RoomState, createInitialRoomState } from "../lib/realtime/roomState";
 import { Team } from "../types/game";
 import { verifyPlayerAnswerInServer } from "../lib/realtime/verifyPlayerAnswerInServer";
+import { finalizeMatchAndPersistElo, CompletedRoundData } from "../lib/db/matches";
 import {
   createSession,
   validateSession,
@@ -51,6 +52,7 @@ interface Room {
   clients: Map<WebSocket, { userId?: string; username?: string }>;
   timer?: NodeJS.Timeout;
   timerSecondsLeft?: number;
+  completedRounds: CompletedRoundData[];
 }
 
 interface QueuedPlayer {
@@ -96,6 +98,7 @@ function getOrCreateRoom(roomId: string): Room {
       id: roomId,
       state: createInitialRoomState(roomId),
       clients: new Map(),
+      completedRounds: [],
     };
     room.state.maxRounds = ROUNDS_PER_MATCH;
     const match = roomId.match(/_(\d+)s_/);
@@ -189,6 +192,15 @@ function transitionToAnsweringPhase(room: Room) {
 function handleRoundTimeout(room: Room) {
   if (room.state.roundStatus !== "answering") return;
 
+  room.completedRounds.push({
+    roundNumber: room.state.currentRound,
+    entity1Id: room.state.team1?.id || "",
+    entity2Id: room.state.team2?.id || "",
+    winnerUserId: null,
+    answerGiven: "Süre Doldu",
+    timeTakenMs: (room.state.roundDuration || ANSWER_TIME_SECONDS) * 1000,
+  });
+
   room.state.roundStatus = "round_finished";
   broadcastToRoom(room, {
     type: "ROUND_RESULT",
@@ -207,6 +219,33 @@ function scheduleNextRound(room: Room) {
     if (room.state.currentRound >= (room.state.maxRounds || ROUNDS_PER_MATCH)) {
       room.state.status = "match_finished";
       broadcastRoomState(room);
+
+      // P1-8: Maç bittiğinde ELO hesapla ve DB'ye atomik transaction ile kaydet
+      const p1Id = room.state.player1?.userId;
+      const p2Id = room.state.player2?.userId;
+
+      if (p1Id && p2Id) {
+        finalizeMatchAndPersistElo({
+          matchId: room.id,
+          player1Id: p1Id,
+          player2Id: p2Id,
+          player1Score: room.state.player1?.score || 0,
+          player2Score: room.state.player2?.score || 0,
+          ranked: !p2Id.startsWith("bot_") && !p1Id.startsWith("bot_"),
+          rounds: room.completedRounds,
+        })
+          .then((result) => {
+            console.log(`🏆 [Party/Server] Maç ${room.id} başarıyla DB'ye işlendi:`, result);
+            broadcastToRoom(room, {
+              type: "MATCH_PERSISTED",
+              result,
+              state: room.state,
+            });
+          })
+          .catch((err) => {
+            console.error("[Party/Server] finalizeMatchAndPersistElo Hatası:", err);
+          });
+      }
     } else {
       room.state.currentRound += 1;
       room.state.roundStatus = "picking_teams";
@@ -601,6 +640,15 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
               } else if (room.state.player2 && room.state.player2.userId === senderId) {
                 room.state.player2.score += 1;
               }
+
+              room.completedRounds.push({
+                roundNumber: room.state.currentRound,
+                entity1Id: team1Id,
+                entity2Id: team2Id,
+                winnerUserId: senderId,
+                answerGiven: result.playerName,
+                timeTakenMs: room.state.roundStartTime ? Date.now() - room.state.roundStartTime : 5000,
+              });
 
               room.state.roundStatus = "round_finished";
               broadcastToRoom(room, {
