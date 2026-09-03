@@ -13,10 +13,10 @@ olduğunu 5 dakikada anlayabilsin.** Hız için okunabilirlikten ödün verme.
 Bir fonksiyonun/dosyanın ne yaptığı ismi ve konumundan belli olmuyorsa, o kod
 yanlış yazılmıştır — yorum ekleyerek değil, yeniden yapılandırarak düzelt.
 
-Her görevde ajan şu sırayı izlemeli: **önce planla, sonra kodla.** Büyük bir
+Her görevde ajan şu sırayı izlemeli: **önce planla, sonra kodla. Ardından test et** Büyük bir
 özellik isteniyorsa, direkt koda girmeden önce hangi dosyaların/fonksiyonların
 oluşturulacağını kısaca listelemeli.
-
+Yapılan değişiklikler test edilmeli ve doğruluğundan emin olunmalı.
 ---
 
 ## 1. Dosya ve Klasör Yapısı
