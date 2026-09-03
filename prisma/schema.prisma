@@ -22,6 +22,7 @@ model Player {
   createdAt       DateTime            @default(now()) @map("created_at")
   teamsHistory    PlayerTeamHistory[]
 
+  @@index([popularityScore])
   @@map("players")
 }
 
@@ -37,6 +38,7 @@ model Team {
   createdAt       DateTime            @default(now()) @map("created_at")
   playersHistory  PlayerTeamHistory[]
 
+  @@index([popularityScore])
   @@map("teams")
 }
 
@@ -52,6 +54,7 @@ model PlayerTeamHistory {
 
   @@unique([playerId, teamId])
   @@index([playerId, teamId])
+  @@index([teamId])
   @@map("player_team_history")
 }
 
