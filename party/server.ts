@@ -9,6 +9,7 @@ import { createServer, IncomingMessage } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { RoomState, createInitialRoomState } from "../lib/realtime/roomState";
 import { Team } from "../types/game";
+import { verifyPlayerAnswerInServer } from "../lib/realtime/verifyPlayerAnswerInServer";
 
 const PORT = parseInt(process.env.PORT || "1999", 10);
 const ROUNDS_PER_MATCH = 5;
@@ -16,24 +17,24 @@ const PICK_TIME_SECONDS = 5;
 const ANSWER_TIME_SECONDS = 15;
 
 const DEFAULT_POPULAR_TEAMS: Team[] = [
-  { id: "cmtfrb40e00dtu6k4wklez572", name: "Real Madrid", country: "Spain", league: "La Liga", logoUrl: "/team-logos/cmtfrb40e00dtu6k4wklez572.svg" },
-  { id: "cmtfrb40c003au6k4nfn56sus", name: "FC Barcelona", country: "Spain", league: "La Liga", logoUrl: "/team-logos/cmtfrb40c003au6k4nfn56sus.png" },
-  { id: "cmtfrb40c003lu6k4drdv5sfi", name: "Galatasaray", country: "Türkiye", league: "Süper Lig", logoUrl: "/team-logos/cmtfrb40c003lu6k4drdv5sfi.svg" },
-  { id: "cmtfrb40e00bpu6k4hmbu9cbf", name: "Fenerbahçe", country: "Türkiye", league: "Süper Lig", logoUrl: "/team-logos/cmtfrb40e00bpu6k4hmbu9cbf.png" },
-  { id: "cmtfrb40b001xu6k47fc7n16j", name: "Beşiktaş", country: "Türkiye", league: "Süper Lig", logoUrl: "/team-logos/cmtfrb40b001xu6k47fc7n16j.svg" },
-  { id: "cmtfrb40f00f8u6k4sot14ojx", name: "AC Milan", country: "Italy", league: "Serie A", logoUrl: "/team-logos/cmtfrb40f00f8u6k4sot14ojx.svg" },
-  { id: "cmtfrb40f00elu6k4tgttd211", name: "Inter Milan", country: "Italy", league: "Serie A", logoUrl: "/team-logos/cmtfrb40f00elu6k4tgttd211.svg" },
-  { id: "cmtfrb40f00fdu6k4upvw15gj", name: "Juventus", country: "Italy", league: "Serie A", logoUrl: "/team-logos/cmtfrb40f00fdu6k4upvw15gj.svg" },
-  { id: "cmtfrb40g00lxu6k4zyc9ngsw", name: "Manchester United", country: "England", league: "Premier League", logoUrl: "/team-logos/cmtfrb40g00lxu6k4zyc9ngsw.png" },
-  { id: "cmtfrb40f00hbu6k4ixa7ye8a", name: "Chelsea FC", country: "England", league: "Premier League", logoUrl: "/team-logos/cmtfrb40f00hbu6k4ixa7ye8a.png" },
-  { id: "cmtfrb40d008pu6k4jemghzq0", name: "Bayern München", country: "Germany", league: "Bundesliga", logoUrl: "/team-logos/cmtfrb40d008pu6k4jemghzq0.svg" },
-  { id: "cmtfrb40c004nu6k4gn075jtk", name: "Borussia Dortmund", country: "Germany", league: "Bundesliga", logoUrl: "/team-logos/cmtfrb40c004nu6k4gn075jtk.svg" },
-  { id: "cmtfrb40c0036u6k463i99nss", name: "Atlético de Madrid", country: "Spain", league: "La Liga", logoUrl: "/team-logos/cmtfrb40c0036u6k463i99nss.png" },
-  { id: "cmtfrj6ve000pu6t8gspq4v3h", name: "Boca Juniors", country: "Argentina", league: "Primera División", logoUrl: "/team-logos/cmtfrj6ve000pu6t8gspq4v3h.svg" },
-  { id: "cmtfrb40c0064u6k4rd98tz21", name: "River Plate", country: "Argentina", league: "Primera División", logoUrl: "/team-logos/cmtfrb40c0064u6k4rd98tz21.svg" },
-  { id: "cmtfrj0ul000cu6t8j88ybi62", name: "Flamengo", country: "Brazil", league: "Serie A", logoUrl: "/team-logos/cmtfrj0ul000cu6t8j88ybi62.svg" },
-  { id: "cmtfrb40c006eu6k4xv2lg93k", name: "Santos FC", country: "Brazil", league: "Serie A", logoUrl: "/team-logos/cmtfrb40c006eu6k4xv2lg93k.png" },
-  { id: "cmtfrb40f00ggu6k4ck93hvci", name: "São Paulo FC", country: "Brazil", league: "Serie A", logoUrl: "/team-logos/cmtfrb40f00ggu6k4ck93hvci.svg" },
+  { id: "cmtfrb40e00dtu6k4wklez572", name: "Real Madrid", country: "Spain", league: "La Liga", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40e00dtu6k4wklez572.svg" },
+  { id: "cmtfrb40c003au6k4nfn56sus", name: "FC Barcelona", country: "Spain", league: "La Liga", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40c003au6k4nfn56sus.png" },
+  { id: "cmtfrb40c003lu6k4drdv5sfi", name: "Galatasaray", country: "Türkiye", league: "Süper Lig", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40c003lu6k4drdv5sfi.svg" },
+  { id: "cmtfrb40e00bpu6k4hmbu9cbf", name: "Fenerbahçe", country: "Türkiye", league: "Süper Lig", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40e00bpu6k4hmbu9cbf.png" },
+  { id: "cmtfrb40b001xu6k47fc7n16j", name: "Beşiktaş", country: "Türkiye", league: "Süper Lig", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40b001xu6k47fc7n16j.svg" },
+  { id: "cmtfrb40f00f8u6k4sot14ojx", name: "AC Milan", country: "Italy", league: "Serie A", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40f00f8u6k4sot14ojx.svg" },
+  { id: "cmtfrb40f00elu6k4tgttd211", name: "Inter Milan", country: "Italy", league: "Serie A", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40f00elu6k4tgttd211.svg" },
+  { id: "cmtfrb40f00fdu6k4upvw15gj", name: "Juventus", country: "Italy", league: "Serie A", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40f00fdu6k4upvw15gj.svg" },
+  { id: "cmtfrb40g00lxu6k4zyc9ngsw", name: "Manchester United", country: "England", league: "Premier League", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40g00lxu6k4zyc9ngsw.png" },
+  { id: "cmtfrb40f00hbu6k4ixa7ye8a", name: "Chelsea FC", country: "England", league: "Premier League", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40f00hbu6k4ixa7ye8a.png" },
+  { id: "cmtfrb40d008pu6k4jemghzq0", name: "Bayern München", country: "Germany", league: "Bundesliga", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40d008pu6k4jemghzq0.svg" },
+  { id: "cmtfrb40c004nu6k4gn075jtk", name: "Borussia Dortmund", country: "Germany", league: "Bundesliga", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40c004nu6k4gn075jtk.svg" },
+  { id: "cmtfrb40c0036u6k463i99nss", name: "Atlético de Madrid", country: "Spain", league: "La Liga", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40c0036u6k463i99nss.png" },
+  { id: "cmtfrj6ve000pu6t8gspq4v3h", name: "Boca Juniors", country: "Argentina", league: "Primera División", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrj6ve000pu6t8gspq4v3h.svg" },
+  { id: "cmtfrb40c0064u6k4rd98tz21", name: "River Plate", country: "Argentina", league: "Primera División", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40c0064u6k4rd98tz21.svg" },
+  { id: "cmtfrj0ul000cu6t8j88ybi62", name: "Flamengo", country: "Brazil", league: "Serie A", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrj0ul000cu6t8j88ybi62.svg" },
+  { id: "cmtfrb40c006eu6k4xv2lg93k", name: "Santos FC", country: "Brazil", league: "Serie A", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40c006eu6k4xv2lg93k.png" },
+  { id: "cmtfrb40f00ggu6k4ck93hvci", name: "São Paulo FC", country: "Brazil", league: "Serie A", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40f00ggu6k4ck93hvci.svg" },
 ];
 
 interface Room {
@@ -345,7 +346,7 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
     })
   );
 
-  ws.on("message", (rawMessage: string) => {
+  ws.on("message", async (rawMessage: string) => {
     try {
       const data = JSON.parse(rawMessage.toString());
 
@@ -487,30 +488,52 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
           break;
         }
 
-        case "ROUND_WINNER": {
-          const { winnerUserId, correctAnswer } = data;
+        case "SUBMIT_ANSWER": {
+          const { name, userId } = data;
           if (room.state.roundStatus !== "answering") return;
+          if (!room.state.team1 || !room.state.team2) return;
 
-          if (room.timer) {
-            clearInterval(room.timer);
-            room.timer = undefined;
+          const clientMeta = room.clients.get(ws);
+          const senderId = clientMeta?.userId || userId;
+          if (!senderId) return;
+
+          const team1Id = room.state.team1.id;
+          const team2Id = room.state.team2.id;
+
+          try {
+            // Sunucu-taraflı güvenli ve in-memory cache destekli doğrudan doğrulama
+            const result = await verifyPlayerAnswerInServer(name, team1Id, team2Id);
+
+            // İstek sürerken başka oyuncu bilmiş veya süre dolmuşsa işlem yapma (Race condition koruması)
+            if (room.state.roundStatus !== "answering") return;
+
+            if (result.isCorrect && result.playerName) {
+              if (room.timer) {
+                clearInterval(room.timer);
+                room.timer = undefined;
+              }
+
+              if (room.state.player1 && room.state.player1.userId === senderId) {
+                room.state.player1.score += 1;
+              } else if (room.state.player2 && room.state.player2.userId === senderId) {
+                room.state.player2.score += 1;
+              }
+
+              room.state.roundStatus = "round_finished";
+              broadcastToRoom(room, {
+                type: "ROUND_RESULT",
+                winnerUserId: senderId,
+                correctAnswer: result.playerName,
+                state: room.state,
+              });
+
+              scheduleNextRound(room);
+            } else {
+              ws.send(JSON.stringify({ type: "ANSWER_FEEDBACK", isCorrect: false }));
+            }
+          } catch (err) {
+            console.error("[Party/Server] SUBMIT_ANSWER verification error:", err);
           }
-
-          if (room.state.player1 && room.state.player1.userId === winnerUserId) {
-            room.state.player1.score += 1;
-          } else if (room.state.player2 && room.state.player2.userId === winnerUserId) {
-            room.state.player2.score += 1;
-          }
-
-          room.state.roundStatus = "round_finished";
-          broadcastToRoom(room, {
-            type: "ROUND_RESULT",
-            winnerUserId,
-            correctAnswer,
-            state: room.state,
-          });
-
-          scheduleNextRound(room);
           break;
         }
 

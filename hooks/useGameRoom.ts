@@ -56,20 +56,33 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
 
   const wsRef = useRef<WebSocket | null>(null);
 
-  // 1. Tüm kulüp ve oyuncu listesini yükle (Fuse.js için)
+  // 1. Kulüp ve statik optimize oyuncu listesini yükle (Fuse.js asistanı için)
   useEffect(() => {
     async function loadData() {
       try {
-        const [playersRes, teamsRes] = await Promise.all([
-          fetch("/api/players/search"),
+        const [teamsRes, playersRes] = await Promise.all([
           fetch("/api/teams/search"),
+          fetch("/data/players-index.json"),
         ]);
-        const [playersData, teamsData] = await Promise.all([playersRes.json(), teamsRes.json()]);
 
-        if (playersData.players) setPlayerList(playersData.players);
+        const [teamsData, playersRaw] = await Promise.all([
+          teamsRes.json(),
+          playersRes.json().catch(() => []),
+        ]);
+
         if (teamsData.teams) setAllTeams(teamsData.teams);
+
+        if (Array.isArray(playersRaw) && playersRaw.length > 0) {
+          // Ultra hafif { id, n, p } -> PlayerSearchItem dönüşümü
+          const items: PlayerSearchItem[] = playersRaw.map((item: { id: string; n: string; p?: number }) => ({
+            id: item.id,
+            name: item.n,
+            popularityScore: item.p || 0,
+          }));
+          setPlayerList(items);
+        }
       } catch (err) {
-        console.error("Veri havuzu yüklenemedi:", err);
+        console.error("Kulüp/oyuncu havuzu yüklenemedi:", err);
       }
     }
     loadData();
@@ -126,6 +139,7 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
               break;
 
             case "ROUND_RESULT":
+              setIsSubmitting(false);
               setLastRoundWinner({
                 username: data.winnerUserId === userId ? username : data.winnerUserId ? "Rakip" : null,
                 correctAnswer: data.correctAnswer || "Tur Tamamlandı",
@@ -136,6 +150,14 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
                 setLastRoundWinner(null);
                 setMySelectedTeam(null);
               }, 3000);
+              break;
+
+            case "ANSWER_FEEDBACK":
+              setIsSubmitting(false);
+              if (!data.isCorrect) {
+                setHasErrorFeedback(true);
+                setTimeout(() => setHasErrorFeedback(false), 800);
+              }
               break;
           }
         } catch (parseErr) {
@@ -189,42 +211,42 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
       setHasErrorFeedback(false);
 
       try {
-        const res = await fetch("/api/game/verify-answer", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            team1Id: roomState.team1.id,
-            team2Id: roomState.team2.id,
-            submittedName,
-          }),
-        });
-
-        const data = await res.json();
-
-        if (data.isCorrect && data.player) {
-          // Doğru bildi -> Sunucuya kazananı bildir
-          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-            wsRef.current.send(
-              JSON.stringify({
-                type: "ROUND_WINNER",
-                winnerUserId: userId,
-                correctAnswer: data.player.fullName,
-              })
-            );
-          } else {
-            // Lokal bot modu fallback
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+          // P0-2: Cevabı doğrudan sunucuya ilet, doğrulamayı sunucu yapsın
+          wsRef.current.send(
+            JSON.stringify({
+              type: "SUBMIT_ANSWER",
+              userId,
+              name: submittedName,
+            })
+          );
+        } else {
+          // LOKAL BOT MODU FALLBACK
+          const res = await fetch("/api/game/verify-answer", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              team1Id: roomState.team1.id,
+              team2Id: roomState.team2.id,
+              submittedName,
+            }),
+          });
+  
+          const data = await res.json();
+  
+          if (data.isCorrect && data.player) {
             setLastRoundWinner({
               username,
               correctAnswer: data.player.fullName,
               isDraw: false,
             });
-
+  
             setRoomState((prev) => ({
               ...prev,
               roundStatus: "round_finished",
               player1: prev.player1 ? { ...prev.player1, score: prev.player1.score + 1 } : null,
             }));
-
+  
             setTimeout(() => {
               setLastRoundWinner(null);
               setMySelectedTeam(null);
@@ -236,11 +258,10 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
                 team2: null,
               }));
             }, 3000);
+          } else {
+            setHasErrorFeedback(true);
+            setTimeout(() => setHasErrorFeedback(false), 800);
           }
-        } else {
-          // Kural 12: Yanlış cevap -> anında hata bildirimi (Input bileşeni otomatik temizleyip odaklayacak)
-          setHasErrorFeedback(true);
-          setTimeout(() => setHasErrorFeedback(false), 800);
         }
       } catch (err) {
         console.error("Cevap gönderim hatası:", err);
