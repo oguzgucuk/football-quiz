@@ -10,6 +10,14 @@ import { WebSocketServer, WebSocket } from "ws";
 import { RoomState, createInitialRoomState } from "../lib/realtime/roomState";
 import { Team } from "../types/game";
 import { verifyPlayerAnswerInServer } from "../lib/realtime/verifyPlayerAnswerInServer";
+import {
+  createSession,
+  validateSession,
+  startGracePeriod,
+  clearGracePeriod,
+  getActiveGracePeriod,
+  clearRoomSessions,
+} from "../lib/realtime/sessionManager";
 
 const PORT = parseInt(process.env.PORT || "1999", 10);
 const ROUNDS_PER_MATCH = 5;
@@ -374,10 +382,35 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
             clientMeta.username = username;
           }
 
+          const slot = (!room.state.player1 || room.state.player1.userId === userId) ? "player1" : "player2";
+          const sessionToken = createSession(roomId, userId, slot);
+
+          ws.send(
+            JSON.stringify({
+              type: "SESSION_GRANTED",
+              sessionToken,
+              userId,
+            })
+          );
+
           if (!room.state.player1 || room.state.player1.userId === userId) {
-            room.state.player1 = { userId, username, score: room.state.player1?.score || 0, isReady: true };
+            room.state.player1 = {
+              userId,
+              username,
+              score: room.state.player1?.score || 0,
+              isReady: true,
+              isDisconnected: false,
+              disconnectedAt: null,
+            };
           } else if (!room.state.player2 || room.state.player2.userId === userId) {
-            room.state.player2 = { userId, username, score: room.state.player2?.score || 0, isReady: true };
+            room.state.player2 = {
+              userId,
+              username,
+              score: room.state.player2?.score || 0,
+              isReady: true,
+              isDisconnected: false,
+              disconnectedAt: null,
+            };
           }
 
           if (room.state.player1 && room.state.player2 && room.state.status === "waiting_for_players") {
@@ -393,6 +426,56 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
           }
 
           broadcastRoomState(room);
+          break;
+        }
+
+        case "REJOIN": {
+          const { roomId: reqRoomId, sessionToken, userId } = data;
+          const targetRoomId = reqRoomId || roomId;
+          const targetRoom = rooms.get(targetRoomId);
+
+          if (!targetRoom) {
+            ws.send(JSON.stringify({ type: "REJOIN_FAILED", reason: "Oda bulunamadı veya kapandı." }));
+            break;
+          }
+
+          const validSession = validateSession(targetRoomId, userId, sessionToken);
+          if (!validSession) {
+            ws.send(JSON.stringify({ type: "REJOIN_FAILED", reason: "Geçersiz veya süresi dolmuş oturum belirteci." }));
+            break;
+          }
+
+          // Grace period'u temizle
+          clearGracePeriod(targetRoomId);
+          targetRoom.state.disconnectGrace = null;
+
+          // Yeni bağlantıyı odaya bağla
+          targetRoom.clients.set(ws, { userId, username: data.username });
+
+          if (targetRoom.state.player1 && targetRoom.state.player1.userId === userId) {
+            targetRoom.state.player1.isDisconnected = false;
+            targetRoom.state.player1.disconnectedAt = null;
+          } else if (targetRoom.state.player2 && targetRoom.state.player2.userId === userId) {
+            targetRoom.state.player2.isDisconnected = false;
+            targetRoom.state.player2.disconnectedAt = null;
+          }
+
+          console.log(`🔄 [REJOIN] ${userId} odaya başarıyla geri bağlandı (${targetRoomId}).`);
+
+          ws.send(
+            JSON.stringify({
+              type: "REJOIN_SUCCESS",
+              sessionToken,
+              userId,
+              state: targetRoom.state,
+            })
+          );
+
+          broadcastToRoom(targetRoom, {
+            type: "PLAYER_RECONNECTED",
+            userId,
+          });
+          broadcastRoomState(targetRoom);
           break;
         }
 
@@ -548,10 +631,91 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
   });
 
   ws.on("close", () => {
+    const clientMeta = room.clients.get(ws);
+    const disconnectedUserId = clientMeta?.userId;
     room.clients.delete(ws);
     console.log(`[WebSocket] Client ayrıldı. Oda: "${roomId}" (Kalan: ${room.clients.size})`);
-    if (room.clients.size === 0) {
+
+    const isMatchActive = room.state.status === "in_round";
+    const isPlayer1 = room.state.player1?.userId === disconnectedUserId;
+    const isPlayer2 = room.state.player2?.userId === disconnectedUserId;
+
+    if (isMatchActive && (isPlayer1 || isPlayer2) && disconnectedUserId && !disconnectedUserId.startsWith("bot_")) {
+      const disconnectedPlayer = isPlayer1 ? room.state.player1! : room.state.player2!;
+      const remainingPlayer = isPlayer1 ? room.state.player2 : room.state.player1;
+
+      disconnectedPlayer.isDisconnected = true;
+      disconnectedPlayer.disconnectedAt = Date.now();
+
+      startGracePeriod(
+        roomId,
+        disconnectedUserId,
+        disconnectedPlayer.username,
+        (secondsLeft) => {
+          room.state.disconnectGrace = {
+            userId: disconnectedUserId,
+            username: disconnectedPlayer.username,
+            expiresAt: Date.now() + secondsLeft * 1000,
+            secondsLeft,
+          };
+          broadcastToRoom(room, {
+            type: "DISCONNECT_TICK",
+            userId: disconnectedUserId,
+            secondsLeft,
+          });
+          broadcastRoomState(room);
+        },
+        () => {
+          console.log(`⏱️ [Grace Period Doldu] ${disconnectedPlayer.username} 10sn içinde dönmedi. Hükmen galibiyet!`);
+          if (room.timer) {
+            clearInterval(room.timer);
+            room.timer = undefined;
+          }
+
+          const winnerUserId = remainingPlayer?.userId || "unknown";
+          room.state.status = "match_finished";
+          room.state.disconnectGrace = null;
+          room.state.forfeitInfo = {
+            forfeitUserId: disconnectedUserId,
+            winnerUserId,
+            reason: `${disconnectedPlayer.username} bağlantıyı kesti ve 10 saniye içinde dönmedi.`,
+          };
+
+          broadcastToRoom(room, {
+            type: "PLAYER_FORFEIT",
+            forfeitUserId: disconnectedUserId,
+            winnerUserId,
+            reason: room.state.forfeitInfo.reason,
+            state: room.state,
+          });
+          broadcastRoomState(room);
+
+          setTimeout(() => {
+            clearRoomSessions(roomId);
+            rooms.delete(roomId);
+          }, 30000);
+        }
+      );
+
+      room.state.disconnectGrace = {
+        userId: disconnectedUserId,
+        username: disconnectedPlayer.username,
+        expiresAt: Date.now() + 10000,
+        secondsLeft: 10,
+      };
+
+      broadcastToRoom(room, {
+        type: "PLAYER_DISCONNECTED",
+        userId: disconnectedUserId,
+        graceSeconds: 10,
+      });
+      broadcastRoomState(room);
+      return;
+    }
+
+    if (room.clients.size === 0 && !getActiveGracePeriod(roomId)) {
       if (room.timer) clearInterval(room.timer);
+      clearRoomSessions(roomId);
       rooms.delete(roomId);
     }
   });

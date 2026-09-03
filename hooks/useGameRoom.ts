@@ -7,6 +7,11 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { RoomState, createInitialRoomState } from "@/lib/realtime/roomState";
 import { getWebSocketUrl } from "@/lib/realtime/getWebSocketUrl";
 import { Team, PlayerSearchItem } from "@/types/game";
+import {
+  getStoredSessionToken,
+  saveStoredSessionToken,
+  clearStoredSessionToken,
+} from "@/hooks/useRoomSession";
 
 
 const POPULAR_CLUB_NAMES = [
@@ -102,20 +107,34 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
         setIsConnectedToSocket(true);
         console.log("🔌 [GameRoom] Canlı WebSocket sunucusuna bağlanıldı:", wsUrl);
 
-        let roundDuration = 15;
-        const match = roomId.match(/_(\d+)s_/);
-        if (match && match[1]) {
-          roundDuration = parseInt(match[1], 10);
-        }
+        const existingToken = getStoredSessionToken(roomId);
+        if (existingToken) {
+          console.log("🔄 [GameRoom] Mevcut sessionToken ile REJOIN deneniyor:", existingToken);
+          ws?.send(
+            JSON.stringify({
+              type: "REJOIN",
+              roomId,
+              sessionToken: existingToken,
+              userId,
+              username,
+            })
+          );
+        } else {
+          let roundDuration = 15;
+          const match = roomId.match(/_(\d+)s_/);
+          if (match && match[1]) {
+            roundDuration = parseInt(match[1], 10);
+          }
 
-        ws?.send(
-          JSON.stringify({
-            type: "PLAYER_JOIN",
-            userId,
-            username,
-            roundDuration,
-          })
-        );
+          ws?.send(
+            JSON.stringify({
+              type: "PLAYER_JOIN",
+              userId,
+              username,
+              roundDuration,
+            })
+          );
+        }
       };
 
       ws.onmessage = (event) => {
@@ -123,8 +142,86 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
           const data = JSON.parse(event.data);
 
           switch (data.type) {
+            case "SESSION_GRANTED":
+              if (data.sessionToken) {
+                saveStoredSessionToken(roomId, data.sessionToken);
+              }
+              break;
+
+            case "REJOIN_SUCCESS":
+              console.log("✅ [GameRoom] REJOIN başarılı, maç durumu senkronize edildi.");
+              setRoomState(data.state);
+              break;
+
+            case "REJOIN_FAILED":
+              console.warn("⚠️ [GameRoom] REJOIN başarısız, sıfırdan PLAYER_JOIN deneniyor:", data.reason);
+              clearStoredSessionToken(roomId);
+              ws?.send(
+                JSON.stringify({
+                  type: "PLAYER_JOIN",
+                  userId,
+                  username,
+                  roundDuration: 15,
+                })
+              );
+              break;
+
+            case "PLAYER_DISCONNECTED":
+              setRoomState((prev) => ({
+                ...prev,
+                disconnectGrace: {
+                  userId: data.userId,
+                  username: "Rakip",
+                  expiresAt: Date.now() + (data.graceSeconds || 10) * 1000,
+                  secondsLeft: data.graceSeconds || 10,
+                },
+              }));
+              break;
+
+            case "DISCONNECT_TICK":
+              setRoomState((prev) =>
+                prev.disconnectGrace
+                  ? {
+                      ...prev,
+                      disconnectGrace: {
+                        ...prev.disconnectGrace,
+                        secondsLeft: data.secondsLeft,
+                      },
+                    }
+                  : prev
+              );
+              break;
+
+            case "PLAYER_RECONNECTED":
+              setRoomState((prev) => ({
+                ...prev,
+                disconnectGrace: null,
+              }));
+              break;
+
+            case "PLAYER_FORFEIT":
+              clearStoredSessionToken(roomId);
+              if (data.state) {
+                setRoomState(data.state);
+              } else {
+                setRoomState((prev) => ({
+                  ...prev,
+                  status: "match_finished",
+                  disconnectGrace: null,
+                  forfeitInfo: {
+                    forfeitUserId: data.forfeitUserId,
+                    winnerUserId: data.winnerUserId,
+                    reason: data.reason,
+                  },
+                }));
+              }
+              break;
+
             case "ROOM_STATE_SYNC":
               setRoomState(data.state);
+              if (data.state.status === "match_finished") {
+                clearStoredSessionToken(roomId);
+              }
               if (data.state.roundStatus === "picking_teams" && !data.state.team1 && !data.state.team2) {
                 setMySelectedTeam(null);
               }

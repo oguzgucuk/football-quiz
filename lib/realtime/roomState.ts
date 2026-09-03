@@ -10,6 +10,21 @@ export interface RoomPlayer {
   score: number;
   isReady: boolean;
   selectedTeamId?: string | null;
+  isDisconnected?: boolean;
+  disconnectedAt?: number | null;
+}
+
+export interface DisconnectGraceInfo {
+  userId: string;
+  username: string;
+  expiresAt: number;
+  secondsLeft: number;
+}
+
+export interface ForfeitInfo {
+  forfeitUserId: string;
+  winnerUserId: string;
+  reason: string;
 }
 
 export interface RoomState {
@@ -25,6 +40,8 @@ export interface RoomState {
   roundStartTime: number | null;
   passVotes: string[];
   roundDuration: number;
+  disconnectGrace?: DisconnectGraceInfo | null;
+  forfeitInfo?: ForfeitInfo | null;
 }
 
 export function createInitialRoomState(roomId: string): RoomState {
@@ -41,5 +58,7 @@ export function createInitialRoomState(roomId: string): RoomState {
     roundStartTime: null,
     passVotes: [],
     roundDuration: 15,
+    disconnectGrace: null,
+    forfeitInfo: null,
   };
 }

@@ -8,6 +8,14 @@
 import type * as Party from "partykit/server";
 import { RoomState, createInitialRoomState } from "../lib/realtime/roomState";
 import { Team } from "../types/game";
+import {
+  createSession,
+  validateSession,
+  startGracePeriod,
+  clearGracePeriod,
+  getActiveGracePeriod,
+  clearRoomSessions,
+} from "../lib/realtime/sessionManager";
 
 const ROUNDS_PER_MATCH = 5;
 
@@ -36,6 +44,7 @@ export default class GameRoomServer implements Party.Server {
   state: RoomState;
   timerInterval?: ReturnType<typeof setInterval>;
   timerSecondsLeft?: number;
+  connectionMeta = new Map<string, { userId?: string; username?: string }>();
 
   constructor(readonly room: Party.Room) {
     this.state = createInitialRoomState(this.room.id);
@@ -58,10 +67,86 @@ export default class GameRoomServer implements Party.Server {
     );
   }
 
-  onClose() {
+  onClose(conn: Party.Connection) {
+    const meta = this.connectionMeta.get(conn.id);
+    const disconnectedUserId = meta?.userId;
+    this.connectionMeta.delete(conn.id);
+
+    const isMatchActive = this.state.status === "in_round";
+    const isPlayer1 = this.state.player1?.userId === disconnectedUserId;
+    const isPlayer2 = this.state.player2?.userId === disconnectedUserId;
+
+    if (isMatchActive && (isPlayer1 || isPlayer2) && disconnectedUserId && !disconnectedUserId.startsWith("bot_")) {
+      const disconnectedPlayer = isPlayer1 ? this.state.player1! : this.state.player2!;
+      const remainingPlayer = isPlayer1 ? this.state.player2 : this.state.player1;
+
+      disconnectedPlayer.isDisconnected = true;
+      disconnectedPlayer.disconnectedAt = Date.now();
+
+      startGracePeriod(
+        this.room.id,
+        disconnectedUserId,
+        disconnectedPlayer.username,
+        (secondsLeft) => {
+          this.state.disconnectGrace = {
+            userId: disconnectedUserId,
+            username: disconnectedPlayer.username,
+            expiresAt: Date.now() + secondsLeft * 1000,
+            secondsLeft,
+          };
+          this.broadcast({
+            type: "DISCONNECT_TICK",
+            userId: disconnectedUserId,
+            secondsLeft,
+          });
+          this.broadcastState();
+        },
+        () => {
+          this.clearServerTimer();
+          const winnerUserId = remainingPlayer?.userId || "unknown";
+          this.state.status = "match_finished";
+          this.state.disconnectGrace = null;
+          this.state.forfeitInfo = {
+            forfeitUserId: disconnectedUserId,
+            winnerUserId,
+            reason: `${disconnectedPlayer.username} bağlantıyı kesti ve 10 saniye içinde dönmedi.`,
+          };
+
+          this.broadcast({
+            type: "PLAYER_FORFEIT",
+            forfeitUserId: disconnectedUserId,
+            winnerUserId,
+            reason: this.state.forfeitInfo.reason,
+            state: this.state,
+          });
+          this.broadcastState();
+
+          setTimeout(() => {
+            clearRoomSessions(this.room.id);
+          }, 30000);
+        }
+      );
+
+      this.state.disconnectGrace = {
+        userId: disconnectedUserId,
+        username: disconnectedPlayer.username,
+        expiresAt: Date.now() + 10000,
+        secondsLeft: 10,
+      };
+
+      this.broadcast({
+        type: "PLAYER_DISCONNECTED",
+        userId: disconnectedUserId,
+        graceSeconds: 10,
+      });
+      this.broadcastState();
+      return;
+    }
+
     const activeConnections = [...this.room.getConnections()];
-    if (activeConnections.length === 0) {
+    if (activeConnections.length === 0 && !getActiveGracePeriod(this.room.id)) {
       this.clearServerTimer();
+      clearRoomSessions(this.room.id);
     }
   }
 
@@ -186,14 +271,41 @@ export default class GameRoomServer implements Party.Server {
       switch (data.type) {
         case "PLAYER_JOIN": {
           const { userId, username, roundDuration } = data;
+          this.connectionMeta.set(sender.id, { userId, username });
+
           if (roundDuration && [5, 10, 15, 20].includes(Number(roundDuration))) {
             this.state.roundDuration = Number(roundDuration);
           }
 
-          if (!this.state.player1) {
-            this.state.player1 = { userId, username, score: 0, isReady: true };
-          } else if (!this.state.player2 && this.state.player1.userId !== userId) {
-            this.state.player2 = { userId, username, score: 0, isReady: true };
+          const slot = (!this.state.player1 || this.state.player1.userId === userId) ? "player1" : "player2";
+          const sessionToken = createSession(this.room.id, userId, slot);
+
+          sender.send(
+            JSON.stringify({
+              type: "SESSION_GRANTED",
+              sessionToken,
+              userId,
+            })
+          );
+
+          if (!this.state.player1 || this.state.player1.userId === userId) {
+            this.state.player1 = {
+              userId,
+              username,
+              score: this.state.player1?.score || 0,
+              isReady: true,
+              isDisconnected: false,
+              disconnectedAt: null,
+            };
+          } else if (!this.state.player2 || this.state.player2.userId === userId) {
+            this.state.player2 = {
+              userId,
+              username,
+              score: this.state.player2?.score || 0,
+              isReady: true,
+              isDisconnected: false,
+              disconnectedAt: null,
+            };
             this.state.status = "in_round";
             this.state.roundStatus = "picking_teams";
             this.state.passVotes = [];
@@ -202,6 +314,43 @@ export default class GameRoomServer implements Party.Server {
               this.transitionToAnsweringPhase();
             });
           }
+          this.broadcastState();
+          break;
+        }
+
+        case "REJOIN": {
+          const { sessionToken, userId, username } = data;
+          const validSession = validateSession(this.room.id, userId, sessionToken);
+          if (!validSession) {
+            sender.send(JSON.stringify({ type: "REJOIN_FAILED", reason: "Geçersiz veya süresi dolmuş oturum belirteci." }));
+            break;
+          }
+
+          clearGracePeriod(this.room.id);
+          this.state.disconnectGrace = null;
+          this.connectionMeta.set(sender.id, { userId, username });
+
+          if (this.state.player1 && this.state.player1.userId === userId) {
+            this.state.player1.isDisconnected = false;
+            this.state.player1.disconnectedAt = null;
+          } else if (this.state.player2 && this.state.player2.userId === userId) {
+            this.state.player2.isDisconnected = false;
+            this.state.player2.disconnectedAt = null;
+          }
+
+          sender.send(
+            JSON.stringify({
+              type: "REJOIN_SUCCESS",
+              sessionToken,
+              userId,
+              state: this.state,
+            })
+          );
+
+          this.broadcast({
+            type: "PLAYER_RECONNECTED",
+            userId,
+          });
           this.broadcastState();
           break;
         }

@@ -12,7 +12,7 @@ import { SandboxMode } from "./SandboxMode";
 import { useGameRoom } from "@/hooks/useGameRoom";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Trophy, RotateCcw, Wrench, Play, ArrowLeft, Home, FastForward } from "lucide-react";
+import { Trophy, RotateCcw, Wrench, Play, ArrowLeft, Home, FastForward, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 function getOrInitGuestId(): string {
@@ -85,6 +85,8 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
     const p2Score = roomState.player2?.score ?? 0;
     const isWinner = p1Score > p2Score;
     const isDraw = p1Score === p2Score;
+    const isForfeit = Boolean(roomState.forfeitInfo);
+    const isForfeitWinner = roomState.forfeitInfo?.winnerUserId === currentUserId;
 
     return (
       <div className="flex flex-col min-h-screen bg-[#090a0f] text-zinc-100 items-center justify-center p-4">
@@ -94,10 +96,22 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
           </div>
 
           <h2 className="text-3xl font-black text-white tracking-tight mb-2">
-            {isDraw ? "Maç Berabere Bitti!" : isWinner ? "Tebrikler, Kazandın! 🎉" : "Maçı Kaybettin!"}
+            {isForfeit
+              ? isForfeitWinner
+                ? "Hükmen Kazandın! 🏆"
+                : "Hükmen Mağlup!"
+              : isDraw
+              ? "Maç Berabere Bitti!"
+              : isWinner
+              ? "Tebrikler, Kazandın! 🎉"
+              : "Maçı Kaybettin!"}
           </h2>
           <p className="text-zinc-400 text-sm mb-6">
-            5 tur sonunda nihai skor tablosu
+            {isForfeit
+              ? isForfeitWinner
+                ? "Rakip bağlantıyı kesti ve 10 saniye içinde dönmediği için maç sonuçlandı."
+                : "Bağlantı koptuğu ve 10 saniye içinde dönülmediği için maç sonuçlandı."
+              : "5 tur sonunda nihai skor tablosu"}
           </p>
 
           <div className="flex items-center justify-center gap-6 my-4 p-4 rounded-2xl bg-zinc-950 border border-zinc-800 w-full">
@@ -135,6 +149,22 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
         player2={roomState.player2}
         currentUserId={currentUserId}
       />
+
+      {/* Rakip Bağlantı Kopması (Grace Period) Bildirimi */}
+      {roomState.disconnectGrace && (
+        <div className="w-full max-w-4xl mx-auto px-4 mt-3 animate-pulse">
+          <div className="flex items-center justify-between p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold shadow-lg shadow-amber-500/5">
+            <div className="flex items-center gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-amber-400 animate-bounce" />
+              <span>Rakibin bağlantısı koptu! Yeniden bağlanması bekleniyor...</span>
+            </div>
+            <div className="flex items-center gap-1.5 font-mono font-black text-xs px-2.5 py-1 rounded-xl bg-amber-500/20 text-amber-200 border border-amber-500/30">
+              <span>KALAN:</span>
+              <span className="text-sm">{roomState.disconnectGrace.secondsLeft}s</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Üst Eylem Butonları (Ana Sayfa + Sandbox Test Modu Toggle) */}
       <div className="w-full max-w-4xl mx-auto px-4 pt-4 flex items-center justify-between">
