@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
-import Fuse from "fuse.js";
+import React, { useState, useEffect, useRef } from "react";
 import { Send, UserCheck, AlertCircle } from "lucide-react";
 import { PlayerSearchItem } from "@/types/game";
+import { usePlayerSearch } from "@/hooks/usePlayerSearch";
 
 interface PlayerAnswerInputProps {
-  playerList: PlayerSearchItem[];
+  /** @deprecated Artık Web Worker arka planda hafif statik index kullanmaktadır. Geriye uyumluluk için opsiyoneldir. */
+  playerList?: PlayerSearchItem[];
   onSubmitAnswer: (name: string) => void;
   isSubmitting?: boolean;
   hasErrorFeedback?: boolean;
@@ -14,7 +15,6 @@ interface PlayerAnswerInputProps {
 }
 
 export function PlayerAnswerInput({
-  playerList,
   onSubmitAnswer,
   isSubmitting = false,
   hasErrorFeedback = false,
@@ -25,42 +25,8 @@ export function PlayerAnswerInput({
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const fuse = useMemo(() => {
-    return new Fuse(playerList, {
-      keys: ["name"],
-      includeScore: true,
-      threshold: 0.4,
-      ignoreLocation: true, // İsim içerisinde nerede geçerse geçsin (soyadı dahil) ceza kesmez
-      minMatchCharLength: 2,
-    });
-  }, [playerList]);
-
-  const suggestions = useMemo(() => {
-    if (!inputValue || inputValue.trim().length < 2) return [];
-    const lowerQuery = inputValue.toLowerCase().trim();
-    const results = fuse.search(inputValue, { limit: 30 });
-
-    const scored = results.map((r) => {
-      // Fuse score yön düzeltmesi (0 = mükemmel, 1 = hiç eşleşme yok -> 1 - score)
-      const textMatchScore = 1 - (r.score ?? 1);
-      const normalizedPopularity = (r.item.popularityScore ?? 0) / 100;
-
-      // Kelime başlangıcı veya tam içerme bonusu (örn: "ronaldo" -> "Cristiano Ronaldo")
-      const lowerName = r.item.name.toLowerCase();
-      const words = lowerName.split(/\s+/);
-      const exactWordMatch = words.some((w) => w.startsWith(lowerQuery));
-      const containsBonus = lowerName.includes(lowerQuery) ? 0.2 : 0;
-      const wordBonus = exactWordMatch ? 0.15 : 0;
-
-      const finalScore = textMatchScore * 0.4 + normalizedPopularity * 0.4 + wordBonus + containsBonus;
-      return { item: r.item, finalScore };
-    });
-
-    return scored
-      .sort((a, b) => b.finalScore - a.finalScore)
-      .slice(0, 6)
-      .map((s) => s.item);
-  }, [fuse, inputValue]);
+  // Web Worker tabanlı sıfır-gecikmeli arama motoru
+  const { suggestions, search, clear } = usePlayerSearch();
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -79,15 +45,24 @@ export function PlayerAnswerInput({
     if (hasErrorFeedback) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setInputValue("");
+      clear();
       inputRef.current?.focus();
     }
-  }, [hasErrorFeedback]);
+  }, [hasErrorFeedback, clear]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setInputValue(val);
+    setIsDropdownOpen(true);
+    search(val);
+  };
 
   const handleSubmit = (nameToSubmit: string) => {
     const trimmed = nameToSubmit.trim();
     if (!trimmed || isSubmitting || disabled) return;
     onSubmitAnswer(trimmed);
     setIsDropdownOpen(false);
+    clear();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -119,11 +94,10 @@ export function PlayerAnswerInput({
   return (
     <div className="relative w-full max-w-xl mx-auto">
       <div
-        className={`relative flex items-center rounded-2xl border transition-all duration-200 bg-zinc-900/90 backdrop-blur-md shadow-2xl ${
-          hasErrorFeedback
+        className={`relative flex items-center rounded-2xl border transition-all duration-200 bg-zinc-900/90 backdrop-blur-md shadow-2xl ${hasErrorFeedback
             ? "border-rose-500/80 ring-2 ring-rose-500/30 animate-shake"
             : "border-zinc-800 focus-within:border-emerald-500/60 focus-within:ring-2 focus-within:ring-emerald-500/20"
-        }`}
+          }`}
       >
         <div className="pl-4 pr-2 text-zinc-500">
           <UserCheck className="w-5 h-5" />
@@ -137,11 +111,11 @@ export function PlayerAnswerInput({
           autoCorrect="off"
           spellCheck={false}
           value={inputValue}
-          onChange={(e) => {
-            setInputValue(e.target.value);
+          onChange={handleInputChange}
+          onFocus={() => {
             setIsDropdownOpen(true);
+            if (inputValue.trim().length >= 2) search(inputValue);
           }}
-          onFocus={() => setIsDropdownOpen(true)}
           onKeyDown={handleKeyDown}
           placeholder="İki takımda da oynayan futbolcuyu yaz..."
           disabled={disabled || isSubmitting}
@@ -178,11 +152,10 @@ export function PlayerAnswerInput({
                   handleSubmit(player.name);
                 }}
                 onMouseEnter={() => setSelectedIndex(index)}
-                className={`px-4 py-2.5 cursor-pointer transition-all duration-150 text-sm font-medium flex items-center justify-between border-b border-zinc-800/40 last:border-0 ${
-                  isSelected
+                className={`px-4 py-2.5 cursor-pointer transition-all duration-150 text-sm font-medium flex items-center justify-between border-b border-zinc-800/40 last:border-0 ${isSelected
                     ? "bg-emerald-500/20 text-white border-l-4 border-l-emerald-400 pl-3"
                     : "hover:bg-zinc-800/70 text-zinc-300 hover:text-white"
-                }`}
+                  }`}
               >
                 <div className="flex flex-col text-left">
                   <span className={isSelected ? "text-emerald-300 font-bold" : "text-zinc-100"}>
@@ -195,11 +168,10 @@ export function PlayerAnswerInput({
                   )}
                 </div>
                 <span
-                  className={`text-xs px-2 py-0.5 rounded-md font-medium transition-colors ${
-                    isSelected
+                  className={`text-xs px-2 py-0.5 rounded-md font-medium transition-colors ${isSelected
                       ? "bg-emerald-500 text-zinc-950 font-bold"
                       : "text-zinc-500 font-normal"
-                  }`}
+                    }`}
                 >
                   {isSelected ? "Gönder (Enter)" : "Seç & Gönder"}
                 </span>

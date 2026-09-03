@@ -1,66 +1,86 @@
 /**
- * İstemci tarafı Fuse.js fuzzy arama motoru için hafif {id, name, popularityScore} oyuncu listesini döndürür.
- * Popülerlik puanına göre sıralı olarak teslim edilir.
+ * İstemci tarafı fuzzy arama için hafif {id, name, popularityScore} oyuncu listesini döndürür.
+ * Statik JSON indeksinden önbelleklenerek servis edilir ve HTTP CDN önbellek başlıklarıyla teslim edilir.
  */
 
 import { NextResponse } from "next/server";
+import fs from "fs";
+import path from "path";
 import { prisma } from "@/lib/db/client";
 
-interface CachedPlayer {
+interface LitePlayer {
   id: string;
   name: string;
-  nationality: string | null;
-  birthYear: number | null;
-  position: string | null;
   popularityScore: number;
 }
 
-// Bellek içi önbellek (Sunucu ömrü boyunca tek sorgu)
-let cachedPlayers: CachedPlayer[] | null = null;
-let cacheTime = 0;
-const CACHE_DURATION_MS = 1000 * 60 * 30; // 30 dakika
+let inMemoryPlayers: LitePlayer[] | null = null;
+let lastLoadedTime = 0;
 
 export async function GET() {
   try {
     const now = Date.now();
+    // 1. Önce public/data/players-index.json statik dosyasını kontrol et
+    const staticFilePath = path.join(process.cwd(), "public", "data", "players-index.json");
+    if (fs.existsSync(staticFilePath)) {
+      const stats = fs.statSync(staticFilePath);
+      if (!inMemoryPlayers || stats.mtimeMs > lastLoadedTime) {
+        const rawContent = fs.readFileSync(staticFilePath, "utf-8");
+        inMemoryPlayers = JSON.parse(rawContent);
+        lastLoadedTime = stats.mtimeMs;
+      }
 
-    if (cachedPlayers && now - cacheTime < CACHE_DURATION_MS) {
-      return NextResponse.json({
-        players: cachedPlayers,
-        total: cachedPlayers.length,
-        fromCache: true,
-      });
+      return NextResponse.json(
+        {
+          players: inMemoryPlayers,
+          total: inMemoryPlayers ? inMemoryPlayers.length : 0,
+          fromCache: true,
+          source: "static_file",
+        },
+        {
+          headers: {
+            "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+          },
+        }
+      );
     }
 
+    // 2. Statik dosya henüz üretilmemişse DB'den en popüler ilk 20.000 oyuncuyu çek
     const dbPlayers = await prisma.player.findMany({
+      where: {
+        popularityScore: { gte: 40 },
+      },
       select: {
         id: true,
         fullName: true,
-        nationality: true,
-        birthDate: true,
-        position: true,
         popularityScore: true,
       },
       orderBy: {
         popularityScore: "desc",
       },
+      take: 10000,
     });
 
-    cachedPlayers = dbPlayers.map((p) => ({
+    inMemoryPlayers = dbPlayers.map((p) => ({
       id: p.id,
       name: p.fullName,
-      nationality: p.nationality,
-      birthYear: p.birthDate ? p.birthDate.getFullYear() : null,
-      position: p.position,
       popularityScore: p.popularityScore || 0,
     }));
-    cacheTime = now;
+    lastLoadedTime = now;
 
-    return NextResponse.json({
-      players: cachedPlayers,
-      total: cachedPlayers.length,
-      fromCache: false,
-    });
+    return NextResponse.json(
+      {
+        players: inMemoryPlayers,
+        total: inMemoryPlayers.length,
+        fromCache: false,
+        source: "database_fallback",
+      },
+      {
+        headers: {
+          "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+        },
+      }
+    );
   } catch (error) {
     console.error("[API /api/players/search] Hata:", error);
     return NextResponse.json(
