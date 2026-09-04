@@ -2,6 +2,7 @@
  * Maç ve tur kayıtlarının veritabanı işlemlerini yürüten repository fonksiyonları.
  * - Idempotent maç sonucu kaydı
  * - ELO hesaplama ve rankTier güncellemesi (Atomik $transaction)
+ * - Streak (galibiyet serisi) takibi
  */
 
 import { prisma } from "./client";
@@ -47,6 +48,11 @@ function calculateRankTier(elo: number): string {
 /**
  * 5 tur sonunda maçı, turları ve oyuncuların güncel ELO/galibiyet istatistiklerini
  * tek bir atomik veritabanı transaction'ında kaydeder.
+ *
+ * @example
+ * // player1 3-2 kazandığında:
+ * finalizeMatchAndPersistElo({ matchId, player1Id, player2Id, player1Score: 3, player2Score: 2, ... })
+ * // => { matchId, isDraw: false, p1EloChange: +14, p2EloChange: -14, ... }
  */
 export async function finalizeMatchAndPersistElo({
   matchId,
@@ -78,6 +84,10 @@ export async function finalizeMatchAndPersistElo({
   const isP1Bot = player1Id.startsWith("bot_");
   const isP2Bot = player2Id.startsWith("bot_");
   const isDraw = player1Score === player2Score;
+  const p1Wins = player1Score > player2Score;
+  const p2Wins = player2Score > player1Score;
+
+  const winnerUserId = isDraw ? null : p1Wins ? player1Id : player2Id;
 
   // 2. Oyuncuları DB'den çek
   const [user1, user2] = await Promise.all([
@@ -90,7 +100,7 @@ export async function finalizeMatchAndPersistElo({
   let p1NewElo = user1?.eloRating ?? 1000;
   let p2NewElo = user2?.eloRating ?? 1000;
 
-  // 3. ELO Hesaplaması (Eğer maç ranked ve gerçek oyuncular varsa)
+  // 3. ELO Hesaplaması (Ranked ve gerçek oyuncular varsa)
   if (ranked && !isDraw) {
     const p1CurrentElo = user1?.eloRating ?? 1000;
     const p2CurrentElo = user2?.eloRating ?? 1000;
@@ -99,7 +109,7 @@ export async function finalizeMatchAndPersistElo({
       p1EloChange = calculateEloChange({
         playerElo: p1CurrentElo,
         opponentElo: p2CurrentElo,
-        isWinner: player1Score > player2Score,
+        isWinner: p1Wins,
       });
       p1NewElo = Math.max(100, p1CurrentElo + p1EloChange);
     }
@@ -108,13 +118,22 @@ export async function finalizeMatchAndPersistElo({
       p2EloChange = calculateEloChange({
         playerElo: p2CurrentElo,
         opponentElo: p1CurrentElo,
-        isWinner: player2Score > player1Score,
+        isWinner: p2Wins,
       });
       p2NewElo = Math.max(100, p2CurrentElo + p2EloChange);
     }
   }
 
-  // 4. Atomik Transaction ile kaydet
+  // 4. Streak hesaplaması (kazanan/kaybeden için)
+  const p1CurrentStreak = user1?.currentStreak ?? 0;
+  const p2CurrentStreak = user2?.currentStreak ?? 0;
+  const p1BestStreak = user1?.bestStreak ?? 0;
+  const p2BestStreak = user2?.bestStreak ?? 0;
+
+  const p1NewStreak = isDraw ? 0 : p1Wins ? p1CurrentStreak + 1 : 0;
+  const p2NewStreak = isDraw ? 0 : p2Wins ? p2CurrentStreak + 1 : 0;
+
+  // 5. Atomik Transaction ile kaydet
   await prisma.$transaction(async (tx) => {
     // A) Maç ana kaydı
     await tx.match.create({
@@ -122,6 +141,11 @@ export async function finalizeMatchAndPersistElo({
         id: matchId,
         player1Id,
         player2Id,
+        player1Score,
+        player2Score,
+        winnerUserId,
+        player1EloChange: p1EloChange,
+        player2EloChange: p2EloChange,
         mode,
         ranked,
       },
@@ -152,8 +176,12 @@ export async function finalizeMatchAndPersistElo({
         data: {
           eloRating: p1NewElo,
           rankTier: calculateRankTier(p1NewElo),
-          matchesWon: player1Score > player2Score ? { increment: 1 } : undefined,
-          matchesLost: player1Score < player2Score ? { increment: 1 } : undefined,
+          matchesWon: p1Wins ? { increment: 1 } : undefined,
+          matchesLost: p2Wins ? { increment: 1 } : undefined,
+          matchesDraw: isDraw ? { increment: 1 } : undefined,
+          currentStreak: p1NewStreak,
+          bestStreak: Math.max(p1BestStreak, p1NewStreak),
+          lastSeenAt: new Date(),
         },
       });
     }
@@ -165,14 +193,20 @@ export async function finalizeMatchAndPersistElo({
         data: {
           eloRating: p2NewElo,
           rankTier: calculateRankTier(p2NewElo),
-          matchesWon: player2Score > player1Score ? { increment: 1 } : undefined,
-          matchesLost: player2Score < player1Score ? { increment: 1 } : undefined,
+          matchesWon: p2Wins ? { increment: 1 } : undefined,
+          matchesLost: p1Wins ? { increment: 1 } : undefined,
+          matchesDraw: isDraw ? { increment: 1 } : undefined,
+          currentStreak: p2NewStreak,
+          bestStreak: Math.max(p2BestStreak, p2NewStreak),
+          lastSeenAt: new Date(),
         },
       });
     }
   });
 
-  console.log(`✅ [MatchService] Maç ${matchId} kaydedildi. ELO Değişimleri: P1=${p1EloChange} (${p1NewElo}), P2=${p2EloChange} (${p2NewElo})`);
+  console.log(
+    `✅ [MatchService] Maç ${matchId} kaydedildi. ELO: P1=${p1EloChange > 0 ? "+" : ""}${p1EloChange} (${p1NewElo}), P2=${p2EloChange > 0 ? "+" : ""}${p2EloChange} (${p2NewElo})`
+  );
 
   return {
     matchId,

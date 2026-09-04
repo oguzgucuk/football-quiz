@@ -4,6 +4,7 @@
 
 import { prisma } from "@/lib/db/client";
 import { PlayerSearchItem } from "@/types/game";
+import { logMissingAnswer as logMissingAnswerService } from "./missingAnswers";
 
 export async function findPlayerById(playerId: string) {
   return prisma.player.findUnique({
@@ -110,11 +111,9 @@ export async function logMissingAnswer(
   team1Id: string,
   team2Id: string
 ) {
-  return prisma.missingAnswerLog.create({
-    data: {
-      submittedName,
-      team1Id,
-      team2Id,
-    },
+  return logMissingAnswerService({
+    rawAnswer: submittedName,
+    team1Id,
+    team2Id,
   });
 }

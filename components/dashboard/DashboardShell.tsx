@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { TopBar } from "./top-bar";
-import { FriendsList } from "./friends-list";
+import { RightSocialSidebar } from "./RightSocialSidebar";
 import { DashboardTab } from "./types";
 import { HomeStage } from "./stages/HomeStage";
 import { PlayStage } from "./stages/PlayStage";
@@ -13,17 +14,38 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMatchmaking } from "@/hooks/useMatchmaking";
 import { MatchmakingModal } from "@/components/game/MatchmakingModal";
 import { CreateCustomRoomModal } from "@/components/game/CreateCustomRoomModal";
+import { AuthModal } from "@/components/auth/AuthModal";
 
 interface DashboardShellProps {
   initialTab?: DashboardTab;
 }
 
 export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
+  const router = useRouter();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<DashboardTab>(initialTab);
 
   const [isCustomRoomOpen, setIsCustomRoomOpen] = useState(false);
   const [isMatchmakingOpen, setIsMatchmakingOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalTab, setAuthModalTab] = useState<"login" | "register">("login");
+
+  const handleOpenAuthModal = (tab: "login" | "register" = "login") => {
+    setAuthModalTab(tab);
+    setIsAuthModalOpen(true);
+  };
+
+  // URL'de ?auth=login veya ?auth=register varsa modalı otomatik aç
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const authQuery = params.get("auth");
+      if (authQuery === "login" || authQuery === "register") {
+        setAuthModalTab(authQuery);
+        setIsAuthModalOpen(true);
+      }
+    }
+  }, []);
 
   const {
     status: matchmakingStatus,
@@ -37,11 +59,20 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
   } = useMatchmaking();
 
   const handleStartRanked = (duration: number = selectedDuration) => {
+    if (!user) {
+      handleOpenAuthModal("login");
+      return;
+    }
     setIsMatchmakingOpen(true);
-    const userId = user?.id || `guest_${Math.random().toString(36).substring(2, 7)}`;
-    const username = user?.username || "Misafir Oyuncu";
-    const elo = user?.eloRating || 1000;
-    startMatchmaking(userId, username, elo, duration);
+    startMatchmaking(user.id, user.username, user.eloRating || 1000, duration);
+  };
+
+  const handleOpenCustomRoom = () => {
+    if (!user) {
+      handleOpenAuthModal("login");
+      return;
+    }
+    setIsCustomRoomOpen(true);
   };
 
   const handleCancelMatchmaking = () => {
@@ -54,7 +85,11 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
       {/* Sol / Ana Gövde (TopBar + Dinamik Sahne İçeriği) */}
       <div className="flex flex-col flex-1 min-w-0 h-full overflow-hidden">
         {/* Üst Navigasyon Barı */}
-        <TopBar activeTab={activeTab} onTabChange={setActiveTab} />
+        <TopBar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          onOpenAuthModal={handleOpenAuthModal}
+        />
 
         {/* Merkezde Değişen Sahne (Main Stage İçeriği) */}
         <div className="flex-1 min-h-0 relative">
@@ -65,27 +100,36 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
           {activeTab === "play" && (
             <PlayStage
               onStartRanked={() => handleStartRanked(15)}
-              onOpenCustomRoom={() => setIsCustomRoomOpen(true)}
+              onOpenCustomRoom={handleOpenCustomRoom}
+              onOpenAuthModal={handleOpenAuthModal}
             />
           )}
 
           {activeTab === "profile" && (
-            <ProfileStage onGoToPlay={() => setActiveTab("play")} />
+            <ProfileStage
+              onGoToPlay={() => setActiveTab("play")}
+              onOpenAuthModal={handleOpenAuthModal}
+            />
           )}
 
-          {activeTab === "store" && <StoreStage />}
+          {activeTab === "store" && (
+            <StoreStage onOpenAuthModal={handleOpenAuthModal} />
+          )}
 
           {activeTab === "settings" && <SettingsStage />}
         </div>
       </div>
 
       {/* Sağ: Tam Boy Dikey Arkadaşlar ve Sosyal Bar (Her Sayfada Sabit) */}
-      <FriendsList
-        onQuickInvite={(friendName) => {
+      <RightSocialSidebar
+        onQuickInvite={(friendId, friendName) => {
+          if (!user) {
+            handleOpenAuthModal("login");
+            return;
+          }
           setIsCustomRoomOpen(true);
         }}
-        onOpenProfile={() => setActiveTab("profile")}
-        onOpenStore={() => setActiveTab("store")}
+        onOpenAuthModal={handleOpenAuthModal}
       />
 
       {/* Eşleşme (Matchmaking) Modalı */}
@@ -104,6 +148,13 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
       <CreateCustomRoomModal
         isOpen={isCustomRoomOpen}
         onClose={() => setIsCustomRoomOpen(false)}
+      />
+
+      {/* Dashboard Üzeri Giriş / Kayıt Ol Penceresi (Auth Modal) */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        initialTab={authModalTab}
+        onClose={() => setIsAuthModalOpen(false)}
       />
     </main>
   );

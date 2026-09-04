@@ -11,6 +11,7 @@ interface MatchHeaderProps {
   player1: RoomPlayer | null;
   player2: RoomPlayer | null;
   currentUserId?: string;
+  h2hSummary?: string | null;
 }
 
 export function MatchHeader({
@@ -19,6 +20,7 @@ export function MatchHeader({
   player1,
   player2,
   currentUserId,
+  h2hSummary,
 }: MatchHeaderProps) {
   return (
     <header className="w-full bg-zinc-950/80 backdrop-blur-xl border-b border-zinc-800/80 py-3 px-4 sm:px-8">
@@ -51,7 +53,7 @@ export function MatchHeader({
           </div>
         </div>
 
-        {/* Orta: Tur Bilgisi & Skor */}
+        {/* Orta: Tur Bilgisi & Skor & H2H */}
         <div className="flex flex-col items-center">
           <Badge variant="brand" className="mb-1 text-[11px] font-bold">
             TUR {currentRound} / {maxRounds}
@@ -61,6 +63,11 @@ export function MatchHeader({
             <span className="text-zinc-600">-</span>
             <span className="text-cyan-400">{player2?.score ?? 0}</span>
           </div>
+          {h2hSummary && (
+            <span className="text-[10px] font-mono text-amber-400/90 font-semibold mt-0.5">
+              {h2hSummary}
+            </span>
+          )}
         </div>
 
         {/* Oyuncu 2 (Sağ) */}

@@ -1,29 +1,104 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   Trophy,
-  Award,
   Swords,
   ShieldCheck,
-  TrendingUp,
   Percent,
   Flame,
-  Calendar,
   User,
-  Star,
-  Zap,
+  LogOut,
+  Bot,
+  Check,
+  X,
+  Minus,
+  RotateCcw,
+  LogIn,
+  UserPlus,
+  Lock,
+  Sparkles,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 interface ProfileStageProps {
   onGoToPlay?: () => void;
+  onOpenAuthModal?: (tab: "login" | "register") => void;
 }
 
-export function ProfileStage({ onGoToPlay }: ProfileStageProps) {
-  const { user, isLoading } = useAuth();
+interface RecentMatchItem {
+  matchId: string;
+  opponentId: string;
+  opponentUsername: string;
+  isBot: boolean;
+  playerScore: number;
+  opponentScore: number;
+  isWin: boolean;
+  isDraw: boolean;
+  eloChange: number;
+  playedAt: string | Date;
+}
 
-  const totalMatches = (user?.matchesWon || 0) + (user?.matchesLost || 0);
+/** Maç tarihini kullanıcı dostu Türkçe formata çevirir */
+function formatMatchDate(dateInput: string | Date): string {
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return "";
+
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffMinutes = Math.floor(diffMs / (60 * 1000));
+  const diffHours = Math.floor(diffMs / (60 * 60 * 1000));
+
+  if (diffMinutes < 3) return "Az önce";
+  if (diffMinutes < 60) return `${diffMinutes} dk önce`;
+  if (diffHours < 24 && now.getDate() === d.getDate()) {
+    return `Bugün ${d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}`;
+  }
+  return d.toLocaleDateString("tr-TR", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export function ProfileStage({ onGoToPlay, onOpenAuthModal }: ProfileStageProps) {
+  const router = useRouter();
+  const { user, isLoading, logout } = useAuth();
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  // Gerçek Maç Geçmişi State'i
+  const [matchHistory, setMatchHistory] = useState<RecentMatchItem[]>([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    setIsHistoryLoading(true);
+
+    fetch(`/api/users/${user.id}/matches?limit=30`)
+      .then((res) => (res.ok ? res.json() : { matches: [] }))
+      .then((data) => setMatchHistory(data.matches ?? []))
+      .catch(() => setMatchHistory([]))
+      .finally(() => setIsHistoryLoading(false));
+  }, [user?.id]);
+
+  const handleConfirmLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+      onGoToPlay?.();
+      router.push("/");
+    } catch (err) {
+      console.error("[ProfileStage] Çıkış hatası:", err);
+    } finally {
+      setIsLoggingOut(false);
+      setIsLogoutModalOpen(false);
+    }
+  };
+
+  const totalMatches = (user?.matchesWon || 0) + (user?.matchesLost || 0) + (user?.matchesDraw || 0);
   const winRate =
     totalMatches > 0
       ? Math.round(((user?.matchesWon || 0) / totalMatches) * 100)
@@ -40,40 +115,97 @@ export function ProfileStage({ onGoToPlay }: ProfileStageProps) {
     );
   }
 
-  const achievements = [
-    {
-      id: "a1",
-      title: "Scout Çırağı",
-      desc: "İlk 5 ortak oyuncu maçını tamamla",
-      progress: "5/5",
-      isUnlocked: true,
-      icon: Star,
-    },
-    {
-      id: "a2",
-      title: "Süper Lig Hafızası",
-      desc: "Süper Lig takımlarından 20 ortak oyuncu bil",
-      progress: "14/20",
-      isUnlocked: false,
-      icon: Trophy,
-    },
-    {
-      id: "a3",
-      title: "Işık Hızı (Flash)",
-      desc: "Bir turda 3 saniyenin altında doğru cevap ver",
-      progress: "1/1",
-      isUnlocked: true,
-      icon: Zap,
-    },
-    {
-      id: "a4",
-      title: "Elmas Scout",
-      desc: "Dereceli modda 1500 ELO puanına ulaş",
-      progress: `${user?.eloRating || 1000}/1500`,
-      isUnlocked: (user?.eloRating || 1000) >= 1500,
-      icon: Award,
-    },
-  ];
+  // Ziyaretçi / Oturum Açmamış Kullanıcı Görünümü
+  if (!user) {
+    return (
+      <div className="relative flex flex-1 flex-col overflow-y-auto bg-[#f4f7f5] text-[#141b16] select-none font-sans p-6 sm:p-8 lg:p-12 h-full custom-scrollbar">
+        {/* Arka Plan Radyal Vurgusu */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_20%,rgba(21,128,61,0.07)_0%,rgba(244,247,245,0)_70%)] pointer-events-none z-0" />
+
+        <div className="relative z-10 max-w-4xl mx-auto w-full space-y-8">
+          {/* Ana Ziyaretçi Kartı */}
+          <div className="relative rounded-[32px] bg-white border border-[#e2e8e4] p-8 sm:p-10 shadow-xs overflow-hidden text-center flex flex-col items-center">
+            <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-transparent via-[#15803d] to-transparent" />
+
+            <div className="relative mb-5">
+              <div className="flex size-20 sm:size-24 items-center justify-center rounded-3xl bg-gradient-to-br from-emerald-100 to-emerald-50 border border-emerald-200 text-[#15803d] shadow-xs">
+                <User className="size-10 sm:size-12" />
+              </div>
+              <span className="absolute -bottom-1 -right-1 size-7 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-md">
+                <Lock className="size-3.5" />
+              </span>
+            </div>
+
+            <span className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full mb-3">
+              Hesap Bağlantısı Gerekli
+            </span>
+
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-[#141b16] max-w-md">
+              Şu Anda Bir Hesapta Değilsiniz
+            </h1>
+
+            <p className="text-sm text-[#6b7770] font-medium mt-2 max-w-lg leading-relaxed">
+              Oynadığınız maçların geçmişini kaydetmek, net ELO puanı değişimlerinizi incelemek,
+              galibiyet serilerinizi korumak ve arkadaşlarınızla yarışmak için oturum açmanız gerekmektedir.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center gap-3 mt-7 w-full max-w-xs">
+              <button
+                onClick={() => onOpenAuthModal?.("login")}
+                className="w-full py-3 px-6 rounded-xl bg-[#15803d] hover:bg-[#15803d]/90 text-white text-xs font-black uppercase tracking-widest shadow-md shadow-[#15803d]/25 transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+              >
+                <LogIn className="size-4" />
+                <span>Giriş Yap</span>
+              </button>
+
+              <button
+                onClick={() => onOpenAuthModal?.("register")}
+                className="w-full py-3 px-6 rounded-xl bg-white hover:bg-emerald-50/50 text-[#15803d] border border-emerald-300 text-xs font-black uppercase tracking-widest shadow-xs transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+              >
+                <UserPlus className="size-4" />
+                <span>Kayıt Ol</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Kilitli İstatistikler ve Geçmiş Önizleme Teaser'ı */}
+          <div className="relative rounded-[28px] bg-white/80 border border-[#e2e8e4] p-6 sm:p-8 overflow-hidden shadow-2xs">
+            <div className="flex items-center justify-between pb-4 border-b border-[#e2e8e4] mb-6">
+              <div>
+                <h3 className="text-base font-black text-[#141b16]">
+                  Kayıtlı Oyuncu Özellikleri
+                </h3>
+                <p className="text-xs text-[#6b7770] font-medium mt-0.5">
+                  Hesabınızı açtığınızda profilinizde otomatik aktif olacak sistemler:
+                </p>
+              </div>
+              <Sparkles className="size-5 text-[#15803d]" />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 filter blur-[0.3px]">
+              <div className="p-4 rounded-2xl bg-[#f8faf8] border border-[#e2e8e4]">
+                <div className="text-[11px] font-bold text-[#6b7770] uppercase">ELO Derecesi</div>
+                <div className="text-lg font-black text-[#15803d] mt-1 font-mono">1000 - 2400+ ELO</div>
+                <div className="text-[11px] text-[#6b7770] mt-1">Lojistik formülle dinamik derecelendirme</div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-[#f8faf8] border border-[#e2e8e4]">
+                <div className="text-[11px] font-bold text-[#6b7770] uppercase">Maç Geçmişi Arşivi</div>
+                <div className="text-lg font-black text-[#141b16] mt-1 font-mono">Son 30 Karşılaşma</div>
+                <div className="text-[11px] text-[#6b7770] mt-1">Skorlar, rakipler ve net puan değişimleri</div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-[#f8faf8] border border-[#e2e8e4]">
+                <div className="text-[11px] font-bold text-[#6b7770] uppercase">İkili Rekabet (H2H)</div>
+                <div className="text-lg font-black text-[#141b16] mt-1 font-mono">Rakip Karnesi</div>
+                <div className="text-[11px] text-[#6b7770] mt-1">Her rakibe karşı toplam galibiyet/mağlubiyet</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex flex-1 flex-col overflow-y-auto bg-[#f4f7f5] text-[#141b16] select-none font-sans p-8 lg:p-12 h-full custom-scrollbar">
@@ -94,14 +226,14 @@ export function ProfileStage({ onGoToPlay }: ProfileStageProps) {
             <div>
               <div className="flex items-center gap-2.5">
                 <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-[#141b16]">
-                  {user?.username || "Misafir Oyuncu"}
+                  {user?.username || "Oyuncu"}
                 </h1>
                 <span className="text-[10px] font-black uppercase tracking-wider bg-[#15803d]/10 text-[#15803d] px-2.5 py-0.5 rounded-full border border-[#15803d]/20">
-                  {user?.rankTier || "Elmas II"}
+                  {user?.rankTier || "bronze"}
                 </span>
               </div>
               <p className="text-xs text-[#6b7770] font-medium mt-1">
-                Oyuncu Etiketi: #{user?.id ? user.id.substring(0, 6) : "TR2026"} • 2026 Sezonu
+                Oyuncu ID: #{user?.id ? user.id.substring(0, 8) : "TR2026"} • 2026 Sezonu
               </p>
               <div className="flex items-center gap-3 mt-3">
                 <span className="text-xs font-bold text-[#15803d] bg-[#e8f3ed] px-3 py-1 rounded-xl border border-[#cbe4d4]">
@@ -111,23 +243,35 @@ export function ProfileStage({ onGoToPlay }: ProfileStageProps) {
             </div>
           </div>
 
-          <div className="flex gap-3 w-full md:w-auto">
-            <div className="flex-1 md:flex-initial text-center p-3 px-5 rounded-2xl bg-[#f8faf8] border border-[#e2e8e4]">
-              <span className="text-[10px] font-extrabold uppercase text-[#6b7770] block">
-                Galibiyet
-              </span>
-              <span className="font-mono font-black text-xl text-[#15803d]">
-                {user?.matchesWon || 0}
-              </span>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+            <div className="flex gap-3">
+              <div className="flex-1 sm:flex-initial text-center p-3 px-5 rounded-2xl bg-[#f8faf8] border border-[#e2e8e4]">
+                <span className="text-[10px] font-extrabold uppercase text-[#6b7770] block">
+                  Galibiyet
+                </span>
+                <span className="font-mono font-black text-xl text-[#15803d]">
+                  {user?.matchesWon || 0}
+                </span>
+              </div>
+              <div className="flex-1 sm:flex-initial text-center p-3 px-5 rounded-2xl bg-[#f8faf8] border border-[#e2e8e4]">
+                <span className="text-[10px] font-extrabold uppercase text-[#6b7770] block">
+                  Mağlubiyet
+                </span>
+                <span className="font-mono font-black text-xl text-rose-600">
+                  {user?.matchesLost || 0}
+                </span>
+              </div>
             </div>
-            <div className="flex-1 md:flex-initial text-center p-3 px-5 rounded-2xl bg-[#f8faf8] border border-[#e2e8e4]">
-              <span className="text-[10px] font-extrabold uppercase text-[#6b7770] block">
-                Mağlubiyet
-              </span>
-              <span className="font-mono font-black text-xl text-rose-600">
-                {user?.matchesLost || 0}
-              </span>
-            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsLogoutModalOpen(true)}
+              className="flex items-center justify-center gap-2 px-4 py-3 sm:py-3.5 rounded-2xl border border-rose-200 bg-rose-50/80 text-rose-600 hover:bg-rose-100/90 hover:border-rose-300 font-extrabold text-xs transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 shrink-0"
+              title="Hesaptan Çıkış Yap"
+            >
+              <LogOut className="size-4" />
+              <span>Çıkış Yap</span>
+            </button>
           </div>
         </div>
 
@@ -148,7 +292,9 @@ export function ProfileStage({ onGoToPlay }: ProfileStageProps) {
               <span className="text-xs font-bold uppercase tracking-wider">Kazanma Oranı</span>
             </div>
             <p className="font-mono font-black text-2xl text-[#15803d]">{winRate}%</p>
-            <span className="text-[11px] text-[#6b7770] mt-1 block">{user?.matchesWon || 0}G - {user?.matchesLost || 0}M</span>
+            <span className="text-[11px] text-[#6b7770] mt-1 block">
+              {user?.matchesWon || 0}G - {user?.matchesLost || 0}M{(user?.matchesDraw || 0) > 0 ? ` - ${user?.matchesDraw}B` : ""}
+            </span>
           </div>
 
           <div className="p-5 rounded-2xl bg-white border border-[#e2e8e4] shadow-2xs">
@@ -156,63 +302,217 @@ export function ProfileStage({ onGoToPlay }: ProfileStageProps) {
               <Flame className="size-4 text-amber-500" />
               <span className="text-xs font-bold uppercase tracking-wider">Galibiyet Serisi</span>
             </div>
-            <p className="font-mono font-black text-2xl text-amber-600">3 Maç</p>
-            <span className="text-[11px] text-[#6b7770] mt-1 block">Mevcut seri</span>
+            <p className="font-mono font-black text-2xl text-amber-600">{user?.currentStreak ?? 0} Maç</p>
+            <span className="text-[11px] text-[#6b7770] mt-1 block">En iyi: {user?.bestStreak ?? 0} maç</span>
           </div>
 
           <div className="p-5 rounded-2xl bg-white border border-[#e2e8e4] shadow-2xs">
             <div className="flex items-center gap-2 text-[#6b7770] mb-2">
               <Trophy className="size-4 text-cyan-600" />
-              <span className="text-xs font-bold uppercase tracking-wider">Lig Sıralaması</span>
+              <span className="text-xs font-bold uppercase tracking-wider">En İyi Seri</span>
             </div>
-            <p className="font-mono font-black text-2xl text-[#141b16]">#142</p>
-            <span className="text-[11px] text-[#6b7770] mt-1 block">Türkiye sıralaması</span>
+            <p className="font-mono font-black text-2xl text-[#141b16]">{user?.bestStreak ?? 0} Maç</p>
+            <span className="text-[11px] text-[#6b7770] mt-1 block">Tüm zamanların rekoru</span>
           </div>
         </div>
 
-        {/* 3. Başarımlar & Rozetler */}
-        <div className="rounded-[24px] bg-white border border-[#e2e8e4] p-7 shadow-xs">
+        {/* 3. GERÇEK KARŞILAŞMA GEÇMİŞİ TABLOSU (Dahili Kaydırmalı / Internal Scroll) */}
+        <div className="rounded-[24px] bg-white border border-[#e2e8e4] p-6 sm:p-7 shadow-xs">
           <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-2">
-              <Award className="size-5 text-[#15803d]" />
-              <h3 className="text-base font-black text-[#141b16]">Kazanılan Başarımlar</h3>
+            <div className="flex items-center gap-2.5">
+              <div className="size-8 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700">
+                <Swords className="size-4" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-[#141b16]">Karşılaşma Geçmişi</h3>
+                <p className="text-[11px] text-[#6b7770] font-medium">
+                  Geçmiş rakipler, skorlar ve kazanılan/kaybedilen ELO puanları
+                </p>
+              </div>
             </div>
-            <span className="text-xs text-[#6b7770] font-bold">2 / 4 Tamamlandı</span>
+            {matchHistory.length > 0 && (
+              <span className="text-xs font-mono font-bold bg-[#f4f7f5] text-[#15803d] px-3 py-1 rounded-xl border border-[#e2e8e4]">
+                Son {matchHistory.length} Maç
+              </span>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {achievements.map((ach) => (
-              <div
-                key={ach.id}
-                className={`p-4 rounded-2xl border transition-all flex items-start gap-4 ${
-                  ach.isUnlocked
-                    ? "bg-[#fbfdfb] border-[#cbe4d4]"
-                    : "bg-[#f8faf8] border-[#e2e8e4] opacity-70"
-                }`}
-              >
-                <div
-                  className={`flex size-11 items-center justify-center rounded-2xl shrink-0 ${
-                    ach.isUnlocked
-                      ? "bg-[#15803d] text-white shadow-xs"
-                      : "bg-[#e2e8e4] text-[#8a968f]"
-                  }`}
-                >
-                  <ach.icon className="size-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-extrabold text-sm text-[#141b16]">{ach.title}</h4>
-                    <span className="font-mono text-xs font-bold text-[#15803d]">
-                      {ach.progress}
-                    </span>
-                  </div>
-                  <p className="text-xs text-[#6b7770] mt-0.5">{ach.desc}</p>
-                </div>
+          {/* Dahili Kaydırmalı Liste Kutusu — Sadece tablo içinde scroll eder */}
+          <div className="max-h-[420px] overflow-y-auto pr-1.5 space-y-2.5 custom-scrollbar">
+            {isHistoryLoading ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-3 text-zinc-400">
+                <RotateCcw className="size-6 animate-spin text-[#15803d]" />
+                <span className="text-xs font-semibold text-[#6b7770]">Maç geçmişi yükleniyor...</span>
               </div>
-            ))}
+            ) : matchHistory.length === 0 ? (
+              <div className="text-center py-12 flex flex-col items-center justify-center border border-dashed border-[#e2e8e4] rounded-2xl bg-[#fafcfa]">
+                <Swords className="size-10 text-[#cbe4d4] mb-3" />
+                <p className="text-sm font-bold text-[#141b16]">Henüz oynanmış bir maçın bulunmuyor</p>
+                <p className="text-xs text-[#6b7770] mt-1 max-w-sm">
+                  Dereceli veya botlarla maç yaparak karşılaşma geçmişini ve ELO değişimlerini burada görebilirsin.
+                </p>
+                {onGoToPlay && (
+                  <button
+                    onClick={onGoToPlay}
+                    className="mt-4 px-4 py-2 rounded-xl bg-[#15803d] hover:bg-[#126e34] text-white font-bold text-xs transition-colors shadow-xs cursor-pointer"
+                  >
+                    Hemen Maça Başla
+                  </button>
+                )}
+              </div>
+            ) : (
+              matchHistory.map((match) => {
+                const eloPositive = match.eloChange > 0;
+                const eloNegative = match.eloChange < 0;
+
+                return (
+                  <div
+                    key={match.matchId}
+                    className="p-3.5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#fbfdfb] border-[#e2e8e4] hover:border-[#cbe4d4]"
+                  >
+                    {/* Rakip Bilgisi */}
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="relative shrink-0">
+                        <div
+                          className={`size-10 rounded-xl flex items-center justify-center font-bold text-sm ${
+                            match.isBot
+                              ? "bg-purple-100 text-purple-700 border border-purple-200"
+                              : "bg-[#e8f3ed] text-[#15803d] border border-[#cbe4d4]"
+                          }`}
+                        >
+                          {match.isBot ? (
+                            <Bot className="size-5" />
+                          ) : (
+                            match.opponentUsername.substring(0, 2).toUpperCase()
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-sm text-[#141b16] truncate">
+                            {match.opponentUsername}
+                          </span>
+                          {match.isBot && (
+                            <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">
+                              BOT
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[11px] text-[#6b7770] font-medium block mt-0.5">
+                          {formatMatchDate(match.playedAt)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Skor & Sonuç & ELO Değişimi */}
+                    <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#f0f4f2]">
+                      {/* Skor */}
+                      <div className="flex items-center gap-1.5 font-mono font-black text-base text-[#141b16] bg-[#f8faf8] px-3 py-1 rounded-xl border border-[#e2e8e4]">
+                        <span>{match.playerScore}</span>
+                        <span className="text-[#8a968f]">-</span>
+                        <span>{match.opponentScore}</span>
+                      </div>
+
+                      {/* Sonuç Rozeti */}
+                      {match.isWin ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <Check className="size-3 stroke-[3]" />
+                          <span>Galibiyet</span>
+                        </span>
+                      ) : match.isDraw ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-1 rounded-xl bg-zinc-100 text-zinc-700 border border-zinc-200">
+                          <Minus className="size-3 stroke-[3]" />
+                          <span>Beraberlik</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-1 rounded-xl bg-rose-50 text-rose-700 border border-rose-200">
+                          <X className="size-3 stroke-[3]" />
+                          <span>Mağlubiyet</span>
+                        </span>
+                      )}
+
+                      {/* ELO Değişimi */}
+                      <div className="min-w-[76px] text-right font-mono font-black text-sm">
+                        {eloPositive ? (
+                          <span className="inline-block text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200 shadow-2xs">
+                            +{match.eloChange} ELO
+                          </span>
+                        ) : eloNegative ? (
+                          <span className="inline-block text-rose-600 bg-rose-50 px-2.5 py-1 rounded-xl border border-rose-200 shadow-2xs">
+                            {match.eloChange} ELO
+                          </span>
+                        ) : (
+                          <span className="inline-block text-zinc-500 bg-zinc-100 px-2.5 py-1 rounded-xl border border-zinc-200">
+                            0 ELO
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </div>
+
+      {/* Çıkış Yap — "Emin misin?" Onay Modalı */}
+      {isLogoutModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+        >
+          <div
+            className="relative w-full max-w-md rounded-3xl bg-white border border-[#e2e8e4] p-6 sm:p-7 shadow-2xl animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-4">
+              <div className="size-12 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 shrink-0 shadow-xs">
+                <LogOut className="size-6" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-black text-[#141b16] tracking-tight">
+                  Çıkış Yapmak İstiyor musun?
+                </h3>
+                <p className="text-xs text-[#6b7770] mt-1 font-medium leading-relaxed">
+                  Hesabından çıkış yaptığında oturumun sonlandırılır. Tekrar maç yapabilmek ve puanlarına erişmek için yeniden giriş yapman gerekecek.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-[#f0f4f2]">
+              <button
+                type="button"
+                disabled={isLoggingOut}
+                onClick={() => setIsLogoutModalOpen(false)}
+                className="px-4 py-2.5 rounded-xl border border-[#e2e8e4] bg-[#f8faf8] hover:bg-[#f0f4f2] text-[#45524b] font-bold text-xs transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Vazgeç
+              </button>
+              <button
+                type="button"
+                disabled={isLoggingOut}
+                onClick={handleConfirmLogout}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-extrabold text-xs transition-all cursor-pointer shadow-sm hover:shadow-rose-600/25 disabled:opacity-60"
+              >
+                {isLoggingOut ? (
+                  <>
+                    <div className="size-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Çıkış Yapılıyor...</span>
+                  </>
+                ) : (
+                  <>
+                    <LogOut className="size-3.5" />
+                    <span>Evet, Çıkış Yap</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
