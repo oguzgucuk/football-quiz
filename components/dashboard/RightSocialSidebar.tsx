@@ -108,23 +108,23 @@ export function RightSocialSidebar({ onQuickInvite, onOpenAuthModal }: RightSoci
   if (isAuthLoading && !user) {
     return (
       <aside
-        className="w-80 h-full bg-white/95 backdrop-blur-md border-l border-[#e2e8e4] flex flex-col shrink-0 p-4 space-y-4 animate-pulse select-none z-20"
+        className="w-80 h-full bg-white/70 backdrop-blur-md border-l border-white/25 flex flex-col shrink-0 p-4 space-y-4 animate-pulse select-none z-20"
         suppressHydrationWarning
       >
-        <div className="flex items-center gap-3 pb-3 border-b border-[#e2e8e4]">
-          <div className="size-12 rounded-2xl bg-[#f0f4f2]" />
+        <div className="flex items-center gap-3 pb-3 border-b border-[#e2e8e4]/60">
+          <div className="size-12 rounded-2xl bg-[#f0f4f2]/80" />
           <div className="space-y-2 flex-1">
-            <div className="h-4 bg-[#e2e8e4] rounded w-28" />
-            <div className="h-3 bg-[#f0f4f2] rounded w-16" />
+            <div className="h-4 bg-[#e2e8e4]/80 rounded w-28" />
+            <div className="h-3 bg-[#f0f4f2]/80 rounded w-16" />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <div className="h-12 bg-[#f4f7f5] rounded-xl" />
-          <div className="h-12 bg-[#f4f7f5] rounded-xl" />
+          <div className="h-12 bg-white/70 rounded-xl border border-white/40" />
+          <div className="h-12 bg-white/70 rounded-xl border border-white/40" />
         </div>
         <div className="space-y-2.5 pt-2">
           {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="flex items-center gap-3 p-2.5 rounded-2xl bg-[#f8faf8] border border-[#e2e8e4]">
+            <div key={i} className="flex items-center gap-3 p-2.5 rounded-2xl bg-white/65 border border-white/40">
               <div className="size-8 rounded-xl bg-[#e8f3ed]" />
               <div className="space-y-1.5 flex-1">
                 <div className="h-3 bg-[#e2e8e4] rounded w-24" />
@@ -141,7 +141,7 @@ export function RightSocialSidebar({ onQuickInvite, onOpenAuthModal }: RightSoci
   if (!user) {
     return (
       <aside
-        className="w-80 h-full bg-white/95 backdrop-blur-md border-l border-[#e2e8e4] flex flex-col shrink-0 select-none z-20 relative overflow-hidden"
+        className="w-80 h-full bg-white/70 backdrop-blur-md border-l border-white/25 flex flex-col shrink-0 select-none z-20 relative overflow-hidden"
         suppressHydrationWarning
       >
         {/* Arka Plan Bulanık Silüet */}
@@ -171,7 +171,7 @@ export function RightSocialSidebar({ onQuickInvite, onOpenAuthModal }: RightSoci
         </div>
 
         {/* Kilitli İçerik ve Giriş Butonları */}
-        <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6 text-center backdrop-blur-md bg-white/80">
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6 text-center backdrop-blur-md bg-white/75">
           <div className="flex size-14 items-center justify-center rounded-2xl bg-[#e8f3ed] border border-[#bfe0cc] text-[#15803d] mb-4 shadow-sm">
             <Lock className="size-6 text-[#15803d]" />
           </div>
@@ -195,7 +195,7 @@ export function RightSocialSidebar({ onQuickInvite, onOpenAuthModal }: RightSoci
 
             <button
               onClick={() => onOpenAuthModal?.("register")}
-              className="w-full py-2.5 rounded-xl bg-white hover:bg-[#f8faf8] text-[#141b16] border border-[#e2e8e4] text-xs font-bold transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 shadow-2xs"
+              className="w-full py-2.5 rounded-xl bg-white/90 hover:bg-white text-[#141b16] border border-[#e2e8e4] text-xs font-bold transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 shadow-2xs"
             >
               <UserPlus className="size-3.5 text-[#15803d]" />
               <span>Hesap Oluştur</span>
@@ -208,11 +208,11 @@ export function RightSocialSidebar({ onQuickInvite, onOpenAuthModal }: RightSoci
 
   return (
     <aside
-      className="w-80 h-full bg-white/95 backdrop-blur-md border-l border-[#e2e8e4] flex flex-col shrink-0 select-none z-20 shadow-xs"
+      className="w-80 h-full bg-white/70 backdrop-blur-md border-l border-white/25 flex flex-col shrink-0 select-none z-20 shadow-xs"
       suppressHydrationWarning
     >
       {/* 1. ÜST: Kullanıcı Profil Kartı */}
-      <div className="p-4 border-b border-[#e2e8e4] bg-gradient-to-b from-[#e8f3ed]/60 to-transparent">
+      <div className="p-4 border-b border-white/20 bg-gradient-to-b from-[#e8f3ed]/30 to-transparent">
         <div className="flex items-center gap-3">
           <div className="relative">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#168841] to-[#126d34] p-0.5 shadow-sm">
@@ -245,8 +245,8 @@ export function RightSocialSidebar({ onQuickInvite, onOpenAuthModal }: RightSoci
         </div>
 
         {/* Gerçek İstatistik Çubukları */}
-        <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-[#e2e8e4]/60">
-          <div className="bg-white p-2.5 rounded-xl border border-[#e2e8e4] shadow-2xs flex items-center gap-2">
+        <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-white/20">
+          <div className="bg-white/80 backdrop-blur-xs p-2.5 rounded-xl border border-white/40 shadow-2xs flex items-center gap-2">
             <Flame className="w-4 h-4 text-orange-500 fill-orange-500/20 shrink-0" />
             <div>
               <div className="text-[10px] text-[#8a968f] uppercase font-black tracking-wider">Seri</div>
@@ -255,7 +255,7 @@ export function RightSocialSidebar({ onQuickInvite, onOpenAuthModal }: RightSoci
               </div>
             </div>
           </div>
-          <div className="bg-white p-2.5 rounded-xl border border-[#e2e8e4] shadow-2xs flex items-center gap-2">
+          <div className="bg-white/80 backdrop-blur-xs p-2.5 rounded-xl border border-white/40 shadow-2xs flex items-center gap-2">
             <Trophy className="w-4 h-4 text-[#15803d] shrink-0" />
             <div>
               <div className="text-[10px] text-[#8a968f] uppercase font-black tracking-wider">Kazanma</div>
@@ -268,7 +268,7 @@ export function RightSocialSidebar({ onQuickInvite, onOpenAuthModal }: RightSoci
       </div>
 
       {/* 2. Arkadaş Ekleme Girişi */}
-      <div className="px-3.5 py-2.5 border-b border-[#e2e8e4] bg-[#f8faf8]">
+      <div className="px-3.5 py-2.5 border-b border-white/20 bg-white/40 backdrop-blur-xs">
         <form onSubmit={handleInlineAddFriend} className="flex items-center gap-1.5">
           <input
             type="text"
@@ -276,7 +276,7 @@ export function RightSocialSidebar({ onQuickInvite, onOpenAuthModal }: RightSoci
             onChange={(e) => setAddFriendInput(e.target.value)}
             placeholder="Kullanıcı adı yaz..."
             maxLength={20}
-            className="flex-1 bg-white border border-[#e2e8e4] focus:border-[#15803d] rounded-xl px-3 py-1.5 text-xs text-[#141b16] placeholder:text-[#8a968f] focus:outline-none transition-colors"
+            className="flex-1 bg-white/85 border border-white/40 focus:border-[#15803d] rounded-xl px-3 py-1.5 text-xs text-[#141b16] placeholder:text-[#8a968f] focus:outline-none transition-colors"
           />
           <button
             type="submit"
@@ -304,14 +304,14 @@ export function RightSocialSidebar({ onQuickInvite, onOpenAuthModal }: RightSoci
 
       {/* 3. Bekleyen İstekler */}
       {pendingRequests.length > 0 && (
-        <div className="p-3 border-b border-amber-200/60 bg-amber-50/50">
+        <div className="p-3 border-b border-amber-200/50 bg-amber-50/40 backdrop-blur-xs">
           <div className="text-[11px] font-black uppercase tracking-wider text-amber-800 mb-2 flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
             {pendingRequests.length} Bekleyen İstek
           </div>
           <div className="space-y-1.5">
             {pendingRequests.slice(0, 3).map((req) => (
-              <div key={req.friendshipId} className="flex items-center justify-between gap-2 p-2 bg-white rounded-xl border border-amber-200/60 shadow-2xs">
+              <div key={req.friendshipId} className="flex items-center justify-between gap-2 p-2 bg-white/90 rounded-xl border border-amber-200/60 shadow-2xs">
                 <div className="min-w-0">
                   <div className="text-xs font-bold text-[#141b16] truncate">{req.senderUsername}</div>
                   <div className="text-[10px] text-[#6b7770] font-mono">{req.senderEloRating} ELO</div>
@@ -339,11 +339,11 @@ export function RightSocialSidebar({ onQuickInvite, onOpenAuthModal }: RightSoci
       )}
 
       {/* 4. Arkadaşlar Başlığı (Liderlik kaldırıldı, sadece Arkadaşlar) */}
-      <div className="px-4 py-2.5 border-b border-[#e2e8e4] bg-[#f8faf8] flex items-center justify-between">
+      <div className="px-4 py-2.5 border-b border-white/20 bg-white/40 backdrop-blur-xs flex items-center justify-between">
         <span className="text-xs font-black uppercase tracking-wider text-[#141b16]">
           Arkadaşlar
         </span>
-        <span className="bg-[#15803d]/10 text-[#15803d] text-[11px] font-black px-2 py-0.5 rounded-full">
+        <span className="bg-[#15803d]/15 text-[#15803d] text-[11px] font-black px-2 py-0.5 rounded-full">
           {friends.length}
         </span>
       </div>
@@ -370,7 +370,7 @@ export function RightSocialSidebar({ onQuickInvite, onOpenAuthModal }: RightSoci
             return (
               <div
                 key={friend.id}
-                className="group p-2.5 rounded-2xl bg-white border border-[#e2e8e4] hover:border-[#15803d]/40 hover:shadow-2xs transition-all flex items-center justify-between gap-2"
+                className="group p-2.5 rounded-2xl bg-white/75 backdrop-blur-xs border border-white/40 hover:border-[#15803d]/40 hover:bg-white/90 hover:shadow-2xs transition-all flex items-center justify-between gap-2"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="relative">
@@ -423,7 +423,7 @@ export function RightSocialSidebar({ onQuickInvite, onOpenAuthModal }: RightSoci
       </div>
 
       {/* 6. Alt Durum Çubuğu */}
-      <div className="p-2.5 border-t border-[#e2e8e4] bg-[#f8faf8] text-[11px] text-[#6b7770] flex items-center justify-between font-mono">
+      <div className="p-2.5 border-t border-white/20 bg-white/50 backdrop-blur-xs text-[11px] text-[#525f56] flex items-center justify-between font-mono">
         <span>Sunucu: TR-Istanbul</span>
         <span className="text-[#15803d] font-bold flex items-center gap-1">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />

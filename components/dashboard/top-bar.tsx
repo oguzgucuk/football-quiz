@@ -24,7 +24,7 @@ export function TopBar({ activeTab, onTabChange, onOpenAuthModal }: TopBarProps)
   ];
 
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between border-b border-[#e2e8e4] bg-white px-6 z-30 select-none shadow-xs relative">
+    <header className="flex h-16 shrink-0 items-center justify-between border-b border-white/25 bg-white/70 backdrop-blur-md px-6 z-30 select-none shadow-xs relative">
       {/* Sol: Logo */}
       <div className="flex items-center">
         <button

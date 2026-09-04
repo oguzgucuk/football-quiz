@@ -90,9 +90,12 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
   };
 
   return (
-    <main className="flex h-screen w-full overflow-hidden bg-[#f5f8f6] text-[#141b16] font-sans select-none">
-      {/* Sol / Ana Gövde (TopBar + Dinamik Sahne İçeriği) */}
-      <div className="flex flex-col flex-1 min-w-0 h-full overflow-hidden">
+    <main className="relative flex h-screen w-full overflow-hidden bg-[#0d1611] text-[#141b16] font-sans select-none">
+      {/* 1. Tam Ekran Stadyum Arka Planı (TopBar, Sahne ve SocialBar arkasında kesintisiz uzanır) */}
+      <StadiumBackground variant="light" />
+
+      {/* 2. Sol / Ana Gövde (TopBar + Dinamik Sahne İçeriği) */}
+      <div className="relative z-10 flex flex-col flex-1 min-w-0 h-full overflow-hidden">
         {/* Üst Navigasyon Barı */}
         <TopBar
           activeTab={activeTab}
@@ -102,9 +105,6 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
 
         {/* Merkezde Değişen Sahne (Main Stage İçeriği) */}
         <div className="flex-1 min-h-0 relative overflow-hidden">
-          {/* Ortak Stadyum Arka Planı (Tüm sahnelerde geçerli) */}
-          <StadiumBackground variant="light" />
-
           {activeTab === "home" && (
             <HomeStage onGoToPlay={() => setActiveTab("play")} />
           )}
