@@ -59,12 +59,20 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
     requestBotMatch,
   } = useMatchmaking();
 
-  const handleStartRanked = (duration: number = selectedDuration) => {
+  const handleOpenRankedModal = () => {
     if (!user) {
       handleOpenAuthModal("login");
       return;
     }
+    cancelMatchmaking();
     setIsMatchmakingOpen(true);
+  };
+
+  const handleStartSearching = (duration: number) => {
+    if (!user) {
+      handleOpenAuthModal("login");
+      return;
+    }
     startMatchmaking(user.id, user.username, user.eloRating || 1000, duration);
   };
 
@@ -103,7 +111,7 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
 
           {activeTab === "play" && (
             <PlayStage
-              onStartRanked={() => handleStartRanked(15)}
+              onStartRanked={handleOpenRankedModal}
               onOpenCustomRoom={handleOpenCustomRoom}
               onOpenAuthModal={handleOpenAuthModal}
             />
@@ -140,12 +148,12 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
       <MatchmakingModal
         isOpen={isMatchmakingOpen}
         onCancel={handleCancelMatchmaking}
+        onStartSearching={handleStartSearching}
         onSelectDuration={setSelectedDuration}
         status={matchmakingStatus}
         waitingSeconds={waitingSeconds}
         matchedData={matchedData}
         selectedDuration={selectedDuration}
-        onRequestBot={requestBotMatch}
       />
 
       {/* Özel Lobi Kurma Modalı */}

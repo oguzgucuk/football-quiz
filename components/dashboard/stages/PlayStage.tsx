@@ -129,9 +129,8 @@ export function PlayStage({
 
   const getButtonLabel = () => {
     if (selectedModeId !== "common_player") return "YAKINDA GELECEK";
-    if (selectedSubMode === "ranked") return "SIRAYA GİR";
-    if (selectedSubMode === "casual") return "ANTRENMANA BAŞLA";
-    return "LOBİ KUR";
+    if (selectedSubMode === "ranked" || selectedSubMode === "casual") return "OYNA";
+    return "OYUN KUR";
   };
 
   const currentGuide = activeGuideKey ? MODE_GUIDES[activeGuideKey] : null;
