@@ -15,6 +15,7 @@ import { useMatchmaking } from "@/hooks/useMatchmaking";
 import { MatchmakingModal } from "@/components/game/MatchmakingModal";
 import { CreateCustomRoomModal } from "@/components/game/CreateCustomRoomModal";
 import { AuthModal } from "@/components/auth/AuthModal";
+import { StadiumBackground } from "@/components/ui/StadiumBackground";
 
 interface DashboardShellProps {
   initialTab?: DashboardTab;
@@ -92,7 +93,10 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
         />
 
         {/* Merkezde Değişen Sahne (Main Stage İçeriği) */}
-        <div className="flex-1 min-h-0 relative">
+        <div className="flex-1 min-h-0 relative overflow-hidden">
+          {/* Ortak Stadyum Arka Planı (Tüm sahnelerde geçerli) */}
+          <StadiumBackground variant="light" />
+
           {activeTab === "home" && (
             <HomeStage onGoToPlay={() => setActiveTab("play")} />
           )}

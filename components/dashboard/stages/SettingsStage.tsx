@@ -30,7 +30,7 @@ export function SettingsStage() {
   };
 
   return (
-    <div className="relative flex flex-1 flex-col overflow-y-auto bg-[#f4f7f5] text-[#141b16] select-none font-sans p-8 lg:p-12 h-full custom-scrollbar">
+    <div className="relative flex flex-1 flex-col overflow-y-auto bg-transparent text-[#141b16] select-none font-sans p-8 lg:p-12 h-full custom-scrollbar">
       {/* Arka Plan Radyal Vurgusu */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_20%,rgba(21,128,61,0.07)_0%,rgba(244,247,245,0)_70%)] pointer-events-none z-0" />
 

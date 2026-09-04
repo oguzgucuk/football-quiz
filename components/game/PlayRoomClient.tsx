@@ -24,6 +24,7 @@ import { useGamePresence } from "@/hooks/useGamePresence";
 import { Button } from "@/components/ui/Button";
 import { RotateCcw, Wrench, Play, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { StadiumBackground } from "@/components/ui/StadiumBackground";
 
 interface PlayRoomClientProps {
   roomId: string;
@@ -96,7 +97,10 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
   }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-[#090a0f] text-zinc-100">
+    <div className="flex flex-col h-screen overflow-hidden bg-[#090a0f] text-zinc-100 relative">
+      {/* 1v1 Maç Odası Stadyum Arka Planı (Koyu Varyant) */}
+      <StadiumBackground variant="dark" />
+
       {/* Üst Maç Başlığı */}
       <MatchHeader
         currentRound={roomState.currentRound}

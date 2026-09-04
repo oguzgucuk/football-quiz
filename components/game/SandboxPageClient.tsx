@@ -6,6 +6,7 @@ import { SandboxMode } from "./SandboxMode";
 import { Team, PlayerSearchItem } from "@/types/game";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { StadiumBackground } from "@/components/ui/StadiumBackground";
 
 export function SandboxPageClient() {
   const [teams, setTeams] = useState<Team[]>([]);
@@ -45,7 +46,10 @@ export function SandboxPageClient() {
   }, []);
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#090a0f] text-zinc-100">
+    <div className="flex flex-col min-h-screen bg-[#090a0f] text-zinc-100 relative overflow-hidden">
+      {/* Koyu Temalı Stadyum Arka Planı */}
+      <StadiumBackground variant="dark" />
+
       {/* Üst Bar */}
       <header className="border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-xl px-4 py-3 sticky top-0 z-40">
         <div className="max-w-5xl mx-auto flex items-center justify-between">

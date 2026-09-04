@@ -11,6 +11,7 @@ import { Trophy, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { RoomState } from "@/lib/realtime/roomState";
+import { StadiumBackground } from "@/components/ui/StadiumBackground";
 
 interface MatchFinishedViewProps {
   roomState: RoomState;
@@ -43,8 +44,9 @@ export function MatchFinishedView({ roomState, currentUserId, username }: MatchF
     : "5 tur sonunda nihai skor tablosu";
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#090a0f] text-zinc-100 items-center justify-center p-4">
-      <Card variant="glass" className="max-w-md w-full text-center p-8 flex flex-col items-center">
+    <div className="flex flex-col min-h-screen bg-[#090a0f] text-zinc-100 items-center justify-center p-4 relative overflow-hidden">
+      <StadiumBackground variant="dark" />
+      <Card variant="glass" className="max-w-md w-full text-center p-8 flex flex-col items-center relative z-10">
         <div className="w-20 h-20 rounded-3xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-6 shadow-xl shadow-amber-500/10">
           <Trophy className="w-10 h-10" />
         </div>

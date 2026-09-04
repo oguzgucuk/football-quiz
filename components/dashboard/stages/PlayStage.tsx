@@ -137,20 +137,7 @@ export function PlayStage({
   const currentGuide = activeGuideKey ? MODE_GUIDES[activeGuideKey] : null;
 
   return (
-    <div className="relative flex flex-1 flex-col justify-between overflow-hidden bg-[#f4f7f5] text-[#141b16] select-none font-sans p-8 lg:p-12 h-full">
-      {/* 0. Arka Plan Stadyum Görseli — Kenarlara doğru yayıldıkça saydamlaşan belirgin mat stadyum */}
-      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
-        <div
-          className="w-full h-full bg-center bg-cover bg-no-repeat opacity-50 transition-opacity duration-700"
-          style={{
-            backgroundImage: "url('/stadium-bg.webp')",
-            filter: "saturate(0.82) contrast(0.95)",
-            maskImage: "radial-gradient(ellipse 90% 80% at 50% 50%, black 35%, rgba(0,0,0,0.65) 70%, transparent 96%)",
-            WebkitMaskImage: "radial-gradient(ellipse 90% 80% at 50% 50%, black 35%, rgba(0,0,0,0.65) 70%, transparent 96%)",
-          }}
-        />
-      </div>
-
+    <div className="relative flex flex-1 flex-col justify-between overflow-hidden bg-transparent text-[#141b16] select-none font-sans p-8 lg:p-12 h-full">
       {/* 1. Merkez Odaklı Sıcak Zümrüt Radyal Geçiş */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_75%_55%_at_50%_46%,rgba(21,128,61,0.08)_0%,rgba(244,247,245,0)_70%)] pointer-events-none z-0" />
 
