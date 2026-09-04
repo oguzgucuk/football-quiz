@@ -21,7 +21,7 @@ function getCachedUser(): AuthenticatedUser | null {
   }
 }
 
-let globalUserCache: AuthenticatedUser | null = getCachedUser();
+let globalUserCache: AuthenticatedUser | null = null;
 let isInitialFetchDone = false;
 const listeners = new Set<(user: AuthenticatedUser | null) => void>();
 
@@ -43,18 +43,25 @@ function setGlobalUser(newUser: AuthenticatedUser | null) {
 }
 
 export function useAuth() {
-  const [user, setUser] = useState<AuthenticatedUser | null>(() => globalUserCache ?? getCachedUser());
-  const [isLoading, setIsLoading] = useState(() => {
-    if (isInitialFetchDone) return false;
-    const cached = globalUserCache ?? getCachedUser();
-    return !cached;
-  });
+  const [user, setUser] = useState<AuthenticatedUser | null>(() => globalUserCache);
+  const [isLoading, setIsLoading] = useState(!globalUserCache && !isInitialFetchDone);
 
   useEffect(() => {
     listeners.add(setUser);
     return () => {
       listeners.delete(setUser);
     };
+  }, []);
+
+  // SSR / Hydration mismatch hatasını önlemek için:
+  // İlk render'da sunucu ile istemci aynı başlar, mount olduktan sonra (1ms içinde) cache'den okur
+  useEffect(() => {
+    if (!globalUserCache) {
+      const cached = getCachedUser();
+      if (cached) {
+        setGlobalUser(cached);
+      }
+    }
   }, []);
 
   const fetchUser = useCallback(async () => {

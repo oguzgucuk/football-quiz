@@ -87,7 +87,7 @@ export function TopBar({ activeTab, onTabChange, onOpenAuthModal }: TopBarProps)
       </div>
 
       {/* Sağ: Oturum Butonları VEYA Oyun Parası (Coins & Gems) */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2" suppressHydrationWarning>
         {isLoading && !user ? (
           <div className="flex items-center gap-2 animate-pulse">
             <div className="h-8 w-20 rounded-xl bg-zinc-100" />
