@@ -20,31 +20,24 @@ import {
   clearRoomSessions,
 } from "../lib/realtime/sessionManager";
 
-const PORT = parseInt(process.env.PORT || "1999", 10);
-const ROUNDS_PER_MATCH = 5;
-const PICK_TIME_SECONDS = 5;
-const ANSWER_TIME_SECONDS = 15;
+import {
+  DEFAULT_POPULAR_TEAMS,
+  DEFAULT_ROUND_DURATION,
+  DEFAULT_PICK_DURATION,
+  DEFAULT_MAX_ROUNDS,
+  resolveRoundDuration,
+  prepareAnsweringPhase,
+  recordRoundTimeout,
+  evaluateAnswerSubmission,
+  evaluatePassVote,
+  prepareNextRound,
+  registerTeamPick,
+} from "../lib/realtime/roomEngine";
 
-const DEFAULT_POPULAR_TEAMS: Team[] = [
-  { id: "cmtfrb40e00dtu6k4wklez572", name: "Real Madrid", country: "Spain", league: "La Liga", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40e00dtu6k4wklez572.svg" },
-  { id: "cmtfrb40c003au6k4nfn56sus", name: "FC Barcelona", country: "Spain", league: "La Liga", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40c003au6k4nfn56sus.png" },
-  { id: "cmtfrb40c003lu6k4drdv5sfi", name: "Galatasaray", country: "Türkiye", league: "Süper Lig", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40c003lu6k4drdv5sfi.svg" },
-  { id: "cmtfrb40e00bpu6k4hmbu9cbf", name: "Fenerbahçe", country: "Türkiye", league: "Süper Lig", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40e00bpu6k4hmbu9cbf.png" },
-  { id: "cmtfrb40b001xu6k47fc7n16j", name: "Beşiktaş", country: "Türkiye", league: "Süper Lig", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40b001xu6k47fc7n16j.svg" },
-  { id: "cmtfrb40f00f8u6k4sot14ojx", name: "AC Milan", country: "Italy", league: "Serie A", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40f00f8u6k4sot14ojx.svg" },
-  { id: "cmtfrb40f00elu6k4tgttd211", name: "Inter Milan", country: "Italy", league: "Serie A", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40f00elu6k4tgttd211.svg" },
-  { id: "cmtfrb40f00fdu6k4upvw15gj", name: "Juventus", country: "Italy", league: "Serie A", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40f00fdu6k4upvw15gj.svg" },
-  { id: "cmtfrb40g00lxu6k4zyc9ngsw", name: "Manchester United", country: "England", league: "Premier League", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40g00lxu6k4zyc9ngsw.png" },
-  { id: "cmtfrb40f00hbu6k4ixa7ye8a", name: "Chelsea FC", country: "England", league: "Premier League", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40f00hbu6k4ixa7ye8a.png" },
-  { id: "cmtfrb40d008pu6k4jemghzq0", name: "Bayern München", country: "Germany", league: "Bundesliga", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40d008pu6k4jemghzq0.svg" },
-  { id: "cmtfrb40c004nu6k4gn075jtk", name: "Borussia Dortmund", country: "Germany", league: "Bundesliga", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40c004nu6k4gn075jtk.svg" },
-  { id: "cmtfrb40c0036u6k463i99nss", name: "Atlético de Madrid", country: "Spain", league: "La Liga", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40c0036u6k463i99nss.png" },
-  { id: "cmtfrj6ve000pu6t8gspq4v3h", name: "Boca Juniors", country: "Argentina", league: "Primera División", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrj6ve000pu6t8gspq4v3h.svg" },
-  { id: "cmtfrb40c0064u6k4rd98tz21", name: "River Plate", country: "Argentina", league: "Primera División", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40c0064u6k4rd98tz21.svg" },
-  { id: "cmtfrj0ul000cu6t8j88ybi62", name: "Flamengo", country: "Brazil", league: "Serie A", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrj0ul000cu6t8j88ybi62.svg" },
-  { id: "cmtfrb40c006eu6k4xv2lg93k", name: "Santos FC", country: "Brazil", league: "Serie A", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40c006eu6k4xv2lg93k.png" },
-  { id: "cmtfrb40f00ggu6k4ck93hvci", name: "São Paulo FC", country: "Brazil", league: "Serie A", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40f00ggu6k4ck93hvci.svg" },
-];
+const PORT = parseInt(process.env.PORT || "1999", 10);
+const ROUNDS_PER_MATCH = DEFAULT_MAX_ROUNDS;
+const PICK_TIME_SECONDS = DEFAULT_PICK_DURATION;
+const ANSWER_TIME_SECONDS = DEFAULT_ROUND_DURATION;
 
 interface Room {
   id: string;
@@ -101,10 +94,7 @@ function getOrCreateRoom(roomId: string): Room {
       completedRounds: [],
     };
     room.state.maxRounds = ROUNDS_PER_MATCH;
-    const match = roomId.match(/_(\d+)s_/);
-    if (match && match[1]) {
-      room.state.roundDuration = parseInt(match[1], 10);
-    }
+    room.state.roundDuration = resolveRoundDuration(roomId, room.state.roundDuration);
     rooms.set(roomId, room);
   }
   return room;
@@ -166,23 +156,10 @@ function transitionToAnsweringPhase(room: Room) {
     room.timer = undefined;
   }
 
-  if (!room.state.team1) {
-    room.state.team1 = DEFAULT_POPULAR_TEAMS[0];
-    if (room.state.player1) room.state.player1.selectedTeamId = room.state.team1.id;
-  }
-
-  if (!room.state.team2) {
-    const available = DEFAULT_POPULAR_TEAMS.filter((t) => t.id !== room.state.team1?.id);
-    room.state.team2 = available[0] || DEFAULT_POPULAR_TEAMS[1];
-    if (room.state.player2) room.state.player2.selectedTeamId = room.state.team2.id;
-  }
-
-  room.state.roundStatus = "answering";
-  room.state.roundStartTime = Date.now();
+  const { state, duration } = prepareAnsweringPhase(room.state, DEFAULT_POPULAR_TEAMS);
+  room.state = state;
   broadcastRoomState(room);
 
-  // Dinamik cevap sayacını başlat (5, 10, 15, 20 sn)
-  const duration = room.state.roundDuration || ANSWER_TIME_SECONDS;
   startServerTimer(room, duration, () => {
     handleRoundTimeout(room);
   });
@@ -192,16 +169,10 @@ function transitionToAnsweringPhase(room: Room) {
 function handleRoundTimeout(room: Room) {
   if (room.state.roundStatus !== "answering") return;
 
-  room.completedRounds.push({
-    roundNumber: room.state.currentRound,
-    entity1Id: room.state.team1?.id || "",
-    entity2Id: room.state.team2?.id || "",
-    winnerUserId: null,
-    answerGiven: "Süre Doldu",
-    timeTakenMs: (room.state.roundDuration || ANSWER_TIME_SECONDS) * 1000,
-  });
+  const { state, completedRound } = recordRoundTimeout(room.state);
+  room.state = state;
+  room.completedRounds.push(completedRound);
 
-  room.state.roundStatus = "round_finished";
   broadcastToRoom(room, {
     type: "ROUND_RESULT",
     winnerUserId: null,
@@ -216,8 +187,10 @@ function handleRoundTimeout(room: Room) {
 // Tur sonrası 3sn bekleyip yeni tura veya maç sonuna geçiş
 function scheduleNextRound(room: Room) {
   setTimeout(() => {
-    if (room.state.currentRound >= (room.state.maxRounds || ROUNDS_PER_MATCH)) {
-      room.state.status = "match_finished";
+    const { isMatchFinished, state } = prepareNextRound(room.state, ROUNDS_PER_MATCH);
+    room.state = state;
+
+    if (isMatchFinished) {
       broadcastRoomState(room);
 
       // P1-8: Maç bittiğinde ELO hesapla ve DB'ye atomik transaction ile kaydet
@@ -247,24 +220,13 @@ function scheduleNextRound(room: Room) {
           });
       }
     } else {
-      room.state.currentRound += 1;
-      room.state.roundStatus = "picking_teams";
-      room.state.team1 = null;
-      room.state.team2 = null;
-      if (room.state.player1) room.state.player1.selectedTeamId = null;
-      if (room.state.player2) {
-        if (room.state.player2.userId.startsWith("bot_")) {
-          const botTeam = DEFAULT_POPULAR_TEAMS[Math.floor(Math.random() * DEFAULT_POPULAR_TEAMS.length)];
-          room.state.player2.selectedTeamId = botTeam.id;
-          room.state.team2 = botTeam;
-        } else {
-          room.state.player2.selectedTeamId = null;
-        }
+      if (room.state.player2?.userId.startsWith("bot_")) {
+        const botTeam = DEFAULT_POPULAR_TEAMS[Math.floor(Math.random() * DEFAULT_POPULAR_TEAMS.length)];
+        room.state.player2.selectedTeamId = botTeam.id;
+        room.state.team2 = botTeam;
       }
 
-      room.state.passVotes = [];
       broadcastRoomState(room);
-
       const pickDuration = room.state.roundDuration || PICK_TIME_SECONDS;
       startServerTimer(room, pickDuration, () => {
         transitionToAnsweringPhase(room);
@@ -552,21 +514,12 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
           const { userId, team } = data as { userId: string; team: Team };
           const clientMeta = room.clients.get(ws);
           const effectiveUserId = userId || clientMeta?.userId;
+          if (!effectiveUserId || !team) break;
 
-          if (room.state.player1 && (room.state.player1.userId === effectiveUserId || clientMeta?.userId === room.state.player1.userId)) {
-            room.state.player1.selectedTeamId = team.id;
-            room.state.team1 = team;
-            console.log(`[TEAM_PICKED] Player 1 (${room.state.player1.username}) takım seçti: ${team.name}`);
-          } else if (room.state.player2 && (room.state.player2.userId === effectiveUserId || clientMeta?.userId === room.state.player2.userId)) {
-            room.state.player2.selectedTeamId = team.id;
-            room.state.team2 = team;
-            console.log(`[TEAM_PICKED] Player 2 (${room.state.player2.username}) takım seçti: ${team.name}`);
-          } else {
-            console.warn(`[TEAM_PICKED] Eşleşmeyen userId: ${userId}, clientMeta: ${clientMeta?.userId}`);
-          }
+          const pickResult = registerTeamPick(room.state, effectiveUserId, team);
+          room.state = pickResult.state;
 
-          if (room.state.team1 && room.state.team2 && room.state.roundStatus === "picking_teams") {
-            room.state.passVotes = [];
+          if (pickResult.bothPicked && room.state.roundStatus === "picking_teams") {
             transitionToAnsweringPhase(room);
             return;
           }
@@ -579,22 +532,25 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
           const { userId } = data;
           const clientMeta = room.clients.get(ws);
           const effectiveUserId = userId || clientMeta?.userId;
-
-          if (!room.state.passVotes) room.state.passVotes = [];
-          if (effectiveUserId && !room.state.passVotes.includes(effectiveUserId)) {
-            room.state.passVotes.push(effectiveUserId);
-          }
+          if (room.state.roundStatus !== "answering" || !effectiveUserId) return;
 
           const isVsBot = Boolean(room.state.player2?.userId.startsWith("bot_"));
-          const allVoted = room.state.passVotes.length >= 2 || (isVsBot && room.state.passVotes.length >= 1);
+          const passResult = evaluatePassVote(room.state, effectiveUserId);
+          room.state = passResult.state;
 
-          if (allVoted && room.state.roundStatus === "answering") {
+          const allVoted = passResult.bothPassed || (isVsBot && room.state.passVotes.includes(effectiveUserId));
+
+          if (allVoted) {
             if (room.timer) {
               clearInterval(room.timer);
               room.timer = undefined;
             }
 
             room.state.roundStatus = "round_finished";
+            if (passResult.completedRound) {
+              room.completedRounds.push(passResult.completedRound);
+            }
+
             broadcastToRoom(room, {
               type: "ROUND_RESULT",
               winnerUserId: null,
@@ -623,10 +579,8 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
           const team2Id = room.state.team2.id;
 
           try {
-            // Sunucu-taraflı güvenli ve in-memory cache destekli doğrudan doğrulama
             const result = await verifyPlayerAnswerInServer(name, team1Id, team2Id);
 
-            // İstek sürerken başka oyuncu bilmiş veya süre dolmuşsa işlem yapma (Race condition koruması)
             if (room.state.roundStatus !== "answering") return;
 
             if (result.isCorrect && result.playerName) {
@@ -635,22 +589,20 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
                 room.timer = undefined;
               }
 
-              if (room.state.player1 && room.state.player1.userId === senderId) {
-                room.state.player1.score += 1;
-              } else if (room.state.player2 && room.state.player2.userId === senderId) {
-                room.state.player2.score += 1;
+              const outcome = evaluateAnswerSubmission(
+                room.state,
+                senderId,
+                result,
+                room.state.roundStartTime ? Date.now() - room.state.roundStartTime : undefined
+              );
+
+              if (!outcome.accepted) return;
+
+              room.state = outcome.state;
+              if (outcome.completedRound) {
+                room.completedRounds.push(outcome.completedRound);
               }
 
-              room.completedRounds.push({
-                roundNumber: room.state.currentRound,
-                entity1Id: team1Id,
-                entity2Id: team2Id,
-                winnerUserId: senderId,
-                answerGiven: result.playerName,
-                timeTakenMs: room.state.roundStartTime ? Date.now() - room.state.roundStartTime : 5000,
-              });
-
-              room.state.roundStatus = "round_finished";
               broadcastToRoom(room, {
                 type: "ROUND_RESULT",
                 winnerUserId: senderId,

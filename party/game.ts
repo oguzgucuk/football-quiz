@@ -17,44 +17,30 @@ import {
   clearRoomSessions,
 } from "../lib/realtime/sessionManager";
 
-const ROUNDS_PER_MATCH = 5;
+import {
+  DEFAULT_POPULAR_TEAMS,
+  resolveRoundDuration,
+  prepareAnsweringPhase,
+  recordRoundTimeout,
+  evaluateAnswerSubmission,
+  evaluatePassVote,
+  prepareNextRound,
+} from "../lib/realtime/roomEngine";
+import { CompletedRoundData } from "../lib/db/matches";
 
-const DEFAULT_POPULAR_TEAMS: Team[] = [
-  { id: "cmtfrb40e00dtu6k4wklez572", name: "Real Madrid", country: "Spain", league: "La Liga", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40e00dtu6k4wklez572.svg" },
-  { id: "cmtfrb40c003au6k4nfn56sus", name: "FC Barcelona", country: "Spain", league: "La Liga", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40c003au6k4nfn56sus.png" },
-  { id: "cmtfrb40c003lu6k4drdv5sfi", name: "Galatasaray", country: "Türkiye", league: "Süper Lig", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40c003lu6k4drdv5sfi.svg" },
-  { id: "cmtfrb40e00bpu6k4hmbu9cbf", name: "Fenerbahçe", country: "Türkiye", league: "Süper Lig", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40e00bpu6k4hmbu9cbf.png" },
-  { id: "cmtfrb40b001xu6k47fc7n16j", name: "Beşiktaş", country: "Türkiye", league: "Süper Lig", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40b001xu6k47fc7n16j.svg" },
-  { id: "cmtfrb40f00f8u6k4sot14ojx", name: "AC Milan", country: "Italy", league: "Serie A", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40f00f8u6k4sot14ojx.svg" },
-  { id: "cmtfrb40f00elu6k4tgttd211", name: "Inter Milan", country: "Italy", league: "Serie A", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40f00elu6k4tgttd211.svg" },
-  { id: "cmtfrb40f00fdu6k4upvw15gj", name: "Juventus", country: "Italy", league: "Serie A", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40f00fdu6k4upvw15gj.svg" },
-  { id: "cmtfrb40g00lxu6k4zyc9ngsw", name: "Manchester United", country: "England", league: "Premier League", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40g00lxu6k4zyc9ngsw.png" },
-  { id: "cmtfrb40f00hbu6k4ixa7ye8a", name: "Chelsea FC", country: "England", league: "Premier League", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40f00hbu6k4ixa7ye8a.png" },
-  { id: "cmtfrb40d008pu6k4jemghzq0", name: "Bayern München", country: "Germany", league: "Bundesliga", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40d008pu6k4jemghzq0.svg" },
-  { id: "cmtfrb40c004nu6k4gn075jtk", name: "Borussia Dortmund", country: "Germany", league: "Bundesliga", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40c004nu6k4gn075jtk.svg" },
-  { id: "cmtfrb40c0036u6k463i99nss", name: "Atlético de Madrid", country: "Spain", league: "La Liga", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40c0036u6k463i99nss.png" },
-  { id: "cmtfrj6ve000pu6t8gspq4v3h", name: "Boca Juniors", country: "Argentina", league: "Primera División", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrj6ve000pu6t8gspq4v3h.svg" },
-  { id: "cmtfrb40c0064u6k4rd98tz21", name: "River Plate", country: "Argentina", league: "Primera División", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40c0064u6k4rd98tz21.svg" },
-  { id: "cmtfrj0ul000cu6t8j88ybi62", name: "Flamengo", country: "Brazil", league: "Serie A", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrj0ul000cu6t8j88ybi62.svg" },
-  { id: "cmtfrb40c006eu6k4xv2lg93k", name: "Santos FC", country: "Brazil", league: "Serie A", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40c006eu6k4xv2lg93k.png" },
-  { id: "cmtfrb40f00ggu6k4ck93hvci", name: "São Paulo FC", country: "Brazil", league: "Serie A", logoUrl: "https://mwfxdrejioteevtdehns.supabase.co/storage/v1/object/public/team-logos/cmtfrb40f00ggu6k4ck93hvci.svg" },
-];
+const ROUNDS_PER_MATCH = 5;
 
 export default class GameRoomServer implements Party.Server {
   state: RoomState;
   timerInterval?: ReturnType<typeof setInterval>;
   timerSecondsLeft?: number;
   connectionMeta = new Map<string, { userId?: string; username?: string }>();
+  completedRounds: CompletedRoundData[] = [];
 
   constructor(readonly room: Party.Room) {
     this.state = createInitialRoomState(this.room.id);
     this.state.maxRounds = ROUNDS_PER_MATCH;
-
-    // Oda ID'sinden seçilen süreyi çöz (örn: match_10s_xxx)
-    const match = this.room.id.match(/_(\d+)s_/);
-    if (match && match[1]) {
-      this.state.roundDuration = parseInt(match[1], 10);
-    }
+    this.state.roundDuration = resolveRoundDuration(this.room.id, this.state.roundDuration);
   }
 
   onConnect(conn: Party.Connection) {
@@ -196,23 +182,10 @@ export default class GameRoomServer implements Party.Server {
 
   transitionToAnsweringPhase() {
     this.clearServerTimer();
-
-    if (!this.state.team1) {
-      this.state.team1 = DEFAULT_POPULAR_TEAMS[0];
-      if (this.state.player1) this.state.player1.selectedTeamId = this.state.team1.id;
-    }
-
-    if (!this.state.team2) {
-      const available = DEFAULT_POPULAR_TEAMS.filter((t) => t.id !== this.state.team1?.id);
-      this.state.team2 = available[0] || DEFAULT_POPULAR_TEAMS[1];
-      if (this.state.player2) this.state.player2.selectedTeamId = this.state.team2.id;
-    }
-
-    this.state.roundStatus = "answering";
-    this.state.roundStartTime = Date.now();
+    const { state, duration } = prepareAnsweringPhase(this.state, DEFAULT_POPULAR_TEAMS);
+    this.state = state;
     this.broadcastState();
 
-    const duration = this.state.roundDuration || 15;
     this.startServerTimer(duration, () => {
       this.handleRoundTimeout();
     });
@@ -221,7 +194,10 @@ export default class GameRoomServer implements Party.Server {
   handleRoundTimeout() {
     if (this.state.roundStatus !== "answering") return;
 
-    this.state.roundStatus = "round_finished";
+    const { state, completedRound } = recordRoundTimeout(this.state);
+    this.state = state;
+    this.completedRounds.push(completedRound);
+
     this.broadcast({
       type: "ROUND_RESULT",
       winnerUserId: null,
@@ -233,28 +209,61 @@ export default class GameRoomServer implements Party.Server {
     this.scheduleNextRound();
   }
 
+  async persistMatchResult() {
+    const p1Id = this.state.player1?.userId;
+    const p2Id = this.state.player2?.userId;
+    if (!p1Id || !p2Id) return;
+
+    const apiUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://127.0.0.1:5000";
+    const secret = process.env.INTERNAL_API_SECRET || "";
+
+    try {
+      const res = await fetch(`${apiUrl}/api/game/finalize-match`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-internal-secret": secret,
+        },
+        body: JSON.stringify({
+          matchId: this.room.id,
+          player1Id: p1Id,
+          player2Id: p2Id,
+          player1Score: this.state.player1?.score || 0,
+          player2Score: this.state.player2?.score || 0,
+          ranked: !p1Id.startsWith("bot_") && !p2Id.startsWith("bot_"),
+          rounds: this.completedRounds,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.result) {
+        console.log(`🏆 [Party/Game] Maç ${this.room.id} DB'ye işlendi:`, data.result);
+        this.broadcast({
+          type: "MATCH_PERSISTED",
+          result: data.result,
+          state: this.state,
+        });
+      }
+    } catch (err) {
+      console.error("[Party/Game] persistMatchResult Hatası:", err);
+    }
+  }
+
   scheduleNextRound() {
     setTimeout(() => {
-      if (this.state.currentRound >= (this.state.maxRounds || ROUNDS_PER_MATCH)) {
-        this.state.status = "match_finished";
+      const { isMatchFinished, state } = prepareNextRound(this.state, ROUNDS_PER_MATCH);
+      this.state = state;
+
+      if (isMatchFinished) {
         this.broadcastState();
+        this.persistMatchResult();
       } else {
-        this.state.currentRound += 1;
-        this.state.roundStatus = "picking_teams";
-        this.state.team1 = null;
-        this.state.team2 = null;
-        if (this.state.player1) this.state.player1.selectedTeamId = null;
-        if (this.state.player2) {
-          if (this.state.player2.userId.startsWith("bot_")) {
-            const botTeam = DEFAULT_POPULAR_TEAMS[Math.floor(Math.random() * DEFAULT_POPULAR_TEAMS.length)];
-            this.state.player2.selectedTeamId = botTeam.id;
-            this.state.team2 = botTeam;
-          } else {
-            this.state.player2.selectedTeamId = null;
-          }
+        if (this.state.player2?.userId.startsWith("bot_")) {
+          const botTeam = DEFAULT_POPULAR_TEAMS[Math.floor(Math.random() * DEFAULT_POPULAR_TEAMS.length)];
+          this.state.player2.selectedTeamId = botTeam.id;
+          this.state.team2 = botTeam;
         }
 
-        this.state.passVotes = [];
         this.broadcastState();
         const pickDuration = this.state.roundDuration || 15;
         this.startServerTimer(pickDuration, () => {
@@ -456,16 +465,25 @@ export default class GameRoomServer implements Party.Server {
             if (verifyData.isCorrect && verifyData.player) {
               this.clearServerTimer();
 
-              let winnerUsername: string | null = null;
-              if (this.state.player1 && this.state.player1.userId === senderId) {
-                this.state.player1.score += 1;
-                winnerUsername = this.state.player1.username;
-              } else if (this.state.player2 && this.state.player2.userId === senderId) {
-                this.state.player2.score += 1;
-                winnerUsername = this.state.player2.username;
+              const outcome = evaluateAnswerSubmission(
+                this.state,
+                senderId,
+                { isCorrect: true, playerName: verifyData.player.fullName },
+                this.state.roundStartTime ? Date.now() - this.state.roundStartTime : undefined
+              );
+
+              if (!outcome.accepted) return;
+
+              this.state = outcome.state;
+              if (outcome.completedRound) {
+                this.completedRounds.push(outcome.completedRound);
               }
 
-              this.state.roundStatus = "round_finished";
+              const winnerUsername =
+                this.state.player1?.userId === senderId
+                  ? this.state.player1?.username
+                  : this.state.player2?.username;
+
               this.broadcast({
                 type: "ROUND_RESULT",
                 winnerUserId: senderId,
