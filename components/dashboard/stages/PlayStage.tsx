@@ -162,10 +162,10 @@ export function PlayStage({
           {/* 1. Ortak Oyuncu Modu */}
           <div
             onClick={() => setSelectedModeId("common_player")}
-            className={`relative flex flex-col items-center justify-between p-7 lg:p-8 rounded-[28px] cursor-pointer overflow-hidden border-2 transition-[border-color,transform,box-shadow,background-color] duration-200 ease-out ${
+            className={`relative flex flex-col items-center justify-between p-7 lg:p-8 rounded-[28px] cursor-pointer overflow-hidden border-2 transition duration-200 ease-out ${
               selectedModeId === "common_player"
-                ? "bg-white/95 border-[#15803d] shadow-xl shadow-emerald-700/15 scale-[1.02]"
-                : "bg-white/80 border-[#e2e8e4] hover:border-[#b8c4bc] hover:bg-white/95 shadow-xs scale-100"
+                ? "bg-white/95 border-[#15803d] shadow-xl shadow-emerald-700/15 scale-100 opacity-100 z-10"
+                : "bg-white/80 border-[#e2e8e4] hover:border-[#b8c4bc] hover:bg-white/90 shadow-xs scale-[0.92] opacity-80 z-0"
             }`}
           >
             {/* Üst Vurgu Çizgisi — Smooth Fade */}
@@ -228,7 +228,7 @@ export function PlayStage({
                       setSelectedModeId("common_player");
                       setSelectedSubMode(sub.id);
                     }}
-                    className={`w-full h-[46px] flex items-center justify-between px-3.5 rounded-xl border text-left transition-colors duration-150 cursor-pointer ${
+                    className={`w-full h-[46px] flex items-center justify-between px-3.5 rounded-xl border text-left transition-colors duration-200 cursor-pointer ${
                       isSubActive
                         ? "bg-[#15803d] text-white border-[#126d34] shadow-sm shadow-[#15803d]/20 font-bold"
                         : "bg-[#f8faf8] text-[#525f56] border-[#e2e8e4] hover:border-[#cbd5ce] hover:bg-white font-bold"
@@ -262,10 +262,10 @@ export function PlayStage({
           {/* 2. Millet-Takım Modu */}
           <div
             onClick={() => setSelectedModeId("grid")}
-            className={`relative flex flex-col items-center justify-between p-7 lg:p-8 rounded-[28px] cursor-pointer overflow-hidden border-2 transition-[border-color,transform,box-shadow,background-color] duration-200 ease-out ${
+            className={`relative flex flex-col items-center justify-between p-7 lg:p-8 rounded-[28px] cursor-pointer overflow-hidden border-2 transition duration-200 ease-out ${
               selectedModeId === "grid"
-                ? "bg-white/95 border-[#15803d] shadow-xl shadow-emerald-700/15 scale-[1.02]"
-                : "bg-white/80 border-[#e2e8e4] hover:border-[#cbd5ce] hover:bg-white/90 shadow-2xs scale-100"
+                ? "bg-white/95 border-[#15803d] shadow-xl shadow-emerald-700/15 scale-100 opacity-100 z-10"
+                : "bg-white/80 border-[#e2e8e4] hover:border-[#cbd5ce] hover:bg-white/90 shadow-xs scale-[0.92] opacity-80 z-0"
             }`}
           >
             <div
@@ -293,8 +293,17 @@ export function PlayStage({
             </div>
 
             <div className="relative flex items-center justify-center size-28 mb-5">
-              <div className="relative flex size-24 items-center justify-center rounded-2xl border border-[#e2e8e4] bg-[#fbfdfb] text-[#6b7770]">
-                <Globe className="size-12 relative z-10" strokeWidth={1.75} />
+              <div
+                className={`relative flex size-24 items-center justify-center rounded-2xl border transition-colors duration-200 ${
+                  selectedModeId === "grid"
+                    ? "bg-emerald-50 text-[#15803d] border-emerald-200 shadow-sm"
+                    : "bg-[#f8faf8] text-[#6b7770] border-[#e2e8e4]"
+                }`}
+              >
+                <Globe
+                  className="size-12 relative z-10"
+                  strokeWidth={selectedModeId === "grid" ? 2.25 : 1.75}
+                />
               </div>
             </div>
 
@@ -321,10 +330,10 @@ export function PlayStage({
           {/* 3. Müzayede Modu */}
           <div
             onClick={() => setSelectedModeId("auction")}
-            className={`relative flex flex-col items-center justify-between p-7 lg:p-8 rounded-[28px] cursor-pointer overflow-hidden border-2 transition-[border-color,transform,box-shadow,background-color] duration-200 ease-out ${
+            className={`relative flex flex-col items-center justify-between p-7 lg:p-8 rounded-[28px] cursor-pointer overflow-hidden border-2 transition duration-200 ease-out ${
               selectedModeId === "auction"
-                ? "bg-white/95 border-[#15803d] shadow-xl shadow-emerald-700/15 scale-[1.02]"
-                : "bg-white/80 border-[#e2e8e4] hover:border-[#cbd5ce] hover:bg-white/90 shadow-2xs scale-100"
+                ? "bg-white/95 border-[#15803d] shadow-xl shadow-emerald-700/15 scale-100 opacity-100 z-10"
+                : "bg-white/80 border-[#e2e8e4] hover:border-[#cbd5ce] hover:bg-white/90 shadow-xs scale-[0.92] opacity-80 z-0"
             }`}
           >
             <div
@@ -352,8 +361,17 @@ export function PlayStage({
             </div>
 
             <div className="relative flex items-center justify-center size-28 mb-5">
-              <div className="relative flex size-24 items-center justify-center rounded-2xl border border-[#e2e8e4] bg-[#fbfdfb] text-[#6b7770]">
-                <Gavel className="size-12 relative z-10" strokeWidth={1.75} />
+              <div
+                className={`relative flex size-24 items-center justify-center rounded-2xl border transition-colors duration-200 ${
+                  selectedModeId === "auction"
+                    ? "bg-emerald-50 text-[#15803d] border-emerald-200 shadow-sm"
+                    : "bg-[#f8faf8] text-[#6b7770] border-[#e2e8e4]"
+                }`}
+              >
+                <Gavel
+                  className="size-12 relative z-10"
+                  strokeWidth={selectedModeId === "auction" ? 2.25 : 1.75}
+                />
               </div>
             </div>
 
