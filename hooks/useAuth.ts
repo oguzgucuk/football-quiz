@@ -2,11 +2,11 @@
 
 /**
  * Oturum durumunu, kullanıcı bilgilerini ve anlık bakiye senkronizasyonunu yöneten React hook'u.
- * Sayfa yenilemelerinde FOUC (göz kırpma / oturumsuz görünme) hatasını engellemek için
- * SWR (Stale-While-Revalidate) önbellek deseni kullanır.
+ * useSyncExternalStore mimarisi ile bileşenler arası tam senkronizasyon,
+ * SSR hydration güvenliği ve otomatik önbellek revalidasyonu sağlar.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useSyncExternalStore, useCallback, useEffect } from "react";
 import { AuthenticatedUser } from "@/lib/auth/session";
 
 const AUTH_CACHE_KEY = "football_auth_user";
@@ -21,13 +21,53 @@ function getCachedUser(): AuthenticatedUser | null {
   }
 }
 
-let globalUserCache: AuthenticatedUser | null = null;
-let isInitialFetchDone = false;
-const listeners = new Set<(user: AuthenticatedUser | null) => void>();
+interface AuthState {
+  user: AuthenticatedUser | null;
+  isLoading: boolean;
+}
 
-function setGlobalUser(newUser: AuthenticatedUser | null) {
-  globalUserCache = newUser;
-  isInitialFetchDone = true;
+// SSR ve ilk client hydration render'ı için kararlı sunucu snapshot'ı
+const SERVER_SNAPSHOT: AuthState = {
+  user: null,
+  isLoading: true,
+};
+
+// Client tarafı global snapshot (tüm bileşenler aynı referansı paylaşır)
+let clientSnapshot: AuthState = {
+  user: null,
+  isLoading: true,
+};
+
+// Tarayıcı ortamında varsa önbellekten derhal yükle
+if (typeof window !== "undefined") {
+  const cached = getCachedUser();
+  clientSnapshot = {
+    user: cached,
+    isLoading: !cached,
+  };
+}
+
+const listeners = new Set<() => void>();
+
+function notifyAll() {
+  listeners.forEach((listener) => {
+    try {
+      listener();
+    } catch (err) {
+      console.error("[useAuth] Listener error:", err);
+    }
+  });
+}
+
+export function updateAuthState(patch: Partial<AuthState>) {
+  const newUser = patch.user !== undefined ? patch.user : clientSnapshot.user;
+  const newLoading = patch.isLoading !== undefined ? patch.isLoading : clientSnapshot.isLoading;
+
+  clientSnapshot = {
+    user: newUser,
+    isLoading: newLoading,
+  };
+
   if (typeof window !== "undefined") {
     try {
       if (newUser) {
@@ -36,58 +76,75 @@ function setGlobalUser(newUser: AuthenticatedUser | null) {
         localStorage.removeItem(AUTH_CACHE_KEY);
       }
     } catch {
-      // localStorage kotaları veya güvenlik hataları sessizce yakalanır
+      // localStorage kota/güvenlik hataları yutulur
     }
   }
-  listeners.forEach((l) => l(newUser));
+
+  notifyAll();
 }
 
-export function useAuth() {
-  const [user, setUser] = useState<AuthenticatedUser | null>(() => globalUserCache);
-  const [isLoading, setIsLoading] = useState(!globalUserCache && !isInitialFetchDone);
-
-  useEffect(() => {
-    listeners.add(setUser);
-    return () => {
-      listeners.delete(setUser);
-    };
-  }, []);
-
-  // SSR / Hydration mismatch hatasını önlemek için:
-  // İlk render'da sunucu ile istemci aynı başlar, mount olduktan sonra (1ms içinde) cache'den okur
-  useEffect(() => {
-    if (!globalUserCache) {
+// Depolama olaylarını dinle (farklı sekmeler arası senkronizasyon)
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (e) => {
+    if (e.key === AUTH_CACHE_KEY) {
       const cached = getCachedUser();
-      if (cached) {
-        setGlobalUser(cached);
-      }
+      updateAuthState({ user: cached, isLoading: false });
     }
-  }, []);
+  });
+}
 
-  const fetchUser = useCallback(async () => {
+// In-flight /api/auth/me isteklerini tekilleştir
+let activeFetchPromise: Promise<AuthenticatedUser | null> | null = null;
+let hasInitialFetchCompleted = false;
+
+async function fetchCurrentUser(): Promise<AuthenticatedUser | null> {
+  if (activeFetchPromise) return activeFetchPromise;
+
+  activeFetchPromise = (async () => {
     try {
       const res = await fetch("/api/auth/me");
       if (res.ok) {
         const data = await res.json();
-        setGlobalUser(data.user);
+        updateAuthState({ user: data.user, isLoading: false });
+        hasInitialFetchCompleted = true;
+        return data.user;
       } else {
-        setGlobalUser(null);
+        updateAuthState({ user: null, isLoading: false });
+        hasInitialFetchCompleted = true;
+        return null;
       }
     } catch {
-      setGlobalUser(null);
+      updateAuthState({ user: null, isLoading: false });
+      hasInitialFetchCompleted = true;
+      return null;
     } finally {
-      setIsLoading(false);
+      activeFetchPromise = null;
+    }
+  })();
+
+  return activeFetchPromise;
+}
+
+export function useAuth() {
+  const state = useSyncExternalStore(
+    (callback) => {
+      listeners.add(callback);
+      return () => {
+        listeners.delete(callback);
+      };
+    },
+    () => clientSnapshot,
+    () => SERVER_SNAPSHOT
+  );
+
+  useEffect(() => {
+    if (!hasInitialFetchCompleted && !activeFetchPromise) {
+      fetchCurrentUser();
     }
   }, []);
 
-  useEffect(() => {
-    if (!isInitialFetchDone) {
-      fetchUser();
-    }
-  }, [fetchUser]);
-
   const login = async (identifier: string, password: string) => {
-    setIsLoading(true);
+    updateAuthState({ isLoading: true });
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -96,15 +153,16 @@ export function useAuth() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Giriş başarısız");
-      setGlobalUser(data.user);
+      updateAuthState({ user: data.user, isLoading: false });
       return data.user;
-    } finally {
-      setIsLoading(false);
+    } catch (err) {
+      updateAuthState({ isLoading: false });
+      throw err;
     }
   };
 
   const register = async (username: string, email: string, password: string) => {
-    setIsLoading(true);
+    updateAuthState({ isLoading: true });
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
@@ -113,15 +171,16 @@ export function useAuth() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Kayıt başarısız");
-      setGlobalUser(data.user);
+      updateAuthState({ user: data.user, isLoading: false });
       return data.user;
-    } finally {
-      setIsLoading(false);
+    } catch (err) {
+      updateAuthState({ isLoading: false });
+      throw err;
     }
   };
 
   const loginAsGuest = async (username: string) => {
-    setIsLoading(true);
+    updateAuthState({ isLoading: true });
     try {
       const res = await fetch("/api/auth/guest", {
         method: "POST",
@@ -130,42 +189,45 @@ export function useAuth() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Misafir girişi başarısız");
-      setGlobalUser(data.user);
+      updateAuthState({ user: data.user, isLoading: false });
       return data.user;
-    } finally {
-      setIsLoading(false);
+    } catch (err) {
+      updateAuthState({ isLoading: false });
+      throw err;
     }
   };
 
   const logout = async () => {
-    setIsLoading(true);
+    updateAuthState({ isLoading: true });
     try {
       await fetch("/api/auth/logout", { method: "POST" });
-      setGlobalUser(null);
-    } finally {
-      setIsLoading(false);
+      updateAuthState({ user: null, isLoading: false });
+    } catch {
+      updateAuthState({ user: null, isLoading: false });
     }
   };
 
   const updateBalances = useCallback((newCoins: number, newAlimCoins: number) => {
-    if (globalUserCache) {
-      setGlobalUser({
-        ...globalUserCache,
-        coins: newCoins,
-        alimCoins: newAlimCoins,
+    if (clientSnapshot.user) {
+      updateAuthState({
+        user: {
+          ...clientSnapshot.user,
+          coins: newCoins,
+          alimCoins: newAlimCoins,
+        },
       });
     }
   }, []);
 
   return {
-    user,
-    isLoading,
-    isAuthenticated: Boolean(user),
+    user: state.user,
+    isLoading: state.isLoading,
+    isAuthenticated: Boolean(state.user),
     login,
     register,
     loginAsGuest,
     logout,
     updateBalances,
-    refreshUser: fetchUser,
+    refreshUser: fetchCurrentUser,
   };
 }

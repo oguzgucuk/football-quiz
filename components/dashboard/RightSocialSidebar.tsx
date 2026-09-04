@@ -109,7 +109,7 @@ export function RightSocialSidebar({ onQuickInvite, onOpenAuthModal }: RightSoci
   // OTURUM HENÜZ YÜKLENİYORSA: Kilitli ekran parlamasını önlemek için hafif skeleton göster
   if (isAuthLoading && !user) {
     return (
-      <aside className="w-80 h-full bg-[#0B101B]/95 border-l border-zinc-800/80 flex flex-col shrink-0 p-4 space-y-4 animate-pulse select-none z-20">
+      <aside className="w-80 h-full bg-[#0B101B]/95 border-l border-zinc-800/80 flex flex-col shrink-0 p-4 space-y-4 animate-pulse select-none z-20" suppressHydrationWarning>
         <div className="flex items-center gap-3 pb-3 border-b border-zinc-800/80">
           <div className="size-12 rounded-xl bg-zinc-800/60" />
           <div className="space-y-2 flex-1">
@@ -139,7 +139,7 @@ export function RightSocialSidebar({ onQuickInvite, onOpenAuthModal }: RightSoci
   // OTURUM AÇMAMIŞ KULLANICI İÇİN: Boş, bulanık ve kilitli sosyallik paneli
   if (!user) {
     return (
-      <aside className="w-80 h-full bg-[#0B101B]/95 border-l border-zinc-800/80 flex flex-col shrink-0 select-none z-20 relative overflow-hidden">
+      <aside className="w-80 h-full bg-[#0B101B]/95 border-l border-zinc-800/80 flex flex-col shrink-0 select-none z-20 relative overflow-hidden" suppressHydrationWarning>
         {/* Arka Plan Hayalet Çizgileri (Bulanık silüet) */}
         <div className="absolute inset-0 p-4 space-y-4 filter blur-[2.5px] opacity-25 pointer-events-none select-none">
           <div className="flex items-center gap-3 pb-3 border-b border-zinc-800">
@@ -203,7 +203,7 @@ export function RightSocialSidebar({ onQuickInvite, onOpenAuthModal }: RightSoci
   }
 
   return (
-    <aside className="w-80 h-full bg-[#0B101B]/95 border-l border-zinc-800/80 flex flex-col shrink-0 select-none z-20">
+    <aside className="w-80 h-full bg-[#0B101B]/95 border-l border-zinc-800/80 flex flex-col shrink-0 select-none z-20" suppressHydrationWarning>
       {/* 1. ÜST: Kullanıcı Profil Kartı */}
       <div className="p-4 border-b border-zinc-800/60 bg-gradient-to-b from-emerald-950/20 to-transparent">
         <div className="flex items-center gap-3">
