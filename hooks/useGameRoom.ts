@@ -1,18 +1,16 @@
+"use client";
+
 /**
- * Canlı PartyKit/WebSocket bağlantısı, Server-Side Timer senkronizasyonu,
- * takım seçimi, çift taraflı skor takibi ve Kural 12 uyumlu cevap doğrulamasını yöneten React hook'u.
+ * Canlı oyun odası orkestrasyon hook'u.
+ * useGameRoomData ve useGameRoomSocket hook'larını birleştirerek kullanıcı etkileşimlerini
+ * (takım seçme, cevap gönderme, süre bitimi ve pas oylaması) yönetir.
  */
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { RoomState, createInitialRoomState } from "@/lib/realtime/roomState";
-import { getWebSocketUrl } from "@/lib/realtime/getWebSocketUrl";
-import { Team, PlayerSearchItem } from "@/types/game";
-import {
-  getStoredSessionToken,
-  saveStoredSessionToken,
-  clearStoredSessionToken,
-} from "@/hooks/useRoomSession";
-
+import { Team } from "@/types/game";
+import { useGameRoomData } from "./useGameRoomData";
+import { useGameRoomSocket, MatchEloResult, RoundWinnerState } from "./useGameRoomSocket";
 
 const POPULAR_CLUB_NAMES = [
   "Real Madrid",
@@ -45,274 +43,41 @@ interface UseGameRoomProps {
 
 export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
   const [roomState, setRoomState] = useState<RoomState>(() => createInitialRoomState(roomId));
-  const [allTeams, setAllTeams] = useState<Team[]>([]);
-  const [playerList, setPlayerList] = useState<PlayerSearchItem[]>([]);
   const [mySelectedTeam, setMySelectedTeam] = useState<Team | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasErrorFeedback, setHasErrorFeedback] = useState(false);
   const [serverSecondsLeft, setServerSecondsLeft] = useState<number | null>(null);
-  const [isConnectedToSocket, setIsConnectedToSocket] = useState(false);
+  const [matchEloResult, setMatchEloResult] = useState<MatchEloResult | null>(null);
+  const [lastRoundWinner, setLastRoundWinner] = useState<RoundWinnerState | null>(null);
 
-  const [matchEloResult, setMatchEloResult] = useState<{
-    matchId: string;
-    isDraw: boolean;
-    p1EloChange: number;
-    p2EloChange: number;
-    p1NewElo: number;
-    p2NewElo: number;
-  } | null>(null);
+  // 1. Veri havuzunu yükle
+  const { allTeams, playerList } = useGameRoomData();
 
-  const [lastRoundWinner, setLastRoundWinner] = useState<{
-    username: string | null;
-    correctAnswer: string | null;
-    isDraw: boolean;
-  } | null>(null);
-
-  const wsRef = useRef<WebSocket | null>(null);
-
-  // 1. Kulüp ve statik optimize oyuncu listesini yükle (Fuse.js asistanı için)
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const [teamsRes, playersRes] = await Promise.all([
-          fetch("/api/teams/search"),
-          fetch("/data/players-index.json"),
-        ]);
-
-        const [teamsData, playersRaw] = await Promise.all([
-          teamsRes.json(),
-          playersRes.json().catch(() => []),
-        ]);
-
-        if (teamsData.teams) setAllTeams(teamsData.teams);
-
-        if (Array.isArray(playersRaw) && playersRaw.length > 0) {
-          // Ultra hafif { id, n, p } -> PlayerSearchItem dönüşümü
-          const items: PlayerSearchItem[] = playersRaw.map((item: { id: string; n: string; p?: number }) => ({
-            id: item.id,
-            name: item.n,
-            popularityScore: item.p || 0,
-          }));
-          setPlayerList(items);
-        }
-      } catch (err) {
-        console.error("Kulüp/oyuncu havuzu yüklenemedi:", err);
-      }
-    }
-    loadData();
-  }, []);
-
-  // 2. Canlı WebSocket Sunucusuna Bağlan (PartyKit Protokolü)
-  useEffect(() => {
-    if (typeof window === "undefined" || !userId || !username) return;
-
-    const wsUrl = getWebSocketUrl(`/parties/game/${roomId}`);
-
-    let ws: WebSocket | null = null;
-    try {
-      ws = new WebSocket(wsUrl);
-
-      ws.onopen = () => {
-        setIsConnectedToSocket(true);
-        console.log("🔌 [GameRoom] Canlı WebSocket sunucusuna bağlanıldı:", wsUrl);
-
-        const existingToken = getStoredSessionToken(roomId);
-        if (existingToken) {
-          console.log("🔄 [GameRoom] Mevcut sessionToken ile REJOIN deneniyor:", existingToken);
-          ws?.send(
-            JSON.stringify({
-              type: "REJOIN",
-              roomId,
-              sessionToken: existingToken,
-              userId,
-              username,
-            })
-          );
-        } else {
-          let roundDuration = 15;
-          const match = roomId.match(/_(\d+)s_/);
-          if (match && match[1]) {
-            roundDuration = parseInt(match[1], 10);
-          }
-
-          ws?.send(
-            JSON.stringify({
-              type: "PLAYER_JOIN",
-              userId,
-              username,
-              roundDuration,
-            })
-          );
-        }
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-
-          switch (data.type) {
-            case "SESSION_GRANTED":
-              if (data.sessionToken) {
-                saveStoredSessionToken(roomId, data.sessionToken);
-              }
-              break;
-
-            case "REJOIN_SUCCESS":
-              console.log("✅ [GameRoom] REJOIN başarılı, maç durumu senkronize edildi.");
-              setRoomState(data.state);
-              break;
-
-            case "REJOIN_FAILED":
-              console.warn("⚠️ [GameRoom] REJOIN başarısız, sıfırdan PLAYER_JOIN deneniyor:", data.reason);
-              clearStoredSessionToken(roomId);
-              ws?.send(
-                JSON.stringify({
-                  type: "PLAYER_JOIN",
-                  userId,
-                  username,
-                  roundDuration: 15,
-                })
-              );
-              break;
-
-            case "PLAYER_DISCONNECTED":
-              setRoomState((prev) => ({
-                ...prev,
-                disconnectGrace: {
-                  userId: data.userId,
-                  username: "Rakip",
-                  expiresAt: Date.now() + (data.graceSeconds || 10) * 1000,
-                  secondsLeft: data.graceSeconds || 10,
-                },
-              }));
-              break;
-
-            case "DISCONNECT_TICK":
-              setRoomState((prev) =>
-                prev.disconnectGrace
-                  ? {
-                      ...prev,
-                      disconnectGrace: {
-                        ...prev.disconnectGrace,
-                        secondsLeft: data.secondsLeft,
-                      },
-                    }
-                  : prev
-              );
-              break;
-
-            case "PLAYER_RECONNECTED":
-              setRoomState((prev) => ({
-                ...prev,
-                disconnectGrace: null,
-              }));
-              break;
-
-            case "PLAYER_FORFEIT":
-              clearStoredSessionToken(roomId);
-              if (data.state) {
-                setRoomState(data.state);
-              } else {
-                setRoomState((prev) => ({
-                  ...prev,
-                  status: "match_finished",
-                  disconnectGrace: null,
-                  forfeitInfo: {
-                    forfeitUserId: data.forfeitUserId,
-                    winnerUserId: data.winnerUserId,
-                    reason: data.reason,
-                  },
-                }));
-              }
-              break;
-
-            case "MATCH_PERSISTED":
-              console.log("🏆 [GameRoom] Maç DB'ye işlendi ve ELO güncellendi:", data.result);
-              if (data.result) {
-                setMatchEloResult(data.result);
-              }
-              break;
-
-            case "ROOM_STATE_SYNC":
-              setRoomState(data.state);
-              if (data.state.status === "match_finished") {
-                clearStoredSessionToken(roomId);
-              }
-              if (data.state.roundStatus === "picking_teams" && !data.state.team1 && !data.state.team2) {
-                setMySelectedTeam(null);
-              }
-              break;
-
-            case "TIMER_START":
-              setServerSecondsLeft(data.durationSeconds || data.duration || 5);
-              break;
-
-            case "TIMER_TICK":
-              setServerSecondsLeft(data.secondsLeft);
-              break;
-
-            case "ROUND_RESULT":
-              setIsSubmitting(false);
-              setLastRoundWinner({
-                username: data.winnerUserId === userId ? username : data.winnerUserId ? "Rakip" : null,
-                correctAnswer: data.correctAnswer || "Tur Tamamlandı",
-                isDraw: !!data.isDraw,
-              });
-              setRoomState(data.state);
-              setTimeout(() => {
-                setLastRoundWinner(null);
-                setMySelectedTeam(null);
-              }, 3000);
-              break;
-
-            case "ANSWER_FEEDBACK":
-              setIsSubmitting(false);
-              if (!data.isCorrect) {
-                setHasErrorFeedback(true);
-                setTimeout(() => setHasErrorFeedback(false), 800);
-              }
-              break;
-          }
-        } catch (parseErr) {
-          console.error("[GameRoom] Mesaj işleme hatası:", parseErr);
-        }
-      };
-
-      ws.onclose = () => {
-        setIsConnectedToSocket(false);
-      };
-
-      ws.onerror = () => {
-        setIsConnectedToSocket(false);
-      };
-
-      wsRef.current = ws;
-    } catch {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setIsConnectedToSocket(false);
-    }
-
-    return () => {
-      if (ws) ws.close();
-    };
-  }, [roomId, userId, username]);
+  // 2. Canlı WebSocket bağlantısını ve mesaj dinleyicilerini yönet
+  const { isConnectedToSocket, sendSocketMessage } = useGameRoomSocket({
+    roomId,
+    userId,
+    username,
+    setRoomState,
+    setServerSecondsLeft,
+    setMySelectedTeam,
+    setIsSubmitting,
+    setHasErrorFeedback,
+    setLastRoundWinner,
+    setMatchEloResult,
+  });
 
   // 3. Kullanıcı Takım Seçimi
   const handleSelectTeam = useCallback(
     (team: Team) => {
       setMySelectedTeam(team);
-
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.send(
-          JSON.stringify({
-            type: "TEAM_PICKED",
-            userId,
-            team,
-          })
-        );
-      }
+      sendSocketMessage({
+        type: "TEAM_PICKED",
+        userId,
+        team,
+      });
     },
-    [userId]
+    [userId, sendSocketMessage]
   );
 
   // 4. Cevap Gönderme ve Doğrulama
@@ -324,16 +89,13 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
       setHasErrorFeedback(false);
 
       try {
-        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-          // P0-2: Cevabı doğrudan sunucuya ilet, doğrulamayı sunucu yapsın
-          wsRef.current.send(
-            JSON.stringify({
-              type: "SUBMIT_ANSWER",
-              userId,
-              name: submittedName,
-            })
-          );
-        } else {
+        const sent = sendSocketMessage({
+          type: "SUBMIT_ANSWER",
+          userId,
+          name: submittedName,
+        });
+
+        if (!sent) {
           // LOKAL BOT MODU FALLBACK
           const res = await fetch("/api/game/verify-answer", {
             method: "POST",
@@ -344,22 +106,22 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
               submittedName,
             }),
           });
-  
+
           const data = await res.json();
-  
+
           if (data.isCorrect && data.player) {
             setLastRoundWinner({
               username,
               correctAnswer: data.player.fullName,
               isDraw: false,
             });
-  
+
             setRoomState((prev) => ({
               ...prev,
               roundStatus: "round_finished",
               player1: prev.player1 ? { ...prev.player1, score: prev.player1.score + 1 } : null,
             }));
-  
+
             setTimeout(() => {
               setLastRoundWinner(null);
               setMySelectedTeam(null);
@@ -382,14 +144,14 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
         setIsSubmitting(false);
       }
     },
-    [roomState.team1, roomState.team2, isSubmitting, userId, username]
+    [roomState.team1, roomState.team2, isSubmitting, userId, username, sendSocketMessage]
   );
 
   // 5. Süre Dolduğunda (Local Fallback)
   const handleTimeExpired = useCallback(() => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+    if (isConnectedToSocket) {
       if (roomState.roundStatus === "answering") {
-        wsRef.current.send(JSON.stringify({ type: "ROUND_TIMEOUT" }));
+        sendSocketMessage({ type: "ROUND_TIMEOUT" });
       }
       return;
     }
@@ -412,19 +174,15 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
         roundStartTime: Date.now(),
       }));
     }
-  }, [roomState.roundStatus, allTeams, mySelectedTeam]);
+  }, [isConnectedToSocket, roomState.roundStatus, allTeams, mySelectedTeam, sendSocketMessage]);
 
-    // 6. Pas Geçme İsteği Gönder (Mutual Skip)
+  // 6. Pas Geçme İsteği Gönder (Mutual Skip)
   const handleVotePass = useCallback(() => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(
-        JSON.stringify({
-          type: "PASS_VOTE",
-          userId,
-        })
-      );
-    }
-  }, [userId]);
+    sendSocketMessage({
+      type: "PASS_VOTE",
+      userId,
+    });
+  }, [userId, sendSocketMessage]);
 
   const hasVotedPass = Boolean(roomState.passVotes?.includes(userId));
   const opponentWantsPass = Boolean(roomState.passVotes?.some((id) => id !== userId));
@@ -449,9 +207,9 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
     handleTimeExpired,
     handleVotePass,
     addBotOpponent: () => {
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({ type: "ADD_BOT" }));
-        wsRef.current.send(JSON.stringify({ type: "ADD_BOT_PLAYER" }));
+      if (isConnectedToSocket) {
+        sendSocketMessage({ type: "ADD_BOT" });
+        sendSocketMessage({ type: "ADD_BOT_PLAYER" });
       } else {
         setRoomState((prev) => ({
           ...prev,
