@@ -2,17 +2,18 @@
 
 import React from "react";
 import Link from "next/link";
-import { Play, Coins, Gem, Home, User, ShoppingBag, Settings } from "lucide-react";
+import { Play, Coins, Gem, Home, User, ShoppingBag, Settings, LogIn, UserPlus } from "lucide-react";
 import { DashboardTab } from "./types";
 import { useAuth } from "@/hooks/useAuth";
 
 interface TopBarProps {
   activeTab: DashboardTab;
   onTabChange: (tab: DashboardTab) => void;
+  onOpenAuthModal?: (tab: "login" | "register") => void;
 }
 
-export function TopBar({ activeTab, onTabChange }: TopBarProps) {
-  const { user } = useAuth();
+export function TopBar({ activeTab, onTabChange, onOpenAuthModal }: TopBarProps) {
+  const { user, isLoading } = useAuth();
 
   const navItems = [
     { id: "home" as const, label: "PANO", icon: Home },
@@ -85,33 +86,79 @@ export function TopBar({ activeTab, onTabChange }: TopBarProps) {
         </nav>
       </div>
 
-      {/* Sağ: Oyun Parası (Coins & Gems) */}
+      {/* Sağ: Oturum Butonları VEYA Oyun Parası (Coins & Gems) */}
       <div className="flex items-center gap-2">
-        <div
-          onClick={() => onTabChange("store")}
-          className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-[#e2e8e4] bg-[#f8faf8] shadow-2xs hover:border-amber-300 hover:bg-amber-50/40 transition-all cursor-pointer"
-          title="Altın Bakiyesi — Mağazada Kullan"
-        >
-          <div className="flex size-5 items-center justify-center rounded-full bg-amber-100 text-amber-600">
-            <Coins className="size-3 fill-amber-500 text-amber-600" />
+        {isLoading && !user ? (
+          <div className="flex items-center gap-2 animate-pulse">
+            <div className="h-8 w-20 rounded-xl bg-zinc-100" />
+            <div className="h-8 w-20 rounded-xl bg-zinc-100" />
           </div>
-          <span className="text-xs font-black font-mono text-[#141b16] tracking-tight">
-            12.450
-          </span>
-        </div>
+        ) : !user ? (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onOpenAuthModal?.("login")}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-emerald-200 bg-emerald-50/70 text-[#15803d] text-xs font-bold hover:bg-emerald-100 transition-all cursor-pointer shadow-2xs"
+            >
+              <LogIn className="size-3.5" />
+              <span>Giriş Yap</span>
+            </button>
 
-        <div
-          onClick={() => onTabChange("profile")}
-          className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-[#e2e8e4] bg-[#f8faf8] shadow-2xs hover:border-[#15803d]/40 hover:bg-emerald-50/40 transition-all cursor-pointer"
-          title="Zümrüt / ELO Derecesi — Profilde İncele"
-        >
-          <div className="flex size-5 items-center justify-center rounded-full bg-[#15803d]/10 text-[#15803d]">
-            <Gem className="size-3 fill-[#15803d]/20 text-[#15803d]" />
+            <button
+              onClick={() => onOpenAuthModal?.("register")}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#15803d] hover:bg-[#15803d]/90 text-white text-xs font-bold transition-all cursor-pointer shadow-xs"
+            >
+              <UserPlus className="size-3.5" />
+              <span>Kayıt Ol</span>
+            </button>
           </div>
-          <span className="text-xs font-black font-mono text-[#15803d] tracking-tight">
-            {user?.eloRating || 1000}
-          </span>
-        </div>
+        ) : (
+          <>
+            {/* Düz Coin Bakiyesi */}
+            <div
+              onClick={() => onTabChange("store")}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#e2e8e4] bg-[#f8faf8] shadow-2xs hover:border-amber-300 hover:bg-amber-50/40 transition-all cursor-pointer group"
+              title="Coin Bakiyesi — Mağazada Harca"
+            >
+              <div className="flex size-5 items-center justify-center rounded-full bg-amber-100 text-amber-600 group-hover:scale-110 transition-transform">
+                <Coins className="size-3 fill-amber-500 text-amber-600" />
+              </div>
+              <span className="text-xs font-black font-mono text-[#141b16] tracking-tight">
+                {(user.coins ?? 0).toLocaleString()}
+              </span>
+            </div>
+
+            {/* AlimCoin (AC) Premium Bakiyesi */}
+            <div
+              onClick={() => onTabChange("store")}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 shadow-2xs hover:border-emerald-500 hover:shadow-emerald-500/20 transition-all cursor-pointer group"
+              title="AlimCoin (AC) — Gerçek Parayla Satın Al veya Harca"
+            >
+              <div className="flex size-5 items-center justify-center rounded-full bg-emerald-500 text-white font-black text-[9px] shadow-sm group-hover:scale-110 transition-transform">
+                AC
+              </div>
+              <span className="text-xs font-black font-mono text-emerald-700 tracking-tight">
+                {(user.alimCoins ?? 0).toLocaleString()}
+              </span>
+              <span className="text-[10px] font-black text-emerald-600 bg-emerald-500/20 rounded px-1 py-0.2">
+                +
+              </span>
+            </div>
+
+            {/* ELO Derecesi */}
+            <div
+              onClick={() => onTabChange("profile")}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#e2e8e4] bg-[#f8faf8] shadow-2xs hover:border-[#15803d]/40 hover:bg-emerald-50/40 transition-all cursor-pointer"
+              title="ELO Derecesi — Profilde İncele"
+            >
+              <div className="flex size-5 items-center justify-center rounded-full bg-[#15803d]/10 text-[#15803d]">
+                <Gem className="size-3 fill-[#15803d]/20 text-[#15803d]" />
+              </div>
+              <span className="text-xs font-black font-mono text-[#15803d] tracking-tight">
+                {user.eloRating || 1000}
+              </span>
+            </div>
+          </>
+        )}
       </div>
     </header>
   );
