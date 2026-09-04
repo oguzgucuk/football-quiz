@@ -16,6 +16,7 @@ import {
   Play,
   Lightbulb,
 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 type SubModeType = "ranked" | "casual" | "custom";
 
@@ -70,10 +71,16 @@ const MODE_GUIDES: Record<string, GuideInfo> = {
 interface PlayStageProps {
   onStartRanked: () => void;
   onOpenCustomRoom: () => void;
+  onOpenAuthModal?: (tab: "login" | "register") => void;
 }
 
-export function PlayStage({ onStartRanked, onOpenCustomRoom }: PlayStageProps) {
+export function PlayStage({
+  onStartRanked,
+  onOpenCustomRoom,
+  onOpenAuthModal,
+}: PlayStageProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const [selectedModeId, setSelectedModeId] = useState<"common_player" | "grid" | "auction">("common_player");
   const [selectedSubMode, setSelectedSubMode] = useState<SubModeType>("ranked");
   const [activeGuideKey, setActiveGuideKey] = useState<string | null>(null);
@@ -104,6 +111,12 @@ export function PlayStage({ onStartRanked, onOpenCustomRoom }: PlayStageProps) {
 
   const handleConfirm = () => {
     if (selectedModeId === "common_player") {
+      // Oturum açmamış kullanıcı oyuna veya lobiye girmeye çalıştığında Auth Modalı aç
+      if (!user) {
+        onOpenAuthModal?.("login");
+        return;
+      }
+
       if (selectedSubMode === "ranked") {
         onStartRanked();
       } else if (selectedSubMode === "casual") {
@@ -125,6 +138,19 @@ export function PlayStage({ onStartRanked, onOpenCustomRoom }: PlayStageProps) {
 
   return (
     <div className="relative flex flex-1 flex-col justify-between overflow-hidden bg-[#f4f7f5] text-[#141b16] select-none font-sans p-8 lg:p-12 h-full">
+      {/* 0. Arka Plan Stadyum Görseli — Kenarlara doğru yayıldıkça saydamlaşan belirgin mat stadyum */}
+      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+        <div
+          className="w-full h-full bg-center bg-cover bg-no-repeat opacity-50 transition-opacity duration-700"
+          style={{
+            backgroundImage: "url('/stadium-bg.webp')",
+            filter: "saturate(0.82) contrast(0.95)",
+            maskImage: "radial-gradient(ellipse 90% 80% at 50% 50%, black 35%, rgba(0,0,0,0.65) 70%, transparent 96%)",
+            WebkitMaskImage: "radial-gradient(ellipse 90% 80% at 50% 50%, black 35%, rgba(0,0,0,0.65) 70%, transparent 96%)",
+          }}
+        />
+      </div>
+
       {/* 1. Merkez Odaklı Sıcak Zümrüt Radyal Geçiş */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_75%_55%_at_50%_46%,rgba(21,128,61,0.08)_0%,rgba(244,247,245,0)_70%)] pointer-events-none z-0" />
 

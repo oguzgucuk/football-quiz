@@ -218,17 +218,19 @@ CREATE INDEX idx_teams_name_trgm ON teams USING GIN (name gin_trgm_ops);
    - `party/server.ts` ve `party/game.ts` içindeki doğrulama ve oda mantığı `lib/realtime/roomEngine.ts` altına saf fonksiyon olarak çıkarılarak iki sunucunun mantıksal olarak birbirinden sapması engellenecektir.
 
 ### P2-11: Dosya Boyutu Limitleri (AGENTS.md)
-300 satırı aşan UI ve hook dosyaları (`PlayRoomClient.tsx`, `useGameRoom.ts`) mantıksal alt bileşenlere ve hook'lara bölünecektir.
+300 satırı aşan UI ve hook dosyaları mantıksal alt bileşenlere ve hook'lara bölünmüştür:
+- `PlayRoomClient.tsx` (399 -> 237 satır): `MatchFinishedView.tsx`, `WaitingForOpponentView.tsx`, `PassVoteControl.tsx`, `DisconnectGraceAlert.tsx` alt bileşenleri ve `useGamePresence.ts` hook'u oluşturuldu.
+- `useGameRoom.ts` (471 -> 228 satır): `useGameRoomData.ts` (veri yükleme) ve `useGameRoomSocket.ts` (WebSocket yaşam döngüsü & event dispatch) ayrıştırıldı. Tüm dosyalar 300 satır limitinin altına indirildi.
 
 ---
 
 ## 🚀 Uygulama Fazları ve Eylem Sıralaması
 
 ### **FAZ 1 — Hızlı Temizlik, Hardcoded Logo Düzeltmesi & P0-2 Anti-Cheat**
-- [ ] Atıl dosyaları temizle (`main-stage.tsx`, `party/index.ts`).
-- [ ] `party/game.ts` ve `party/server.ts` içindeki `DEFAULT_POPULAR_TEAMS` logo URL'lerini Supabase CDN linklerine çek.
-- [ ] P0-2: İstemci taraflı `ROUND_WINNER` gönderimini kaldır; sunucu-taraflı `SUBMIT_ANSWER` ve atomik skor handler'ını yaz.
-- [ ] P2-9: Sunucu tarafında tur içi ortak oyuncu önbelleğini (in-memory round cache) kur.
+- [x] Atıl dosyaları temizle (`main-stage.tsx`, `party/index.ts`).
+- [x] `party/game.ts` ve `party/server.ts` içindeki `DEFAULT_POPULAR_TEAMS` logo URL'lerini Supabase CDN linklerine çek.
+- [x] P0-2: İstemci taraflı `ROUND_WINNER` gönderimini kaldır; sunucu-taraflı `SUBMIT_ANSWER` ve atomik skor handler'ını yaz.
+- [x] P2-9: Sunucu tarafında tur içi ortak oyuncu önbelleğini (in-memory round cache) kur.
 
 ### **FAZ 2 — İstemci Performansı & Payload Optimizasyonu**
 - [x] P0-1: `scripts/generate-static-player-index.ts` ile hafif popüler oyuncu JSON'ı üret.
@@ -236,8 +238,10 @@ CREATE INDEX idx_teams_name_trgm ON teams USING GIN (name gin_trgm_ops);
 - [x] UI donmalarını ve ağ yükünü doğrula (7.2 MB -> ~310 KB gzip, 63ms yanıt süresi).
 
 ### **FAZ 3 — Veritabanı, ELO ve Dayanıklılık (Resilience)**
-- [ ] P1-4: `MissingAnswerLog` şemasını güncelle, migration çalıştır ve upsert mantığını bağla.
-- [ ] P1-6: `pg_trgm` uzantısını aç, trigram ve `teamId` indekslerini migration ile ekle.
-- [ ] P1-8: Maç bitişinde ELO ve maç detaylarını `$transaction` ile DB'ye kaydeden servisi entegre et.
-- [ ] P1-7: Reconnect (10s grace period + sessionToken) mekanizmasını ekle.
-- [ ] CI/Build logo guard script'ini ekle.
+- [x] P1-4: `MissingAnswerLog` şemasını güncelle, migration çalıştır ve upsert mantığını bağla.
+- [x] P1-6: `pg_trgm` uzantısını aç, trigram ve `teamId` indekslerini migration ile ekle.
+- [x] P1-8: Maç bitişinde ELO ve maç detaylarını `$transaction` ile DB'ye kaydeden servisi entegre et.
+- [x] P1-7: Reconnect (10s grace period + sessionToken) mekanizmasını ekle.
+- [x] CI/Build logo guard script'ini ekle.
+- [x] P2-10: `roomEngine.ts` ile çift sunucu oda mantığını senkronize et.
+- [x] P2-11: 300 satırı aşan büyük dosyalar (PlayRoomClient, useGameRoom) alt bileşen ve modüler hook'lara bölündü.
