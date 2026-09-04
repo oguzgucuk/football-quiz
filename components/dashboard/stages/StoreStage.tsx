@@ -166,22 +166,23 @@ export function StoreStage({ onOpenAuthModal }: StoreStageProps = {}) {
   );
 
   return (
-    <div className="relative flex flex-1 flex-col overflow-y-auto bg-transparent text-[#141b16] select-none font-sans p-6 sm:p-8 lg:p-12 h-full custom-scrollbar">
+    <div className="relative flex flex-1 flex-col overflow-y-auto bg-transparent text-white select-none font-sans p-6 sm:p-8 lg:p-12 h-full custom-scrollbar">
       {/* Arka Plan Radyal Vurgusu */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_20%,rgba(21,128,61,0.07)_0%,rgba(244,247,245,0)_70%)] pointer-events-none z-0" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_20%,rgba(34,197,94,0.1)_0%,rgba(10,18,14,0)_70%)] pointer-events-none z-0" />
 
       <div className="relative z-10 max-w-5xl mx-auto w-full space-y-8">
         {/* 1. Üst Mağaza Banner'ı */}
-        <div className="relative rounded-[28px] bg-gradient-to-br from-white via-white to-[#fbf7ee] border border-[#ebd8b4] p-6 sm:p-8 shadow-xs overflow-hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+        <div className="relative rounded-[28px] bg-[#0c1612]/80 backdrop-blur-xl border border-white/10 p-6 sm:p-8 shadow-xl overflow-hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+          <div className="absolute top-0 inset-x-12 h-[2px] bg-gradient-to-r from-transparent via-amber-400/60 to-transparent pointer-events-none" />
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-black uppercase tracking-wider mb-2">
-              <Crown className="size-3.5 fill-amber-500 text-amber-600" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-black uppercase tracking-wider mb-2">
+              <Crown className="size-3.5 fill-amber-400 text-amber-400" />
               <span>Scout & Kulüp Mağazası</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-[#141b16]">
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
               Özel Rozetler, Unvanlar ve Temalar
             </h1>
-            <p className="text-xs sm:text-sm text-[#525f56] font-medium mt-1">
+            <p className="text-xs sm:text-sm text-zinc-400 font-medium mt-1">
               Oyun içi kazandığın Coin veya AlimCoin (AC) ile profilini özelleştir.
             </p>
           </div>
@@ -189,30 +190,30 @@ export function StoreStage({ onOpenAuthModal }: StoreStageProps = {}) {
           {/* Gerçek Veritabanı Bakiyeleri */}
           <div className="flex items-center gap-2.5">
             {/* Düz Coin */}
-            <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-white border border-[#e2e8e4] shadow-xs">
-              <Coins className="size-4 fill-amber-500 text-amber-600 shrink-0" />
+            <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 shadow-sm">
+              <Coins className="size-4 fill-amber-400 text-amber-400 shrink-0" />
               <div>
-                <span className="text-[10px] text-[#6b7770] font-bold block uppercase tracking-wider">Coin</span>
-                <span className="font-mono font-black text-sm text-[#141b16]">
+                <span className="text-[10px] text-zinc-400 font-bold block uppercase tracking-wider">Coin</span>
+                <span className="font-mono font-black text-sm text-white">
                   {(user?.coins ?? 0).toLocaleString()}
                 </span>
               </div>
             </div>
 
             {/* AlimCoin (AC) */}
-            <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-white border border-emerald-300 shadow-xs group">
-              <div className="flex size-5 items-center justify-center rounded-md bg-emerald-600 text-white font-black text-[9px] shadow-xs">
+            <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-emerald-950/40 border border-emerald-500/30 shadow-sm group">
+              <div className="flex size-5 items-center justify-center rounded-md bg-emerald-500 text-white font-black text-[9px] shadow-xs">
                 AC
               </div>
               <div>
-                <span className="text-[10px] text-emerald-700 font-bold block uppercase tracking-wider">AlimCoin</span>
-                <span className="font-mono font-black text-sm text-emerald-800">
+                <span className="text-[10px] text-emerald-400 font-bold block uppercase tracking-wider">AlimCoin</span>
+                <span className="font-mono font-black text-sm text-emerald-300">
                   {(user?.alimCoins ?? 0).toLocaleString()}
                 </span>
               </div>
               <button
                 onClick={() => setActiveTab("packages")}
-                className="ml-1 p-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white transition-all cursor-pointer"
+                className="ml-1 p-1 rounded-lg bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500 hover:text-white transition-all cursor-pointer"
                 title="AlimCoin Yükle"
               >
                 <Plus className="size-3.5 stroke-[3]" />
@@ -226,21 +227,21 @@ export function StoreStage({ onOpenAuthModal }: StoreStageProps = {}) {
           <div
             className={`flex items-start justify-between gap-3 p-4 rounded-2xl border transition-all ${
               notification.type === "success"
-                ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+                ? "bg-emerald-950/80 border-emerald-500/40 text-emerald-300"
                 : notification.type === "error"
-                ? "bg-rose-50 border-rose-200 text-rose-900"
-                : "bg-blue-50 border-blue-200 text-blue-900"
+                ? "bg-rose-950/80 border-rose-500/40 text-rose-300"
+                : "bg-blue-950/80 border-blue-500/40 text-blue-300"
             }`}
           >
             <div className="flex items-center gap-2.5 text-xs sm:text-sm font-bold">
-              {notification.type === "success" && <CheckCircle2 className="size-5 text-emerald-600 shrink-0" />}
-              {notification.type === "error" && <AlertCircle className="size-5 text-rose-600 shrink-0" />}
-              {notification.type === "info" && <Sparkles className="size-5 text-blue-600 shrink-0" />}
+              {notification.type === "success" && <CheckCircle2 className="size-5 text-emerald-400 shrink-0" />}
+              {notification.type === "error" && <AlertCircle className="size-5 text-rose-400 shrink-0" />}
+              {notification.type === "info" && <Sparkles className="size-5 text-blue-400 shrink-0" />}
               <span>{notification.message}</span>
             </div>
             <button
               onClick={() => setNotification(null)}
-              className="text-gray-400 hover:text-gray-700 p-1 cursor-pointer"
+              className="text-zinc-400 hover:text-white p-1 cursor-pointer"
             >
               <X className="size-4" />
             </button>
@@ -264,11 +265,11 @@ export function StoreStage({ onOpenAuthModal }: StoreStageProps = {}) {
                 className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
                   isSelected
                     ? cat.isHighlight
-                      ? "bg-emerald-700 text-white shadow-sm ring-2 ring-emerald-400/30"
-                      : "bg-[#15803d] text-white shadow-xs"
+                      ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-600/30 ring-2 ring-emerald-400/40"
+                      : "bg-[#15803d] text-white shadow-md shadow-emerald-900/40 border border-emerald-400/40"
                     : cat.isHighlight
-                    ? "bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100"
-                    : "bg-white text-[#6b7770] border border-[#e2e8e4] hover:border-[#cbd5ce] hover:text-[#141b16]"
+                    ? "bg-emerald-950/40 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-950/70"
+                    : "bg-white/5 text-zinc-300 border border-white/10 hover:border-white/20 hover:text-white hover:bg-white/10"
                 }`}
               >
                 {cat.label}
@@ -281,17 +282,17 @@ export function StoreStage({ onOpenAuthModal }: StoreStageProps = {}) {
         {activeTab === "packages" ? (
           /* AlimCoin (AC) Gerçek Para Satış Paketleri */
           <div className="space-y-6">
-            <div className="rounded-2xl bg-white border border-[#e2e8e4] p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="rounded-2xl bg-[#0c1612]/80 backdrop-blur-xl border border-white/10 p-6 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <h2 className="text-lg font-black text-[#141b16] tracking-tight">
+                <h2 className="text-lg font-black text-white tracking-tight">
                   AlimCoin (AC) Satın Alma Merkezi
                 </h2>
-                <p className="text-xs text-[#6b7770] mt-0.5">
+                <p className="text-xs text-zinc-400 mt-0.5">
                   Özel rozetler, vitrin temaları ve nadir unvanlar için hesabınıza resmi AlimCoin yükleyin.
                 </p>
               </div>
-              <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 bg-emerald-50 px-3.5 py-1.5 rounded-xl border border-emerald-200">
-                <ShieldCheck className="size-4 text-emerald-600" />
+              <div className="flex items-center gap-2 text-xs font-bold text-emerald-400 bg-emerald-950/60 px-3.5 py-1.5 rounded-xl border border-emerald-500/30">
+                <ShieldCheck className="size-4 text-emerald-400" />
                 <span>%100 Güvenli Ödeme Garantisi</span>
               </div>
             </div>
@@ -315,14 +316,14 @@ export function StoreStage({ onOpenAuthModal }: StoreStageProps = {}) {
                 {[1, 2, 3, 4, 5, 6].map((idx) => (
                   <div
                     key={idx}
-                    className="h-56 rounded-[24px] bg-white border border-[#e2e8e4] animate-pulse p-6"
+                    className="h-56 rounded-[24px] bg-[#0c1612]/60 border border-white/10 animate-pulse p-6"
                   />
                 ))}
               </div>
             ) : filteredItems.length === 0 ? (
-              <div className="text-center py-16 bg-white rounded-3xl border border-[#e2e8e4]">
-                <Crown className="size-10 text-gray-300 mx-auto mb-2" />
-                <p className="text-sm font-bold text-[#6b7770]">Bu kategoride henüz ürün bulunmuyor.</p>
+              <div className="text-center py-16 bg-[#0c1612]/80 backdrop-blur-xl rounded-3xl border border-white/10">
+                <Crown className="size-10 text-zinc-600 mx-auto mb-2" />
+                <p className="text-sm font-bold text-zinc-400">Bu kategoride henüz ürün bulunmuyor.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -341,10 +342,10 @@ export function StoreStage({ onOpenAuthModal }: StoreStageProps = {}) {
         )}
 
         {/* 4. Alt Güvenlik & Hile Önleme Bilgilendirmesi */}
-        <div className="p-4 rounded-2xl bg-[#edf4ef] border border-[#cbe4d4] flex items-center gap-3 text-xs text-[#285337]">
-          <ShieldCheck className="size-5 text-[#15803d] shrink-0" />
+        <div className="p-4 rounded-2xl bg-emerald-950/30 border border-emerald-500/20 flex items-center gap-3 text-xs text-emerald-300">
+          <ShieldCheck className="size-5 text-emerald-400 shrink-0" />
           <p className="font-medium leading-relaxed">
-            <strong className="font-black">Sunucu Doğrulamalı Güvenli Ekonomi:</strong> Tüm Coin ve AlimCoin bakiyeleri veritabanında atomik ACID işlemleriyle korunur. İstemci tarafındaki bellek değişiklikleri (CheatEngine vb.) sunucuda geçersiz sayılır.
+            <strong className="font-black text-white">Sunucu Doğrulamalı Güvenli Ekonomi:</strong> Tüm Coin ve AlimCoin bakiyeleri veritabanında atomik ACID işlemleriyle korunur. İstemci tarafındaki bellek değişiklikleri (CheatEngine vb.) sunucuda geçersiz sayılır.
           </p>
         </div>
       </div>

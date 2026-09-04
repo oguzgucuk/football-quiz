@@ -90,7 +90,7 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
   };
 
   return (
-    <main className="relative flex h-screen w-full overflow-hidden bg-[#0d1611] text-[#141b16] font-sans select-none">
+    <main className="relative flex h-screen w-full overflow-hidden bg-[#0d1611] text-white font-sans select-none">
       {/* 1. Tam Ekran Stadyum Arka Planı (TopBar, Sahne ve SocialBar arkasında kesintisiz uzanır) */}
       <StadiumBackground variant="light" />
 

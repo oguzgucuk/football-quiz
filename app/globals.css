@@ -1,25 +1,30 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
 :root {
-  color-scheme: light;
-  --background: #f5f8f6;
-  --foreground: #141b16;
-  --card: #ffffff;
-  --card-foreground: #141b16;
-  --popover: #ffffff;
-  --popover-foreground: #141b16;
+  color-scheme: dark;
+  --background: #0d1611;
+  --foreground: #ffffff;
+  --card: #0c1612;
+  --card-foreground: #ffffff;
+  --popover: #0c1612;
+  --popover-foreground: #ffffff;
   --primary: #15803d;
   --primary-foreground: #ffffff;
-  --secondary: #eef3f0;
-  --secondary-foreground: #1b241e;
-  --muted: #f0f4f2;
-  --muted-foreground: #6b7770;
-  --accent: #e5efe9;
-  --accent-foreground: #15803d;
-  --destructive: #dc2626;
-  --border: #e2e8e4;
-  --input: #e2e8e4;
-  --ring: #15803d;
+  --secondary: #13221b;
+  --secondary-foreground: #eef3f0;
+  --muted: #182a21;
+  --muted-foreground: #a1b2a9;
+  --accent: #1b3327;
+  --accent-foreground: #22c55e;
+  --destructive: #ef4444;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.15);
+  --ring: #22c55e;
   --radius: 0.75rem;
 }
 
@@ -28,7 +33,12 @@ body {
   color: var(--foreground);
   min-height: 100vh;
   overflow-x: hidden;
+  font-family: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+button, input, select, textarea {
+  font-family: inherit;
 }
 
 @keyframes shake {

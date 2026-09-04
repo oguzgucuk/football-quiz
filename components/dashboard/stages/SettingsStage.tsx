@@ -30,22 +30,22 @@ export function SettingsStage() {
   };
 
   return (
-    <div className="relative flex flex-1 flex-col overflow-y-auto bg-transparent text-[#141b16] select-none font-sans p-8 lg:p-12 h-full custom-scrollbar">
+    <div className="relative flex flex-1 flex-col overflow-y-auto bg-transparent text-white select-none font-sans p-8 lg:p-12 h-full custom-scrollbar">
       {/* Arka Plan Radyal Vurgusu */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_20%,rgba(21,128,61,0.07)_0%,rgba(244,247,245,0)_70%)] pointer-events-none z-0" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_20%,rgba(34,197,94,0.1)_0%,rgba(10,18,14,0)_70%)] pointer-events-none z-0" />
 
       <div className="relative z-10 max-w-4xl mx-auto w-full space-y-6">
         {/* Başlık */}
-        <div className="flex items-center justify-between pb-4 border-b border-[#e2e8e4]">
+        <div className="flex items-center justify-between pb-4 border-b border-white/10">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-2xl bg-[#15803d]/10 text-[#15803d]">
+            <div className="flex size-10 items-center justify-center rounded-2xl bg-emerald-950/70 border border-emerald-500/30 text-emerald-400">
               <Settings className="size-5" />
             </div>
             <div>
-              <h1 className="text-2xl font-black text-[#141b16] tracking-tight">
+              <h1 className="text-2xl font-black text-white tracking-tight">
                 Oyun & Hesap Ayarları
               </h1>
-              <p className="text-xs text-[#6b7770]">
+              <p className="text-xs text-zinc-400">
                 Ses, arayüz, gizlilik ve eşleşme tercihlerini yönet
               </p>
             </div>
@@ -53,7 +53,7 @@ export function SettingsStage() {
 
           <button
             onClick={handleSave}
-            className="flex items-center gap-2 px-5 py-2 rounded-xl bg-[#15803d] text-white text-xs font-black uppercase tracking-wider shadow-xs hover:bg-[#126d34] active:scale-95 transition-all cursor-pointer"
+            className="flex items-center gap-2 px-5 py-2 rounded-xl bg-[#15803d] text-white text-xs font-black uppercase tracking-wider shadow-md shadow-emerald-900/40 hover:bg-[#126d34] active:scale-95 transition-all cursor-pointer"
           >
             {savedSuccess ? (
               <>
@@ -67,23 +67,23 @@ export function SettingsStage() {
         </div>
 
         {/* 1. Ses ve Atmosfer Ayarları */}
-        <div className="rounded-[24px] bg-white border border-[#e2e8e4] p-6 shadow-xs space-y-4">
-          <h2 className="text-sm font-black uppercase tracking-wider text-[#141b16] flex items-center gap-2">
-            <Volume2 className="size-4 text-[#15803d]" />
+        <div className="rounded-[24px] bg-[#0c1612]/80 backdrop-blur-xl border border-white/10 p-6 shadow-xl space-y-4">
+          <h2 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+            <Volume2 className="size-4 text-emerald-400" />
             <span>Ses ve Atmosfer</span>
           </h2>
 
-          <div className="divide-y divide-[#f0f4f2]">
+          <div className="divide-y divide-white/10">
             <div className="py-3 flex items-center justify-between">
               <div>
-                <p className="font-extrabold text-sm text-[#141b16]">Oyun İçi Ses Efektleri</p>
-                <p className="text-xs text-[#6b7770]">Doğru cevap zili, hata sesi ve süre bitim uyarısı</p>
+                <p className="font-extrabold text-sm text-white">Oyun İçi Ses Efektleri</p>
+                <p className="text-xs text-zinc-400">Doğru cevap zili, hata sesi ve süre bitim uyarısı</p>
               </div>
               <button
                 type="button"
                 onClick={() => setSoundEnabled(!soundEnabled)}
                 className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  soundEnabled ? "bg-[#15803d]" : "bg-[#d1dcd4]"
+                  soundEnabled ? "bg-[#15803d]" : "bg-white/15"
                 }`}
               >
                 <span
@@ -96,14 +96,14 @@ export function SettingsStage() {
 
             <div className="py-3 flex items-center justify-between">
               <div>
-                <p className="font-extrabold text-sm text-[#141b16]">Stadyum Tezahürat Ambiyansı</p>
-                <p className="text-xs text-[#6b7770]">Maç başladığında hafif arka plan stadyum uğultusu</p>
+                <p className="font-extrabold text-sm text-white">Stadyum Tezahürat Ambiyansı</p>
+                <p className="text-xs text-zinc-400">Maç başladığında hafif arka plan stadyum uğultusu</p>
               </div>
               <button
                 type="button"
                 onClick={() => setStadiumAmbience(!stadiumAmbience)}
                 className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  stadiumAmbience ? "bg-[#15803d]" : "bg-[#d1dcd4]"
+                  stadiumAmbience ? "bg-[#15803d]" : "bg-white/15"
                 }`}
               >
                 <span
@@ -117,23 +117,23 @@ export function SettingsStage() {
         </div>
 
         {/* 2. Oynanış ve Arayüz Tercihleri */}
-        <div className="rounded-[24px] bg-white border border-[#e2e8e4] p-6 shadow-xs space-y-4">
-          <h2 className="text-sm font-black uppercase tracking-wider text-[#141b16] flex items-center gap-2">
-            <Smartphone className="size-4 text-[#15803d]" />
+        <div className="rounded-[24px] bg-[#0c1612]/80 backdrop-blur-xl border border-white/10 p-6 shadow-xl space-y-4">
+          <h2 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+            <Smartphone className="size-4 text-emerald-400" />
             <span>Oynanış ve Arayüz</span>
           </h2>
 
-          <div className="divide-y divide-[#f0f4f2]">
+          <div className="divide-y divide-white/10">
             <div className="py-3 flex items-center justify-between">
               <div>
-                <p className="font-extrabold text-sm text-[#141b16]">Otomatik Tamamlama (Fuse.js Asistanı)</p>
-                <p className="text-xs text-[#6b7770]">İsim yazarken tarafsız futbolcu arama önerileri açılsın</p>
+                <p className="font-extrabold text-sm text-white">Otomatik Tamamlama (Fuse.js Asistanı)</p>
+                <p className="text-xs text-zinc-400">İsim yazarken tarafsız futbolcu arama önerileri açılsın</p>
               </div>
               <button
                 type="button"
                 onClick={() => setSuggestionsEnabled(!suggestionsEnabled)}
                 className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  suggestionsEnabled ? "bg-[#15803d]" : "bg-[#d1dcd4]"
+                  suggestionsEnabled ? "bg-[#15803d]" : "bg-white/15"
                 }`}
               >
                 <span
@@ -146,14 +146,14 @@ export function SettingsStage() {
 
             <div className="py-3 flex items-center justify-between">
               <div>
-                <p className="font-extrabold text-sm text-[#141b16]">Herkese Açık Profil & ELO</p>
-                <p className="text-xs text-[#6b7770]">Diğer oyuncular liderlik tablosunda profilini görebilsin</p>
+                <p className="font-extrabold text-sm text-white">Herkese Açık Profil & ELO</p>
+                <p className="text-xs text-zinc-400">Diğer oyuncular liderlik tablosunda profilini görebilsin</p>
               </div>
               <button
                 type="button"
                 onClick={() => setPublicProfile(!publicProfile)}
                 className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  publicProfile ? "bg-[#15803d]" : "bg-[#d1dcd4]"
+                  publicProfile ? "bg-[#15803d]" : "bg-white/15"
                 }`}
               >
                 <span
@@ -167,14 +167,14 @@ export function SettingsStage() {
         </div>
 
         {/* 3. Hesap ve Oturum */}
-        <div className="rounded-[24px] bg-white border border-[#e2e8e4] p-6 shadow-xs flex items-center justify-between">
+        <div className="rounded-[24px] bg-[#0c1612]/80 backdrop-blur-xl border border-white/10 p-6 shadow-xl flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
+            <div className="flex size-10 items-center justify-center rounded-2xl bg-rose-950/60 border border-rose-500/30 text-rose-400">
               <LogOut className="size-5" />
             </div>
             <div>
-              <p className="font-extrabold text-sm text-[#141b16]">Oturumu Kapat</p>
-              <p className="text-xs text-[#6b7770]">
+              <p className="font-extrabold text-sm text-white">Oturumu Kapat</p>
+              <p className="text-xs text-zinc-400">
                 Mevcut cihazdaki aktif oturumunuzu sonlandırın
               </p>
             </div>
@@ -182,7 +182,7 @@ export function SettingsStage() {
 
           <button
             onClick={() => logout()}
-            className="px-4 py-2 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs font-black uppercase tracking-wider hover:bg-rose-100 transition-all cursor-pointer"
+            className="px-4 py-2 rounded-xl border border-rose-500/40 bg-rose-950/60 text-rose-300 text-xs font-black uppercase tracking-wider hover:bg-rose-900/70 transition-all cursor-pointer"
           >
             Çıkış Yap
           </button>
