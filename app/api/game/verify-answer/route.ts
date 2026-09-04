@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/client";
 import { normalizeText } from "@/lib/validation/normalizeText";
 import { matchPlayerAnswer } from "@/lib/validation/matchPlayerAnswer";
+import { logMissingAnswer } from "@/lib/db/missingAnswers";
 import { z } from "zod";
 
 const verifyAnswerInputSchema = z.object({
@@ -61,14 +62,8 @@ export async function POST(req: Request) {
       });
     }
 
-    // Doğru bulunamadıysa eksik log tablosuna kaydet
-    await prisma.missingAnswerLog.create({
-      data: {
-        submittedName,
-        team1Id,
-        team2Id,
-      },
-    });
+    // P1-4: Doğru bulunamadıysa eksik log tablosuna tekilleştirerek kaydet
+    await logMissingAnswer({ rawAnswer: submittedName, team1Id, team2Id });
 
     return NextResponse.json({
       isCorrect: false,

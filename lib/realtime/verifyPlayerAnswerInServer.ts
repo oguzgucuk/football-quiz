@@ -10,6 +10,7 @@
 
 import { prisma } from "../db/client";
 import { matchPlayerAnswer, CandidatePlayer } from "../validation/matchPlayerAnswer";
+import { logMissingAnswer } from "../db/missingAnswers";
 
 interface CachedCommonPlayers {
   timestamp: number;
@@ -89,6 +90,15 @@ export async function verifyPlayerAnswerInServer(
       playerName: matched.fullName,
     };
   }
+
+  // P1-4: Yanlış veya eksik cevabı tekilleştirilmiş olarak arka planda logla
+  logMissingAnswer({
+    rawAnswer: submittedName,
+    team1Id,
+    team2Id,
+  }).catch((err) => {
+    console.error("[verifyPlayerAnswerInServer] logMissingAnswer error:", err);
+  });
 
   return { isCorrect: false };
 }

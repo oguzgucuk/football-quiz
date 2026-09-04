@@ -68,21 +68,39 @@ model User {
   rankTier     String   @default("bronze") @map("rank_tier")
   matchesWon   Int      @default(0) @map("matches_won")
   matchesLost  Int      @default(0) @map("matches_lost")
-  isGuest      Boolean  @default(false) @map("is_guest")
-  createdAt    DateTime @default(now()) @map("created_at")
+  matchesDraw  Int      @default(0) @map("matches_draw")
+  currentStreak Int     @default(0) @map("current_streak")
+  bestStreak   Int      @default(0) @map("best_streak")
+  lastSeenAt    DateTime? @map("last_seen_at")
+  currentStatus String   @default("offline") @map("current_status")
+  isGuest       Boolean  @default(false) @map("is_guest")
+  coins         Int      @default(0)
+  alimCoins     Int      @default(0) @map("alim_coins")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  sentFriendships     Friendship[]      @relation("SentFriendships")
+  receivedFriendships Friendship[]      @relation("ReceivedFriendships")
+  inventory           UserInventory[]
+  coinTransactions    CoinTransaction[]
 
   @@map("users")
 }
 
 model Match {
-  id        String       @id @default(cuid())
-  player1Id String       @map("player1_id")
-  player2Id String       @map("player2_id")
-  mode      String       @default("team_vs_team")
-  ranked    Boolean      @default(true)
-  createdAt DateTime     @default(now()) @map("created_at")
-  rounds    MatchRound[]
+  id           String       @id @default(cuid())
+  player1Id    String       @map("player1_id")
+  player2Id    String       @map("player2_id")
+  player1Score Int          @default(0) @map("player1_score")
+  player2Score Int          @default(0) @map("player2_score")
+  winnerUserId     String?      @map("winner_user_id")
+  player1EloChange Int?         @map("player1_elo_change")
+  player2EloChange Int?         @map("player2_elo_change")
+  mode             String       @default("team_vs_team")
+  ranked           Boolean      @default(true)
+  createdAt        DateTime     @default(now()) @map("created_at")
+  rounds       MatchRound[]
 
+  @@index([player1Id, player2Id])
   @@map("matches")
 }
 
@@ -104,11 +122,94 @@ model MatchRound {
 }
 
 model MissingAnswerLog {
-  id            String   @id @default(cuid())
-  submittedName String   @map("submitted_name")
-  team1Id       String   @map("team1_id")
-  team2Id       String   @map("team2_id")
-  createdAt     DateTime @default(now()) @map("created_at")
+  id               String   @id @default(cuid())
+  normalizedAnswer String   @map("normalized_answer")
+  team1Id          String   @map("team1_id")
+  team2Id          String   @map("team2_id")
+  attemptCount     Int      @default(1) @map("attempt_count")
+  lastAttemptAt    DateTime @updatedAt @map("last_attempt_at")
+  createdAt        DateTime @default(now()) @map("created_at")
 
+  @@unique([normalizedAnswer, team1Id, team2Id])
   @@map("missing_answers_log")
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
+}
+
+model Friendship {
+  id         String           @id @default(cuid())
+  senderId   String           @map("sender_id")
+  receiverId String           @map("receiver_id")
+  status     FriendshipStatus @default(PENDING)
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+  sender     User             @relation("SentFriendships", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver   User             @relation("ReceivedFriendships", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+  @@index([receiverId, status])
+  @@map("friendships")
+}
+
+enum CurrencyType {
+  COIN
+  ALIM_COIN
+}
+
+enum TransactionType {
+  MATCH_REWARD
+  ITEM_PURCHASE
+  AC_PURCHASE
+  DAILY_BONUS
+  ADMIN_ADJUSTMENT
+}
+
+model StoreItem {
+  id           String          @id @default(cuid())
+  name         String
+  category     String          // "frame" | "title" | "theme"
+  price        Int
+  currency     CurrencyType    @default(COIN)
+  description  String
+  previewColor String?         @map("preview_color")
+  badgeText    String?         @map("badge_text")
+  isActive     Boolean         @default(true) @map("is_active")
+  createdAt    DateTime        @default(now()) @map("created_at")
+  owners       UserInventory[]
+
+  @@map("store_items")
+}
+
+model UserInventory {
+  id         String    @id @default(cuid())
+  userId     String    @map("user_id")
+  itemId     String    @map("item_id")
+  isEquipped Boolean   @default(false) @map("is_equipped")
+  acquiredAt DateTime  @default(now()) @map("acquired_at")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item       StoreItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, itemId])
+  @@index([userId])
+  @@map("user_inventory")
+}
+
+model CoinTransaction {
+  id           String          @id @default(cuid())
+  userId       String          @map("user_id")
+  amount       Int             // Pozitif kazanç veya negatif harcama
+  currency     CurrencyType
+  type         TransactionType
+  balanceAfter Int             @map("balance_after")
+  description  String?
+  referenceId  String?         @map("reference_id")
+  createdAt    DateTime        @default(now()) @map("created_at")
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("coin_transactions")
 }
