@@ -10,7 +10,7 @@ export const registerSchema = z.object({
     .trim()
     .min(3, "Kullanıcı adı en az 3 karakter olmalıdır")
     .max(20, "Kullanıcı adı en fazla 20 karakter olabilir")
-    .regex(/^[a-zA-Z0-9_-]+$/, "Kullanıcı adı sadece harf, rakam, alt çizgi ve tire içerebilir"),
+    .regex(/^[a-zA-Z0-9]+$/, "Kullanıcı adı sadece harf ve rakam içerebilir (boşluk veya özel karakter içeremez)"),
   email: z.string().trim().email("Geçerli bir e-posta adresi giriniz"),
   password: z.string().min(6, "Parola en az 6 karakter olmalıdır"),
 });

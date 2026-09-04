@@ -14,8 +14,14 @@ export interface AuthenticatedUser {
   rankTier: string;
   matchesWon: number;
   matchesLost: number;
+  matchesDraw: number;
+  currentStreak: number;
+  bestStreak: number;
+  coins: number;
+  alimCoins: number;
   isGuest: boolean;
   avatarUrl: string | null;
+  lastSeenAt: Date | null;
   createdAt: Date;
 }
 
@@ -42,8 +48,14 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
         rankTier: true,
         matchesWon: true,
         matchesLost: true,
+        matchesDraw: true,
+        currentStreak: true,
+        bestStreak: true,
+        coins: true,
+        alimCoins: true,
         isGuest: true,
         avatarUrl: true,
+        lastSeenAt: true,
         createdAt: true,
       },
     });

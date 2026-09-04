@@ -55,7 +55,7 @@ export function Navbar() {
               </div>
             </Link>
           ) : (
-            <Link href="/login">
+            <Link href="/?auth=login">
               <Button size="sm" variant="primary">
                 <LogIn className="w-3.5 h-3.5 mr-1" />
                 Giriş Yap

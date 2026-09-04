@@ -1,21 +1,54 @@
 "use client";
 
+/**
+ * Oturum durumunu, kullanıcı bilgilerini ve anlık bakiye senkronizasyonunu yöneten React hook'u.
+ * Sayfa yenilemelerinde FOUC (göz kırpma / oturumsuz görünme) hatasını engellemek için
+ * SWR (Stale-While-Revalidate) önbellek deseni kullanır.
+ */
+
 import { useState, useEffect, useCallback } from "react";
 import { AuthenticatedUser } from "@/lib/auth/session";
 
-let globalUserCache: AuthenticatedUser | null = null;
+const AUTH_CACHE_KEY = "football_auth_user";
+
+function getCachedUser(): AuthenticatedUser | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(AUTH_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+let globalUserCache: AuthenticatedUser | null = getCachedUser();
 let isInitialFetchDone = false;
 const listeners = new Set<(user: AuthenticatedUser | null) => void>();
 
 function setGlobalUser(newUser: AuthenticatedUser | null) {
   globalUserCache = newUser;
   isInitialFetchDone = true;
+  if (typeof window !== "undefined") {
+    try {
+      if (newUser) {
+        localStorage.setItem(AUTH_CACHE_KEY, JSON.stringify(newUser));
+      } else {
+        localStorage.removeItem(AUTH_CACHE_KEY);
+      }
+    } catch {
+      // localStorage kotaları veya güvenlik hataları sessizce yakalanır
+    }
+  }
   listeners.forEach((l) => l(newUser));
 }
 
 export function useAuth() {
-  const [user, setUser] = useState<AuthenticatedUser | null>(() => globalUserCache);
-  const [isLoading, setIsLoading] = useState(!isInitialFetchDone);
+  const [user, setUser] = useState<AuthenticatedUser | null>(() => globalUserCache ?? getCachedUser());
+  const [isLoading, setIsLoading] = useState(() => {
+    if (isInitialFetchDone) return false;
+    const cached = globalUserCache ?? getCachedUser();
+    return !cached;
+  });
 
   useEffect(() => {
     listeners.add(setUser);
@@ -107,14 +140,25 @@ export function useAuth() {
     }
   };
 
+  const updateBalances = useCallback((newCoins: number, newAlimCoins: number) => {
+    if (globalUserCache) {
+      setGlobalUser({
+        ...globalUserCache,
+        coins: newCoins,
+        alimCoins: newAlimCoins,
+      });
+    }
+  }, []);
+
   return {
     user,
     isLoading,
-    isAuthenticated: !!user,
+    isAuthenticated: Boolean(user),
     login,
     register,
     loginAsGuest,
     logout,
+    updateBalances,
     refreshUser: fetchUser,
   };
 }
