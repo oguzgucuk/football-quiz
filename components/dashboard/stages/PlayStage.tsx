@@ -162,15 +162,18 @@ export function PlayStage({
           {/* 1. Ortak Oyuncu Modu */}
           <div
             onClick={() => setSelectedModeId("common_player")}
-            className={`relative flex flex-col items-center justify-between p-7 lg:p-8 rounded-[28px] transition-all duration-300 cursor-pointer overflow-hidden ${
+            className={`relative flex flex-col items-center justify-between p-7 lg:p-8 rounded-[28px] cursor-pointer overflow-hidden border-2 transition-[border-color,transform,box-shadow,background-color] duration-200 ease-out ${
               selectedModeId === "common_player"
-                ? "bg-gradient-to-b from-white via-white to-[#fbfdfb] border-2 border-[#15803d] shadow-[0_4px_6px_-1px_rgba(21,128,61,0.05),0_20px_40px_-8px_rgba(21,128,61,0.14)] scale-[1.02]"
-                : "bg-white/80 border-2 border-[#e2e8e4] hover:border-[#b8c4bc] hover:bg-white shadow-xs"
+                ? "bg-white/95 border-[#15803d] shadow-xl shadow-emerald-700/15 scale-[1.02]"
+                : "bg-white/80 border-[#e2e8e4] hover:border-[#b8c4bc] hover:bg-white/95 shadow-xs scale-100"
             }`}
           >
-            {selectedModeId === "common_player" && (
-              <div className="absolute top-0 inset-x-12 h-[3px] bg-gradient-to-r from-transparent via-[#15803d] to-transparent" />
-            )}
+            {/* Üst Vurgu Çizgisi — Smooth Fade */}
+            <div
+              className={`absolute top-0 inset-x-12 h-[3px] bg-gradient-to-r from-transparent via-[#15803d] to-transparent transition-opacity duration-200 pointer-events-none ${
+                selectedModeId === "common_player" ? "opacity-100" : "opacity-0"
+              }`}
+            />
 
             <div className="w-full flex items-center justify-between mb-4">
               <span className="text-[10px] font-black uppercase tracking-widest text-[#15803d] bg-[#15803d]/10 px-2.5 py-1 rounded-full">
@@ -192,10 +195,10 @@ export function PlayStage({
 
             <div className="relative flex items-center justify-center size-28 mb-5">
               <div
-                className={`relative flex size-24 items-center justify-center rounded-2xl border transition-all duration-300 ${
+                className={`relative flex size-24 items-center justify-center rounded-2xl border transition-colors duration-200 ${
                   selectedModeId === "common_player"
-                    ? "bg-gradient-to-b from-[#f3f8f5] to-[#e7f2ec] border-[#bfe0cc] shadow-[inset_0_1px_2px_rgba(255,255,255,0.9),0_6px_16px_rgba(21,128,61,0.12)] text-[#15803d]"
-                    : "bg-gradient-to-b from-[#fbfdfb] to-[#f0f4f2] border-[#e2e8e4] text-[#6b7770]"
+                    ? "bg-emerald-50 text-[#15803d] border-emerald-200 shadow-sm"
+                    : "bg-[#f8faf8] text-[#6b7770] border-[#e2e8e4]"
                 }`}
               >
                 <Swords
@@ -225,9 +228,9 @@ export function PlayStage({
                       setSelectedModeId("common_player");
                       setSelectedSubMode(sub.id);
                     }}
-                    className={`w-full h-[46px] flex items-center justify-between px-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                    className={`w-full h-[46px] flex items-center justify-between px-3.5 rounded-xl border text-left transition-colors duration-150 cursor-pointer ${
                       isSubActive
-                        ? "bg-gradient-to-r from-[#15803d] to-[#126d34] text-white border-[#116630] shadow-[0_2px_10px_rgba(21,128,61,0.25)] font-bold"
+                        ? "bg-[#15803d] text-white border-[#126d34] shadow-sm shadow-[#15803d]/20 font-bold"
                         : "bg-[#f8faf8] text-[#525f56] border-[#e2e8e4] hover:border-[#cbd5ce] hover:bg-white font-bold"
                     }`}
                   >
@@ -259,12 +262,18 @@ export function PlayStage({
           {/* 2. Millet-Takım Modu */}
           <div
             onClick={() => setSelectedModeId("grid")}
-            className={`relative flex flex-col items-center justify-between p-7 lg:p-8 rounded-[28px] transition-all duration-300 cursor-pointer overflow-hidden ${
+            className={`relative flex flex-col items-center justify-between p-7 lg:p-8 rounded-[28px] cursor-pointer overflow-hidden border-2 transition-[border-color,transform,box-shadow,background-color] duration-200 ease-out ${
               selectedModeId === "grid"
-                ? "bg-gradient-to-b from-white to-[#fbfdfb] border-2 border-[#15803d] shadow-[0_15px_40px_rgba(21,128,61,0.1)] scale-[1.02]"
-                : "bg-white/60 border-2 border-[#e6ebe8] hover:border-[#cbd5ce] hover:bg-white/90 shadow-2xs"
+                ? "bg-white/95 border-[#15803d] shadow-xl shadow-emerald-700/15 scale-[1.02]"
+                : "bg-white/80 border-[#e2e8e4] hover:border-[#cbd5ce] hover:bg-white/90 shadow-2xs scale-100"
             }`}
           >
+            <div
+              className={`absolute top-0 inset-x-12 h-[3px] bg-gradient-to-r from-transparent via-[#15803d] to-transparent transition-opacity duration-200 pointer-events-none ${
+                selectedModeId === "grid" ? "opacity-100" : "opacity-0"
+              }`}
+            />
+
             <div className="w-full flex items-center justify-between mb-4">
               <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#6b7770] bg-[#f0f4f2] px-2.5 py-1 rounded-full border border-[#e2e8e4]">
                 1. Sezon
@@ -284,7 +293,7 @@ export function PlayStage({
             </div>
 
             <div className="relative flex items-center justify-center size-28 mb-5">
-              <div className="relative flex size-24 items-center justify-center rounded-2xl border border-[#e2e8e4] bg-gradient-to-b from-[#fbfdfb] to-[#f0f4f2] text-[#6b7770] shadow-[inset_0_1px_2px_rgba(255,255,255,0.8)]">
+              <div className="relative flex size-24 items-center justify-center rounded-2xl border border-[#e2e8e4] bg-[#fbfdfb] text-[#6b7770]">
                 <Globe className="size-12 relative z-10" strokeWidth={1.75} />
               </div>
             </div>
@@ -312,12 +321,18 @@ export function PlayStage({
           {/* 3. Müzayede Modu */}
           <div
             onClick={() => setSelectedModeId("auction")}
-            className={`relative flex flex-col items-center justify-between p-7 lg:p-8 rounded-[28px] transition-all duration-300 cursor-pointer overflow-hidden ${
+            className={`relative flex flex-col items-center justify-between p-7 lg:p-8 rounded-[28px] cursor-pointer overflow-hidden border-2 transition-[border-color,transform,box-shadow,background-color] duration-200 ease-out ${
               selectedModeId === "auction"
-                ? "bg-gradient-to-b from-white to-[#fbfdfb] border-2 border-[#15803d] shadow-[0_15px_40px_rgba(21,128,61,0.1)] scale-[1.02]"
-                : "bg-white/60 border-2 border-[#e6ebe8] hover:border-[#cbd5ce] hover:bg-white/90 shadow-2xs"
+                ? "bg-white/95 border-[#15803d] shadow-xl shadow-emerald-700/15 scale-[1.02]"
+                : "bg-white/80 border-[#e2e8e4] hover:border-[#cbd5ce] hover:bg-white/90 shadow-2xs scale-100"
             }`}
           >
+            <div
+              className={`absolute top-0 inset-x-12 h-[3px] bg-gradient-to-r from-transparent via-[#15803d] to-transparent transition-opacity duration-200 pointer-events-none ${
+                selectedModeId === "auction" ? "opacity-100" : "opacity-0"
+              }`}
+            />
+
             <div className="w-full flex items-center justify-between mb-4">
               <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#6b7770] bg-[#f0f4f2] px-2.5 py-1 rounded-full border border-[#e2e8e4]">
                 1. Sezon
@@ -337,7 +352,7 @@ export function PlayStage({
             </div>
 
             <div className="relative flex items-center justify-center size-28 mb-5">
-              <div className="relative flex size-24 items-center justify-center rounded-2xl border border-[#e2e8e4] bg-gradient-to-b from-[#fbfdfb] to-[#f0f4f2] text-[#6b7770] shadow-[inset_0_1px_2px_rgba(255,255,255,0.8)]">
+              <div className="relative flex size-24 items-center justify-center rounded-2xl border border-[#e2e8e4] bg-[#fbfdfb] text-[#6b7770]">
                 <Gavel className="size-12 relative z-10" strokeWidth={1.75} />
               </div>
             </div>
