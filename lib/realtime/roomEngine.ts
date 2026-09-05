@@ -7,9 +7,10 @@
  * const { state, duration } = prepareAnsweringPhase(currentRoomState);
  */
 
-import { Team } from "@/types/game";
+import { Team, Nation } from "@/types/game";
 import { RoomState } from "./roomState";
 import { CompletedRoundData } from "../db/matches";
+import { POPULAR_NATIONS } from "../data/nations";
 
 export const DEFAULT_ROUND_DURATION = 15;
 export const DEFAULT_PICK_DURATION = 5;
@@ -90,6 +91,15 @@ export function assignPlayerToRoom(
       isReady: true,
     };
     next.status = "in_round";
+
+    // Millet-Takım modunda ilk tur için adil ve rastgele (50/50) rol dağıtımı
+    if (next.gameMode === "country_vs_team" && !next.initialNationPickerUserId) {
+      const startWithP1 = Math.random() < 0.5;
+      next.initialNationPickerUserId = startWithP1 ? next.player1!.userId : player.userId;
+      next.currentNationPickerUserId = next.initialNationPickerUserId;
+      next.currentTeamPickerUserId = startWithP1 ? player.userId : next.player1!.userId;
+    }
+
     return { slot: "player2", state: next, isRoomFull: true };
   }
 
@@ -106,6 +116,16 @@ export function registerTeamPick(
 ): { state: RoomState; bothPicked: boolean } {
   const next = { ...state };
 
+  if (next.gameMode === "country_vs_team") {
+    if (next.currentTeamPickerUserId === userId) {
+      next.team1 = team;
+      if (next.player1?.userId === userId) next.player1.selectedTeamId = team.id;
+      if (next.player2?.userId === userId) next.player2.selectedTeamId = team.id;
+    }
+    const bothPicked = Boolean(next.nation && next.team1);
+    return { state: next, bothPicked };
+  }
+
   if (next.player1?.userId === userId) {
     next.team1 = team;
     next.player1.selectedTeamId = team.id;
@@ -119,6 +139,28 @@ export function registerTeamPick(
 }
 
 /**
+ * Oyuncu için millet seçimi kaydeder (Millet-Takım modu).
+ */
+export function registerNationPick(
+  state: RoomState,
+  userId: string,
+  nation: Nation
+): { state: RoomState; bothPicked: boolean } {
+  const next = { ...state };
+
+  if (next.gameMode === "country_vs_team") {
+    if (next.currentNationPickerUserId === userId) {
+      next.nation = nation;
+      if (next.player1?.userId === userId) next.player1.selectedNationId = nation.id;
+      if (next.player2?.userId === userId) next.player2.selectedNationId = nation.id;
+    }
+  }
+
+  const bothPicked = Boolean(next.nation && next.team1);
+  return { state: next, bothPicked };
+}
+
+/**
  * Takım seçimi süresi bittiğinde veya her iki oyuncu da seçtiğinde
  * eksik takımları varsayılanlardan tamamlar ve cevaplama aşamasını başlatır.
  */
@@ -127,6 +169,35 @@ export function prepareAnsweringPhase(
   availableTeams: Team[] = DEFAULT_POPULAR_TEAMS
 ): { state: RoomState; duration: number } {
   const next = { ...state };
+
+  if (next.gameMode === "country_vs_team") {
+    if (!next.nation) {
+      const randomNation = POPULAR_NATIONS[Math.floor(Math.random() * Math.min(8, POPULAR_NATIONS.length))];
+      next.nation = randomNation;
+      if (next.player1 && next.player1.userId === next.currentNationPickerUserId) {
+        next.player1.selectedNationId = randomNation.id;
+      } else if (next.player2 && next.player2.userId === next.currentNationPickerUserId) {
+        next.player2.selectedNationId = randomNation.id;
+      }
+    }
+
+    if (!next.team1) {
+      const randomTeam = availableTeams[Math.floor(Math.random() * availableTeams.length)];
+      next.team1 = randomTeam;
+      if (next.player1 && next.player1.userId === next.currentTeamPickerUserId) {
+        next.player1.selectedTeamId = randomTeam.id;
+      } else if (next.player2 && next.player2.userId === next.currentTeamPickerUserId) {
+        next.player2.selectedTeamId = randomTeam.id;
+      }
+    }
+
+    next.roundStatus = "answering";
+    next.roundStartTime = Date.now();
+    next.passVotes = [];
+
+    const duration = next.roundDuration || DEFAULT_ROUND_DURATION;
+    return { state: next, duration };
+  }
 
   if (!next.team1) {
     next.team1 = availableTeams[0];
@@ -158,8 +229,8 @@ export function recordRoundTimeout(
 
   const completedRound: CompletedRoundData = {
     roundNumber: next.currentRound,
-    entity1Id: next.team1?.id || "",
-    entity2Id: next.team2?.id || "",
+    entity1Id: next.gameMode === "country_vs_team" ? (next.nation?.id || "nation") : (next.team1?.id || ""),
+    entity2Id: next.team1?.id || "",
     winnerUserId: null,
     answerGiven: "Süre Doldu",
     timeTakenMs: (next.roundDuration || DEFAULT_ROUND_DURATION) * 1000,
@@ -206,8 +277,8 @@ export function evaluateAnswerSubmission(
 
   const completedRound: CompletedRoundData = {
     roundNumber: next.currentRound,
-    entity1Id: next.team1?.id || "",
-    entity2Id: next.team2?.id || "",
+    entity1Id: next.gameMode === "country_vs_team" ? (next.nation?.id || "nation") : (next.team1?.id || ""),
+    entity2Id: next.team1?.id || "",
     winnerUserId: senderUserId,
     answerGiven: result.playerName || "Doğru Cevap",
     timeTakenMs: Math.min(takenMs, duration * 1000),
@@ -247,8 +318,8 @@ export function evaluatePassVote(
     next.roundStatus = "round_finished";
     const completedRound: CompletedRoundData = {
       roundNumber: next.currentRound,
-      entity1Id: next.team1?.id || "",
-      entity2Id: next.team2?.id || "",
+      entity1Id: next.gameMode === "country_vs_team" ? (next.nation?.id || "nation") : (next.team1?.id || ""),
+      entity2Id: next.team1?.id || "",
       winnerUserId: null,
       answerGiven: "Pas Geçildi (Berabere)",
       timeTakenMs: next.roundStartTime ? Date.now() - next.roundStartTime : 0,
@@ -277,11 +348,26 @@ export function prepareNextRound(
   next.roundStatus = "picking_teams";
   next.team1 = null;
   next.team2 = null;
+  next.nation = null;
   next.passVotes = [];
   next.roundStartTime = null;
 
-  if (next.player1) next.player1.selectedTeamId = null;
-  if (next.player2) next.player2.selectedTeamId = null;
+  if (next.player1) {
+    next.player1.selectedTeamId = null;
+    next.player1.selectedNationId = null;
+  }
+  if (next.player2) {
+    next.player2.selectedTeamId = null;
+    next.player2.selectedNationId = null;
+  }
+
+  // Millet-Takım modunda roller her tur takas edilir (Role Alternation)
+  if (next.gameMode === "country_vs_team") {
+    const prevNationPicker = state.currentNationPickerUserId;
+    const prevTeamPicker = state.currentTeamPickerUserId;
+    next.currentNationPickerUserId = prevTeamPicker;
+    next.currentTeamPickerUserId = prevNationPicker;
+  }
 
   return { isMatchFinished: false, state: next };
 }

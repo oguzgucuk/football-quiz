@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import Fuse from "fuse.js";
-import { Shield, Sparkles, CheckCircle2, RotateCcw, Search } from "lucide-react";
+import { Shield, Sparkles, CheckCircle2, RotateCcw, Search, Wrench, Clock } from "lucide-react";
 import { Team, PlayerSearchItem } from "@/types/game";
 import { PlayerAnswerInput } from "./PlayerAnswerInput";
 import { VersusDisplay } from "./VersusDisplay";
@@ -108,8 +108,9 @@ export function SandboxMode({ teams, playerList }: SandboxModeProps) {
     <div className="w-full max-w-3xl mx-auto flex flex-col items-center">
       {/* Başlık ve Mod Bilgisi */}
       <div className="flex items-center gap-2 mb-6">
-        <Badge variant="brand" className="px-3 py-1 text-xs">
-          🛠️ Test / Serbest Sandbox Modu (Süresiz)
+        <Badge variant="brand" className="px-3 py-1 text-xs flex items-center gap-1.5">
+          <Wrench className="w-3.5 h-3.5" />
+          Test / Serbest Sandbox Modu (Süresiz)
         </Badge>
       </div>
 
@@ -276,8 +277,9 @@ export function SandboxMode({ teams, playerList }: SandboxModeProps) {
         <div className="w-full flex flex-col items-center animate-fadeIn">
           {/* Üst Sıfırla Butonu */}
           <div className="w-full flex items-center justify-between mb-4">
-            <span className="text-xs font-semibold text-zinc-400">
-              ⏳ Süre Kısıtlaması Yok • Rahatça Deneyebilirsiniz
+            <span className="text-xs font-semibold text-zinc-400 flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-zinc-400" />
+              Süre Kısıtlaması Yok • Rahatça Deneyebilirsiniz
             </span>
             <Button variant="outline" size="sm" onClick={handleReset}>
               <RotateCcw className="w-4 h-4 mr-1" />
@@ -294,7 +296,7 @@ export function SandboxMode({ teams, playerList }: SandboxModeProps) {
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="w-6 h-6 text-emerald-400" />
                 <div>
-                  <span className="font-bold text-base block text-white">Doğru Cevap! 🎉</span>
+                  <span className="font-bold text-base block text-white">Doğru Cevap!</span>
                   <span className="text-xs text-emerald-300 font-semibold">{lastCorrectAnswer} her iki takımda da oynadı.</span>
                 </div>
               </div>

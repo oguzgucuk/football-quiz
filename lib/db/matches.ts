@@ -124,14 +124,27 @@ export async function finalizeMatchAndPersistElo({
     }
   }
 
-  // 4. Streak hesaplaması (kazanan/kaybeden için)
+  // 4. Streak hesaplaması (Sadece ranked maçlarda güncellenir)
   const p1CurrentStreak = user1?.currentStreak ?? 0;
   const p2CurrentStreak = user2?.currentStreak ?? 0;
   const p1BestStreak = user1?.bestStreak ?? 0;
   const p2BestStreak = user2?.bestStreak ?? 0;
 
-  const p1NewStreak = isDraw ? 0 : p1Wins ? p1CurrentStreak + 1 : 0;
-  const p2NewStreak = isDraw ? 0 : p2Wins ? p2CurrentStreak + 1 : 0;
+  const p1NewStreak = ranked
+    ? isDraw
+      ? 0
+      : p1Wins
+      ? p1CurrentStreak + 1
+      : 0
+    : p1CurrentStreak;
+
+  const p2NewStreak = ranked
+    ? isDraw
+      ? 0
+      : p2Wins
+      ? p2CurrentStreak + 1
+      : 0
+    : p2CurrentStreak;
 
   // 5. Atomik Transaction ile kaydet
   await prisma.$transaction(async (tx) => {
@@ -174,13 +187,13 @@ export async function finalizeMatchAndPersistElo({
       await tx.user.update({
         where: { id: user1.id },
         data: {
-          eloRating: p1NewElo,
-          rankTier: calculateRankTier(p1NewElo),
+          eloRating: ranked ? p1NewElo : undefined,
+          rankTier: ranked ? calculateRankTier(p1NewElo) : undefined,
           matchesWon: p1Wins ? { increment: 1 } : undefined,
           matchesLost: p2Wins ? { increment: 1 } : undefined,
           matchesDraw: isDraw ? { increment: 1 } : undefined,
-          currentStreak: p1NewStreak,
-          bestStreak: Math.max(p1BestStreak, p1NewStreak),
+          currentStreak: ranked ? p1NewStreak : undefined,
+          bestStreak: ranked ? Math.max(p1BestStreak, p1NewStreak) : undefined,
           lastSeenAt: new Date(),
         },
       });
@@ -191,13 +204,13 @@ export async function finalizeMatchAndPersistElo({
       await tx.user.update({
         where: { id: user2.id },
         data: {
-          eloRating: p2NewElo,
-          rankTier: calculateRankTier(p2NewElo),
+          eloRating: ranked ? p2NewElo : undefined,
+          rankTier: ranked ? calculateRankTier(p2NewElo) : undefined,
           matchesWon: p2Wins ? { increment: 1 } : undefined,
           matchesLost: p1Wins ? { increment: 1 } : undefined,
           matchesDraw: isDraw ? { increment: 1 } : undefined,
-          currentStreak: p2NewStreak,
-          bestStreak: Math.max(p2BestStreak, p2NewStreak),
+          currentStreak: ranked ? p2NewStreak : undefined,
+          bestStreak: ranked ? Math.max(p2BestStreak, p2NewStreak) : undefined,
           lastSeenAt: new Date(),
         },
       });

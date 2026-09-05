@@ -90,7 +90,7 @@ export default function AdminLogosPage() {
         <div className="max-w-screen-2xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div>
-              <h1 className="text-xl font-bold text-white">🏆 Logo Admin</h1>
+              <h1 className="text-xl font-bold text-white">Logo Yönetim Paneli</h1>
               {stats && (
                 <p className="text-sm text-zinc-400 mt-0.5">
                   <span className="text-emerald-400 font-semibold">{stats.totalWithLogo}</span> logolu ·{" "}

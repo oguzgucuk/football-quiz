@@ -106,6 +106,34 @@ export async function getCommonPlayersByTeams(
   });
 }
 
+export async function getCommonPlayersByNationAndTeam(
+  nationQueries: string[],
+  teamId: string,
+  limit: number = 5
+) {
+  return prisma.player.findMany({
+    where: {
+      teamsHistory: {
+        some: { teamId },
+      },
+      nationality: { in: nationQueries, mode: "insensitive" },
+    },
+    select: {
+      id: true,
+      fullName: true,
+      nationality: true,
+      birthDate: true,
+      popularityScore: true,
+    },
+    orderBy: [
+      { popularityScore: "desc" },
+      { marketValueEur: { sort: "desc", nulls: "last" } },
+      { fullName: "asc" },
+    ],
+    take: limit,
+  });
+}
+
 export async function logMissingAnswer(
   submittedName: string,
   team1Id: string,

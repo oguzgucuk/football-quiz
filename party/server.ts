@@ -1,20 +1,20 @@
 /**
- * Realtime WebSocket Oyun, Oda ve Matchmaking Sunucusu (PartyKit Protokolü Uyumlu).
- * - Canlı 1v1 Eşleştirme Havuzu (Matchmaking Queue)
- * - Özel Oda Yönetimi ve Server-Side Timer Senkronizasyonu
- * - 5sn Takım Seçimi ve 15sn Cevap Sayacı
+ * Realtime WebSocket Oyun ve Oda Sunucusu (PartyKit Protokolü Uyumlu).
+ * - 1v1 Oyun ve Özel Oda Yönetimi
+ * - Dinamik Tur Süresi (5s, 10s, 15s, 20s)
+ * - Server-Side Doğrulama, Timer ve Kesinti (Grace Period) Yönetimi
  */
 
 import { createServer, IncomingMessage } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { RoomState, createInitialRoomState } from "../lib/realtime/roomState";
-import { Team } from "../types/game";
+import { Team, Nation } from "../types/game";
 import { verifyPlayerAnswerInServer } from "../lib/realtime/verifyPlayerAnswerInServer";
+import { verifyNationAnswerInServer } from "../lib/realtime/verifyNationAnswer";
 import { finalizeMatchAndPersistElo, CompletedRoundData } from "../lib/db/matches";
 import {
   createSession,
   validateSession,
-  startGracePeriod,
   clearGracePeriod,
   getActiveGracePeriod,
   clearRoomSessions,
@@ -23,7 +23,6 @@ import {
 import {
   DEFAULT_POPULAR_TEAMS,
   DEFAULT_ROUND_DURATION,
-  DEFAULT_PICK_DURATION,
   DEFAULT_MAX_ROUNDS,
   resolveRoundDuration,
   prepareAnsweringPhase,
@@ -32,12 +31,14 @@ import {
   evaluatePassVote,
   prepareNextRound,
   registerTeamPick,
+  registerNationPick,
 } from "../lib/realtime/roomEngine";
+import { createBotPlayer, pickBotTeam, pickBotNation, isBotPlayer } from "../lib/realtime/botSimulator";
+import { handleMatchPlayerDisconnect } from "../lib/realtime/disconnectManager";
+import { handleLocalMatchmakingSocket, getMatchmakingQueueCount } from "./localMatchmaking";
 
 const PORT = parseInt(process.env.PORT || "1999", 10);
 const ROUNDS_PER_MATCH = DEFAULT_MAX_ROUNDS;
-const PICK_TIME_SECONDS = DEFAULT_PICK_DURATION;
-const ANSWER_TIME_SECONDS = DEFAULT_ROUND_DURATION;
 
 interface Room {
   id: string;
@@ -48,17 +49,7 @@ interface Room {
   completedRounds: CompletedRoundData[];
 }
 
-interface QueuedPlayer {
-  ws: WebSocket;
-  userId: string;
-  username: string;
-  eloRating?: number;
-  roundDuration: number;
-  joinedAt: number;
-}
-
 const rooms = new Map<string, Room>();
-let matchmakingQueue: QueuedPlayer[] = [];
 
 const server = createServer((req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -67,7 +58,14 @@ const server = createServer((req, res) => {
 
   if (req.url === "/health" || req.url === "/") {
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ status: "ok", activeRooms: rooms.size, queueSize: matchmakingQueue.length, timestamp: Date.now() }));
+    res.end(
+      JSON.stringify({
+        status: "ok",
+        activeRooms: rooms.size,
+        queueSize: getMatchmakingQueueCount(),
+        timestamp: Date.now(),
+      })
+    );
     return;
   }
 
@@ -117,12 +115,15 @@ function broadcastRoomState(room: Room) {
   });
 }
 
-function startServerTimer(room: Room, durationSeconds: number, onComplete: () => void) {
+function clearRoomTimer(room: Room) {
   if (room.timer) {
     clearInterval(room.timer);
     room.timer = undefined;
   }
+}
 
+function startServerTimer(room: Room, durationSeconds: number, onComplete: () => void) {
+  clearRoomTimer(room);
   room.timerSecondsLeft = durationSeconds;
 
   broadcastToRoom(room, {
@@ -133,10 +134,7 @@ function startServerTimer(room: Room, durationSeconds: number, onComplete: () =>
 
   room.timer = setInterval(() => {
     if (room.timerSecondsLeft === undefined || room.timerSecondsLeft <= 1) {
-      if (room.timer) {
-        clearInterval(room.timer);
-        room.timer = undefined;
-      }
+      clearRoomTimer(room);
       room.timerSecondsLeft = 0;
       onComplete();
     } else {
@@ -149,13 +147,8 @@ function startServerTimer(room: Room, durationSeconds: number, onComplete: () =>
   }, 1000);
 }
 
-// 5sn Takım Seçimi tamamlandığında takımları kilitleyip 15sn Cevaplama aşamasına geçiş
 function transitionToAnsweringPhase(room: Room) {
-  if (room.timer) {
-    clearInterval(room.timer);
-    room.timer = undefined;
-  }
-
+  clearRoomTimer(room);
   const { state, duration } = prepareAnsweringPhase(room.state, DEFAULT_POPULAR_TEAMS);
   room.state = state;
   broadcastRoomState(room);
@@ -165,7 +158,6 @@ function transitionToAnsweringPhase(room: Room) {
   });
 }
 
-// Zaman aşımı (Kimse bilemedi)
 function handleRoundTimeout(room: Room) {
   if (room.state.roundStatus !== "answering") return;
 
@@ -184,7 +176,6 @@ function handleRoundTimeout(room: Room) {
   scheduleNextRound(room);
 }
 
-// Tur sonrası 3sn bekleyip yeni tura veya maç sonuna geçiş
 function scheduleNextRound(room: Room) {
   setTimeout(() => {
     const { isMatchFinished, state } = prepareNextRound(room.state, ROUNDS_PER_MATCH);
@@ -192,23 +183,28 @@ function scheduleNextRound(room: Room) {
 
     if (isMatchFinished) {
       broadcastRoomState(room);
-
-      // P1-8: Maç bittiğinde ELO hesapla ve DB'ye atomik transaction ile kaydet
       const p1Id = room.state.player1?.userId;
       const p2Id = room.state.player2?.userId;
 
       if (p1Id && p2Id) {
+        const isCasual = room.id.includes("_casual_");
+        const isCustom = room.id.startsWith("oda_");
+        const isNationTeam = room.state.gameMode === "country_vs_team" || room.id.includes("_country_vs_team_") || room.id.includes("_millet_");
+        const mode = isNationTeam ? "country_vs_team" : isCustom ? "custom" : isCasual ? "casual" : "ranked";
+        const isRanked = isNationTeam ? false : (!isCasual && !isCustom && !isBotPlayer(p1Id) && !isBotPlayer(p2Id));
+
         finalizeMatchAndPersistElo({
           matchId: room.id,
           player1Id: p1Id,
           player2Id: p2Id,
           player1Score: room.state.player1?.score || 0,
           player2Score: room.state.player2?.score || 0,
-          ranked: !p2Id.startsWith("bot_") && !p1Id.startsWith("bot_"),
+          mode,
+          ranked: isRanked,
           rounds: room.completedRounds,
         })
           .then((result) => {
-            console.log(`🏆 [Party/Server] Maç ${room.id} başarıyla DB'ye işlendi:`, result);
+            console.log(`🏆 [Party/Server] Maç ${room.id} DB'ye işlendi:`, result);
             broadcastToRoom(room, {
               type: "MATCH_PERSISTED",
               result,
@@ -220,14 +216,25 @@ function scheduleNextRound(room: Room) {
           });
       }
     } else {
-      if (room.state.player2?.userId.startsWith("bot_")) {
-        const botTeam = DEFAULT_POPULAR_TEAMS[Math.floor(Math.random() * DEFAULT_POPULAR_TEAMS.length)];
-        room.state.player2.selectedTeamId = botTeam.id;
-        room.state.team2 = botTeam;
+      if (room.state.player2 && isBotPlayer(room.state.player2.userId)) {
+        const botUserId = room.state.player2.userId;
+        if (room.state.gameMode === "country_vs_team") {
+          if (room.state.currentNationPickerUserId === botUserId) {
+            const botNation = pickBotNation();
+            registerNationPick(room.state, botUserId, botNation);
+          } else if (room.state.currentTeamPickerUserId === botUserId) {
+            const botTeam = pickBotTeam(DEFAULT_POPULAR_TEAMS);
+            registerTeamPick(room.state, botUserId, botTeam);
+          }
+        } else {
+          const botTeam = pickBotTeam(DEFAULT_POPULAR_TEAMS);
+          room.state.player2.selectedTeamId = botTeam.id;
+          room.state.team2 = botTeam;
+        }
       }
 
       broadcastRoomState(room);
-      const pickDuration = room.state.roundDuration || PICK_TIME_SECONDS;
+      const pickDuration = room.state.roundDuration || DEFAULT_ROUND_DURATION;
       startServerTimer(room, pickDuration, () => {
         transitionToAnsweringPhase(room);
       });
@@ -235,102 +242,8 @@ function scheduleNextRound(room: Room) {
   }, 3000);
 }
 
-// MATCHMAKING İŞLEYİCİSİ
-function handleMatchmakingConnection(ws: WebSocket) {
-  let playerInfo: { userId?: string; username?: string; eloRating?: number } = {};
-
-  ws.on("message", (rawMessage: string) => {
-    try {
-      const data = JSON.parse(rawMessage.toString());
-
-      if (data.type === "MATCHMAKING_JOIN") {
-        const { userId, username, eloRating } = data;
-        const roundDuration = [5, 10, 15, 20].includes(Number(data.roundDuration))
-          ? Number(data.roundDuration)
-          : 15;
-        playerInfo = { userId, username, eloRating };
-
-        // Kuyruktaki ölü bağlantıları temizle
-        matchmakingQueue = matchmakingQueue.filter(
-          (p) => p.ws.readyState === WebSocket.OPEN && p.userId !== userId
-        );
-
-        // Kuyrukta AYNI SÜREYİ seçmiş başka bir oyuncu var mı?
-        const opponentIndex = matchmakingQueue.findIndex((p) => p.roundDuration === roundDuration);
-
-        if (opponentIndex !== -1) {
-          const opponent = matchmakingQueue.splice(opponentIndex, 1)[0];
-          const matchId = `match_${roundDuration}s_${Math.random().toString(36).substring(2, 8)}`;
-
-          console.log(`🎉 [Matchmaking] Eşleşme bulundu (${roundDuration}s): ${username} vs ${opponent.username} -> Oda: ${matchId}`);
-
-          // Her iki oyuncuya bildirim gönder
-          opponent.ws.send(
-            JSON.stringify({
-              type: "MATCH_FOUND",
-              matchId,
-              roundDuration,
-              opponent: { userId, username, eloRating },
-            })
-          );
-
-          ws.send(
-            JSON.stringify({
-              type: "MATCH_FOUND",
-              matchId,
-              roundDuration,
-              opponent: { userId: opponent.userId, username: opponent.username, eloRating: opponent.eloRating },
-            })
-          );
-        } else {
-          // Kuyruğa ekle
-          matchmakingQueue.push({
-            ws,
-            userId,
-            username,
-            eloRating,
-            roundDuration,
-            joinedAt: Date.now(),
-          });
-
-          console.log(`⏱️ [Matchmaking] Kuyruğa katıldı (${roundDuration}s): ${username} (Kuyruk boyutu: ${matchmakingQueue.length})`);
-          ws.send(JSON.stringify({ type: "QUEUE_STATUS", queueSize: matchmakingQueue.filter((p) => p.roundDuration === roundDuration).length }));
-        }
-      } else if (data.type === "MATCHMAKING_LEAVE") {
-        matchmakingQueue = matchmakingQueue.filter((p) => p.ws !== ws);
-        console.log(`👋 [Matchmaking] Kuyruktan ayrıldı (Kalan: ${matchmakingQueue.length})`);
-      } else if (data.type === "REQUEST_BOT_MATCH") {
-        const roundDuration = [5, 10, 15, 20].includes(Number(data.roundDuration))
-          ? Number(data.roundDuration)
-          : 15;
-        matchmakingQueue = matchmakingQueue.filter((p) => p.ws !== ws);
-        const matchId = `match_bot_${roundDuration}s_${Math.random().toString(36).substring(2, 8)}`;
-        ws.send(
-          JSON.stringify({
-            type: "MATCH_FOUND",
-            matchId,
-            roundDuration,
-            isBot: true,
-            opponent: { userId: "bot_ai", username: "Yapay Zeka 🤖", eloRating: 1000 },
-          })
-        );
-      }
-    } catch (err) {
-      console.error("[Matchmaking Parse Error]:", err);
-    }
-  });
-
-  ws.on("close", () => {
-    matchmakingQueue = matchmakingQueue.filter((p) => p.ws !== ws);
-    if (playerInfo.username) {
-      console.log(`👋 [Matchmaking] ${playerInfo.username} ayrıldı (Kalan: ${matchmakingQueue.length})`);
-    }
-  });
-}
-
 server.on("upgrade", (request, socket, head) => {
   const roomId = extractRoomId(request.url);
-
   wss.handleUpgrade(request, socket, head, (ws) => {
     wss.emit("connection", ws, request, roomId);
   });
@@ -338,7 +251,7 @@ server.on("upgrade", (request, socket, head) => {
 
 wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) => {
   if (roomId === "matchmaking" || request.url?.includes("/parties/matchmaking")) {
-    handleMatchmakingConnection(ws);
+    handleLocalMatchmakingSocket(ws);
     return;
   }
 
@@ -376,7 +289,10 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
         }
 
         case "PLAYER_JOIN": {
-          const { userId, username } = data;
+          const { userId, username, roundDuration } = data;
+          if (roundDuration && [5, 10, 15, 20].includes(Number(roundDuration))) {
+            room.state.roundDuration = Number(roundDuration);
+          }
           const clientMeta = room.clients.get(ws);
           if (clientMeta) {
             clientMeta.userId = userId;
@@ -386,13 +302,7 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
           const slot = (!room.state.player1 || room.state.player1.userId === userId) ? "player1" : "player2";
           const sessionToken = createSession(roomId, userId, slot);
 
-          ws.send(
-            JSON.stringify({
-              type: "SESSION_GRANTED",
-              sessionToken,
-              userId,
-            })
-          );
+          ws.send(JSON.stringify({ type: "SESSION_GRANTED", sessionToken, userId }));
 
           if (!room.state.player1 || room.state.player1.userId === userId) {
             room.state.player1 = {
@@ -418,9 +328,18 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
             room.state.status = "in_round";
             room.state.roundStatus = "picking_teams";
             room.state.currentRound = 1;
+
+            if (room.state.gameMode === "country_vs_team" && !room.state.initialNationPickerUserId) {
+              const startWithP1 = Math.random() < 0.5;
+              room.state.initialNationPickerUserId = startWithP1 ? room.state.player1.userId : room.state.player2.userId;
+              room.state.currentNationPickerUserId = room.state.initialNationPickerUserId;
+              room.state.currentTeamPickerUserId = startWithP1 ? room.state.player2.userId : room.state.player1.userId;
+            }
+
             broadcastRoomState(room);
 
-            startServerTimer(room, PICK_TIME_SECONDS, () => {
+            const pickDuration = room.state.roundDuration || DEFAULT_ROUND_DURATION;
+            startServerTimer(room, pickDuration, () => {
               transitionToAnsweringPhase(room);
             });
             break;
@@ -432,25 +351,21 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
 
         case "REJOIN": {
           const { roomId: reqRoomId, sessionToken, userId } = data;
-          const targetRoomId = reqRoomId || roomId;
-          const targetRoom = rooms.get(targetRoomId);
+          const targetRoom = rooms.get(reqRoomId || roomId);
 
           if (!targetRoom) {
             ws.send(JSON.stringify({ type: "REJOIN_FAILED", reason: "Oda bulunamadı veya kapandı." }));
             break;
           }
 
-          const validSession = validateSession(targetRoomId, userId, sessionToken);
+          const validSession = validateSession(reqRoomId || roomId, userId, sessionToken);
           if (!validSession) {
-            ws.send(JSON.stringify({ type: "REJOIN_FAILED", reason: "Geçersiz veya süresi dolmuş oturum belirteci." }));
+            ws.send(JSON.stringify({ type: "REJOIN_FAILED", reason: "Geçersiz oturum belirteci." }));
             break;
           }
 
-          // Grace period'u temizle
-          clearGracePeriod(targetRoomId);
+          clearGracePeriod(reqRoomId || roomId);
           targetRoom.state.disconnectGrace = null;
-
-          // Yeni bağlantıyı odaya bağla
           targetRoom.clients.set(ws, { userId, username: data.username });
 
           if (targetRoom.state.player1 && targetRoom.state.player1.userId === userId) {
@@ -461,21 +376,8 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
             targetRoom.state.player2.disconnectedAt = null;
           }
 
-          console.log(`🔄 [REJOIN] ${userId} odaya başarıyla geri bağlandı (${targetRoomId}).`);
-
-          ws.send(
-            JSON.stringify({
-              type: "REJOIN_SUCCESS",
-              sessionToken,
-              userId,
-              state: targetRoom.state,
-            })
-          );
-
-          broadcastToRoom(targetRoom, {
-            type: "PLAYER_RECONNECTED",
-            userId,
-          });
+          ws.send(JSON.stringify({ type: "REJOIN_SUCCESS", sessionToken, userId, state: targetRoom.state }));
+          broadcastToRoom(targetRoom, { type: "PLAYER_RECONNECTED", userId });
           broadcastRoomState(targetRoom);
           break;
         }
@@ -484,29 +386,52 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
         case "ADD_BOT_PLAYER": {
           if (room.state.status !== "waiting_for_players" || room.state.player2) break;
 
-          const botUserId = "bot_" + Math.random().toString(36).substring(2, 7);
-          const botNames = ["Yapay Zeka 🤖", "Hızlı Forvet ⚡", "Taktik Dehası 🧠", "Gol Makinesi ⚽"];
-          const randomBotName = botNames[Math.floor(Math.random() * botNames.length)];
-
-          room.state.player2 = {
-            userId: botUserId,
-            username: randomBotName,
-            score: 0,
-            isReady: true,
-          };
-
-          const botTeam = DEFAULT_POPULAR_TEAMS[Math.floor(Math.random() * DEFAULT_POPULAR_TEAMS.length)];
-          room.state.player2.selectedTeamId = botTeam.id;
-          room.state.team2 = botTeam;
-
+          const { player: botPlayer, team: botTeam } = createBotPlayer(DEFAULT_POPULAR_TEAMS);
+          room.state.player2 = botPlayer;
           room.state.status = "in_round";
           room.state.roundStatus = "picking_teams";
           room.state.currentRound = 1;
+
+          if (room.state.gameMode === "country_vs_team") {
+            const startWithP1 = Math.random() < 0.5;
+            room.state.initialNationPickerUserId = startWithP1 ? room.state.player1!.userId : botPlayer.userId;
+            room.state.currentNationPickerUserId = room.state.initialNationPickerUserId;
+            room.state.currentTeamPickerUserId = startWithP1 ? botPlayer.userId : room.state.player1!.userId;
+
+            if (room.state.currentNationPickerUserId === botPlayer.userId) {
+              const botNation = pickBotNation();
+              registerNationPick(room.state, botPlayer.userId, botNation);
+            } else {
+              registerTeamPick(room.state, botPlayer.userId, botTeam);
+            }
+          } else {
+            room.state.team2 = botTeam;
+          }
+
           broadcastRoomState(room);
 
-          startServerTimer(room, PICK_TIME_SECONDS, () => {
+          const pickDuration = room.state.roundDuration || DEFAULT_ROUND_DURATION;
+          startServerTimer(room, pickDuration, () => {
             transitionToAnsweringPhase(room);
           });
+          break;
+        }
+
+        case "NATION_PICKED": {
+          const { userId, nation } = data as { userId: string; nation: Nation };
+          const clientMeta = room.clients.get(ws);
+          const effectiveUserId = userId || clientMeta?.userId;
+          if (!effectiveUserId || !nation) break;
+
+          const pickResult = registerNationPick(room.state, effectiveUserId, nation);
+          room.state = pickResult.state;
+
+          if (pickResult.bothPicked && room.state.roundStatus === "picking_teams") {
+            transitionToAnsweringPhase(room);
+            return;
+          }
+
+          broadcastRoomState(room);
           break;
         }
 
@@ -534,18 +459,14 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
           const effectiveUserId = userId || clientMeta?.userId;
           if (room.state.roundStatus !== "answering" || !effectiveUserId) return;
 
-          const isVsBot = Boolean(room.state.player2?.userId.startsWith("bot_"));
+          const isVsBot = isBotPlayer(room.state.player2?.userId);
           const passResult = evaluatePassVote(room.state, effectiveUserId);
           room.state = passResult.state;
 
           const allVoted = passResult.bothPassed || (isVsBot && room.state.passVotes.includes(effectiveUserId));
 
           if (allVoted) {
-            if (room.timer) {
-              clearInterval(room.timer);
-              room.timer = undefined;
-            }
-
+            clearRoomTimer(room);
             room.state.roundStatus = "round_finished";
             if (passResult.completedRound) {
               room.completedRounds.push(passResult.completedRound);
@@ -554,7 +475,7 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
             broadcastToRoom(room, {
               type: "ROUND_RESULT",
               winnerUserId: null,
-              correctAnswer: "Tur Karşılıklı Pas Geçildi ⏩",
+              correctAnswer: "Tur Karşılıklı Pas Geçildi",
               isDraw: true,
               state: room.state,
             });
@@ -569,26 +490,24 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
         case "SUBMIT_ANSWER": {
           const { name, userId } = data;
           if (room.state.roundStatus !== "answering") return;
-          if (!room.state.team1 || !room.state.team2) return;
+          if (room.state.gameMode === "country_vs_team") {
+            if (!room.state.nation || !room.state.team1) return;
+          } else {
+            if (!room.state.team1 || !room.state.team2) return;
+          }
 
           const clientMeta = room.clients.get(ws);
           const senderId = clientMeta?.userId || userId;
           if (!senderId) return;
 
-          const team1Id = room.state.team1.id;
-          const team2Id = room.state.team2.id;
-
           try {
-            const result = await verifyPlayerAnswerInServer(name, team1Id, team2Id);
-
+            const result = room.state.gameMode === "country_vs_team"
+              ? await verifyNationAnswerInServer(name, room.state.nation!, room.state.team1!.id)
+              : await verifyPlayerAnswerInServer(name, room.state.team1!.id, room.state.team2!.id);
             if (room.state.roundStatus !== "answering") return;
 
             if (result.isCorrect && result.playerName) {
-              if (room.timer) {
-                clearInterval(room.timer);
-                room.timer = undefined;
-              }
-
+              clearRoomTimer(room);
               const outcome = evaluateAnswerSubmission(
                 room.state,
                 senderId,
@@ -636,85 +555,68 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
     room.clients.delete(ws);
     console.log(`[WebSocket] Client ayrıldı. Oda: "${roomId}" (Kalan: ${room.clients.size})`);
 
-    const isMatchActive = room.state.status === "in_round";
-    const isPlayer1 = room.state.player1?.userId === disconnectedUserId;
-    const isPlayer2 = room.state.player2?.userId === disconnectedUserId;
-
-    if (isMatchActive && (isPlayer1 || isPlayer2) && disconnectedUserId && !disconnectedUserId.startsWith("bot_")) {
-      const disconnectedPlayer = isPlayer1 ? room.state.player1! : room.state.player2!;
-      const remainingPlayer = isPlayer1 ? room.state.player2 : room.state.player1;
-
-      disconnectedPlayer.isDisconnected = true;
-      disconnectedPlayer.disconnectedAt = Date.now();
-
-      startGracePeriod(
-        roomId,
-        disconnectedUserId,
-        disconnectedPlayer.username,
-        (secondsLeft) => {
-          room.state.disconnectGrace = {
-            userId: disconnectedUserId,
-            username: disconnectedPlayer.username,
-            expiresAt: Date.now() + secondsLeft * 1000,
-            secondsLeft,
-          };
-          broadcastToRoom(room, {
-            type: "DISCONNECT_TICK",
-            userId: disconnectedUserId,
-            secondsLeft,
-          });
+    if (disconnectedUserId) {
+      const handled = handleMatchPlayerDisconnect(roomId, disconnectedUserId, room.state, {
+        onNotifyDisconnect: (userId, graceSeconds) => {
+          broadcastToRoom(room, { type: "PLAYER_DISCONNECTED", userId, graceSeconds });
           broadcastRoomState(room);
         },
-        () => {
-          console.log(`⏱️ [Grace Period Doldu] ${disconnectedPlayer.username} 10sn içinde dönmedi. Hükmen galibiyet!`);
-          if (room.timer) {
-            clearInterval(room.timer);
-            room.timer = undefined;
-          }
-
-          const winnerUserId = remainingPlayer?.userId || "unknown";
-          room.state.status = "match_finished";
-          room.state.disconnectGrace = null;
-          room.state.forfeitInfo = {
-            forfeitUserId: disconnectedUserId,
-            winnerUserId,
-            reason: `${disconnectedPlayer.username} bağlantıyı kesti ve 10 saniye içinde dönmedi.`,
-          };
-
+        onTick: (secondsLeft) => {
+          broadcastToRoom(room, { type: "DISCONNECT_TICK", userId: disconnectedUserId, secondsLeft });
+          broadcastRoomState(room);
+        },
+        onForfeit: (forfeitInfo) => {
+          clearRoomTimer(room);
           broadcastToRoom(room, {
             type: "PLAYER_FORFEIT",
-            forfeitUserId: disconnectedUserId,
-            winnerUserId,
-            reason: room.state.forfeitInfo.reason,
+            ...forfeitInfo,
             state: room.state,
           });
           broadcastRoomState(room);
+
+          const p1Id = room.state.player1?.userId;
+          const p2Id = room.state.player2?.userId;
+          if (p1Id && p2Id) {
+            const isCasual = room.id.includes("_casual_");
+            const isCustom = room.id.startsWith("oda_");
+            const mode = isCustom ? "custom" : isCasual ? "casual" : "ranked";
+            const isRanked = !isCasual && !isCustom && !isBotPlayer(p1Id) && !isBotPlayer(p2Id);
+            const isP1Winner = forfeitInfo.winnerUserId === p1Id;
+            finalizeMatchAndPersistElo({
+              matchId: room.id,
+              player1Id: p1Id,
+              player2Id: p2Id,
+              player1Score: isP1Winner ? 3 : 0,
+              player2Score: isP1Winner ? 0 : 3,
+              mode,
+              ranked: isRanked,
+              rounds: room.completedRounds,
+            })
+              .then((result) => {
+                console.log(`🏆 [Party/Server] Hükmen Maç ${room.id} DB'ye işlendi:`, result);
+                broadcastToRoom(room, {
+                  type: "MATCH_PERSISTED",
+                  result,
+                  state: room.state,
+                });
+              })
+              .catch((err) => {
+                console.error("[Party/Server] Forfeit finalizeMatchAndPersistElo Hatası:", err);
+              });
+          }
 
           setTimeout(() => {
             clearRoomSessions(roomId);
             rooms.delete(roomId);
           }, 30000);
-        }
-      );
-
-      room.state.disconnectGrace = {
-        userId: disconnectedUserId,
-        username: disconnectedPlayer.username,
-        expiresAt: Date.now() + 10000,
-        secondsLeft: 10,
-      };
-
-      broadcastToRoom(room, {
-        type: "PLAYER_DISCONNECTED",
-        userId: disconnectedUserId,
-        graceSeconds: 10,
+        },
       });
-      broadcastRoomState(room);
-      return;
+
+      if (handled) return;
     }
 
     if (room.clients.size === 0 && !getActiveGracePeriod(roomId)) {
-      if (room.timer) clearInterval(room.timer);
+      clearRoomTimer(room);
       clearRoomSessions(roomId);
       rooms.delete(roomId);
     }

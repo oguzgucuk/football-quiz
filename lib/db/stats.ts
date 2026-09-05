@@ -23,6 +23,8 @@ export interface RecentMatch {
   opponentId: string;
   opponentUsername: string;
   isBot: boolean;
+  mode: string;
+  ranked: boolean;
   playerScore: number;
   opponentScore: number;
   isWin: boolean;
@@ -53,6 +55,8 @@ export async function getUserMatchHistory(
       winnerUserId: true,
       player1EloChange: true,
       player2EloChange: true,
+      mode: true,
+      ranked: true,
       createdAt: true,
     },
   });
@@ -92,6 +96,8 @@ export async function getUserMatchHistory(
       opponentId,
       opponentUsername,
       isBot,
+      mode: m.mode || "ranked",
+      ranked: Boolean(m.ranked),
       playerScore: myScore,
       opponentScore,
       isWin,

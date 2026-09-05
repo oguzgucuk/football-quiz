@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { TopBar } from "./top-bar";
+import { TopBar } from "./TopBar";
 import { RightSocialSidebar } from "./RightSocialSidebar";
+import { SocialToggleTab } from "./SocialToggleTab";
 import { DashboardTab } from "./types";
 import { HomeStage } from "./stages/HomeStage";
 import { PlayStage } from "./stages/PlayStage";
@@ -11,11 +12,13 @@ import { ProfileStage } from "./stages/ProfileStage";
 import { StoreStage } from "./stages/StoreStage";
 import { SettingsStage } from "./stages/SettingsStage";
 import { useAuth } from "@/hooks/useAuth";
+import { useFriends } from "@/hooks/useFriends";
 import { useMatchmaking } from "@/hooks/useMatchmaking";
 import { MatchmakingModal } from "@/components/game/MatchmakingModal";
 import { CreateCustomRoomModal } from "@/components/game/CreateCustomRoomModal";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { StadiumBackground } from "@/components/ui/StadiumBackground";
+import { GameMode } from "@/types/game";
 
 interface DashboardShellProps {
   initialTab?: DashboardTab;
@@ -24,7 +27,14 @@ interface DashboardShellProps {
 export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
   const router = useRouter();
   const { user } = useAuth();
+  const { friends, pendingRequests } = useFriends();
   const [activeTab, setActiveTab] = useState<DashboardTab>(initialTab);
+  const [isSocialOpen, setIsSocialOpen] = useState(false);
+
+  const onlineFriendsCount = friends.filter(
+    (f) => f.status === "çevrimiçi" || f.status === "oyunda"
+  ).length;
+  const hasPendingRequests = pendingRequests.length > 0;
 
   const [isCustomRoomOpen, setIsCustomRoomOpen] = useState(false);
   const [isMatchmakingOpen, setIsMatchmakingOpen] = useState(false);
@@ -59,11 +69,27 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
     requestBotMatch,
   } = useMatchmaking();
 
+  const [matchmakingMode, setMatchmakingMode] = useState<"ranked" | "casual">("ranked");
+  const [matchmakingGameMode, setMatchmakingGameMode] = useState<GameMode>("team_vs_team");
+
   const handleOpenRankedModal = () => {
     if (!user) {
       handleOpenAuthModal("login");
       return;
     }
+    setMatchmakingMode("ranked");
+    setMatchmakingGameMode("team_vs_team");
+    cancelMatchmaking();
+    setIsMatchmakingOpen(true);
+  };
+
+  const handleOpenCasualModal = (gameMode: GameMode = "team_vs_team") => {
+    if (!user) {
+      handleOpenAuthModal("login");
+      return;
+    }
+    setMatchmakingMode("casual");
+    setMatchmakingGameMode(gameMode);
     cancelMatchmaking();
     setIsMatchmakingOpen(true);
   };
@@ -73,14 +99,15 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
       handleOpenAuthModal("login");
       return;
     }
-    startMatchmaking(user.id, user.username, user.eloRating || 1000, duration);
+    startMatchmaking(user.id, user.username, user.eloRating || 1000, duration, matchmakingMode, matchmakingGameMode);
   };
 
-  const handleOpenCustomRoom = () => {
+  const handleOpenCustomRoom = (gameMode: GameMode = "team_vs_team") => {
     if (!user) {
       handleOpenAuthModal("login");
       return;
     }
+    setMatchmakingGameMode(gameMode);
     setIsCustomRoomOpen(true);
   };
 
@@ -101,6 +128,10 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
           activeTab={activeTab}
           onTabChange={setActiveTab}
           onOpenAuthModal={handleOpenAuthModal}
+          isSocialOpen={isSocialOpen}
+          onToggleSocial={() => setIsSocialOpen((prev) => !prev)}
+          onlineFriendsCount={onlineFriendsCount}
+          hasPendingRequests={hasPendingRequests}
         />
 
         {/* Merkezde Değişen Sahne (Main Stage İçeriği) */}
@@ -112,6 +143,7 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
           {activeTab === "play" && (
             <PlayStage
               onStartRanked={handleOpenRankedModal}
+              onStartCasual={handleOpenCasualModal}
               onOpenCustomRoom={handleOpenCustomRoom}
               onOpenAuthModal={handleOpenAuthModal}
             />
@@ -132,8 +164,18 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
         </div>
       </div>
 
-      {/* Sağ: Tam Boy Dikey Arkadaşlar ve Sosyal Bar (Her Sayfada Sabit) */}
+      {/* Sağ Kenar Yüzen Açma Düğmesi (Sidebar kapalıyken hızlı erişim) */}
+      <SocialToggleTab
+        isOpen={isSocialOpen}
+        onToggle={() => setIsSocialOpen(true)}
+        onlineCount={onlineFriendsCount}
+        hasPendingRequests={hasPendingRequests}
+      />
+
+      {/* Sağ: Kayan Açılır/Kapanır Arkadaşlar ve Sosyal Bar (Drawer) */}
       <RightSocialSidebar
+        isOpen={isSocialOpen}
+        onClose={() => setIsSocialOpen(false)}
         onQuickInvite={(friendId, friendName) => {
           if (!user) {
             handleOpenAuthModal("login");
@@ -147,6 +189,8 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
       {/* Eşleşme (Matchmaking) Modalı */}
       <MatchmakingModal
         isOpen={isMatchmakingOpen}
+        mode={matchmakingMode}
+        gameMode={matchmakingGameMode}
         onCancel={handleCancelMatchmaking}
         onStartSearching={handleStartSearching}
         onSelectDuration={setSelectedDuration}
@@ -160,6 +204,7 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
       <CreateCustomRoomModal
         isOpen={isCustomRoomOpen}
         onClose={() => setIsCustomRoomOpen(false)}
+        gameMode={matchmakingGameMode}
       />
 
       {/* Dashboard Üzeri Giriş / Kayıt Ol Penceresi (Auth Modal) */}

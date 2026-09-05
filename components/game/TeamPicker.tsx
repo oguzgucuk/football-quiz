@@ -113,22 +113,22 @@ export function TeamPicker({
     <div className="w-full max-w-xl mx-auto text-center animate-fadeIn">
       <div className="mb-6">
         <h3 className="text-2xl font-black text-white tracking-tight">
-          Takımını Yaz (5 Saniye)
+          Takımını Belirle
         </h3>
-        <p className="text-sm text-zinc-400 mt-1">
+        <p className="text-xs text-zinc-400 mt-1">
           İstediğin kulübü yaz ve seç — seçimler süre dolana kadar gizli kalır!
         </p>
       </div>
 
       {selectedTeam ? (
-        <div className="p-6 rounded-3xl bg-emerald-500/10 border-2 border-emerald-500/80 flex flex-col items-center justify-center animate-fadeIn shadow-xl shadow-emerald-500/10">
+        <div className="p-7 rounded-[28px] bg-[#0c1612]/90 border-2 border-emerald-500/70 flex flex-col items-center justify-center animate-fadeIn shadow-[0_0_40px_rgba(34,197,94,0.15)]">
           <div className="mb-3">
             <TeamBadge team={selectedTeam} size="xl" />
           </div>
           <div className="flex items-center gap-2 mb-1">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
             <Lock className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
+            <span className="text-xs font-black text-emerald-400 uppercase tracking-widest">
               Takımın Kilitlendi
             </span>
           </div>
@@ -142,7 +142,7 @@ export function TeamPicker({
         </div>
       ) : (
         <div className="relative w-full">
-          <div className="relative flex items-center rounded-2xl border border-zinc-700 bg-zinc-900/90 backdrop-blur-xl shadow-2xl focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
+          <div className="relative flex items-center rounded-2xl border border-white/15 bg-[#0c1612]/90 backdrop-blur-2xl shadow-[0_0_40px_rgba(0,0,0,0.7)] focus-within:border-emerald-500/80 focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all">
             <div className="pl-4 pr-2 text-zinc-400">
               <Search className="w-5 h-5" />
             </div>
@@ -164,7 +164,7 @@ export function TeamPicker({
           </div>
 
           {isDropdownOpen && suggestions.length > 0 && (
-            <ul className="absolute z-50 w-full mt-2 py-1.5 bg-zinc-900/95 backdrop-blur-2xl border border-zinc-700/80 rounded-2xl shadow-2xl overflow-y-auto max-h-[220px] sm:max-h-[260px] custom-scrollbar text-left animate-fadeIn">
+            <ul className="absolute z-50 w-full mt-2 py-1.5 bg-[#0c1612]/98 backdrop-blur-2xl border border-white/15 rounded-2xl shadow-[0_0_40px_rgba(0,0,0,0.9)] overflow-y-auto max-h-[220px] sm:max-h-[260px] custom-scrollbar text-left animate-fadeIn">
               {suggestions.map((team, index) => {
                 const isSelected = index === selectedIndex;
                 return (
@@ -172,10 +172,11 @@ export function TeamPicker({
                     key={team.id}
                     onClick={() => handlePick(team)}
                     onMouseEnter={() => setSelectedIndex(index)}
-                    className={`px-4 py-3 cursor-pointer transition-all duration-150 flex items-center justify-between border-b border-zinc-800/40 last:border-0 ${isSelected
+                    className={`px-4 py-3 cursor-pointer transition-all duration-150 flex items-center justify-between border-b border-white/5 last:border-0 ${
+                      isSelected
                         ? "bg-emerald-500/20 text-white border-l-4 border-l-emerald-400 pl-3"
-                        : "hover:bg-zinc-800/80 text-zinc-300 hover:text-white"
-                      }`}
+                        : "hover:bg-white/5 text-zinc-300 hover:text-white"
+                    }`}
                   >
                     <div className="flex items-center gap-3">
                       <TeamBadge team={team} size="md" />

@@ -116,10 +116,23 @@ export const DEFAULT_STORE_ITEMS = [
   },
 ];
 
+let isCatalogVerified = false;
+
 /**
  * Mağaza açıldığında ürünlerin veritabanında var olduğundan emin olur (Idempotent seed).
+ * Zaten kayıtlar varsa her istekte tekrar 6 defa veritabanına yazma yapmaz (Gecikmeyi önler).
  */
-export async function ensureStoreCatalogSeeded() {
+export async function ensureStoreCatalogSeeded(force = false) {
+  if (isCatalogVerified && !force) {
+    return;
+  }
+
+  const count = await prisma.storeItem.count();
+  if (count >= DEFAULT_STORE_ITEMS.length && !force) {
+    isCatalogVerified = true;
+    return;
+  }
+
   for (const item of DEFAULT_STORE_ITEMS) {
     await prisma.storeItem.upsert({
       where: { id: item.id },
@@ -146,4 +159,6 @@ export async function ensureStoreCatalogSeeded() {
       },
     });
   }
+
+  isCatalogVerified = true;
 }

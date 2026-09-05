@@ -81,9 +81,10 @@ export function PlayerAnswerInput({
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (selectedIndex >= 0 && suggestions[selectedIndex]) {
-        setInputValue(suggestions[selectedIndex].name);
-        handleSubmit(suggestions[selectedIndex].name);
-      } else {
+        const chosen = suggestions[selectedIndex].name;
+        setInputValue(chosen);
+        handleSubmit(chosen);
+      } else if (inputValue.trim()) {
         handleSubmit(inputValue);
       }
     } else if (e.key === "Escape") {
@@ -94,12 +95,13 @@ export function PlayerAnswerInput({
   return (
     <div className="relative w-full max-w-xl mx-auto">
       <div
-        className={`relative flex items-center rounded-2xl border transition-all duration-200 bg-zinc-900/90 backdrop-blur-md shadow-2xl ${hasErrorFeedback
+        className={`relative flex items-center rounded-2xl border transition-all duration-200 bg-[#0c1612]/90 backdrop-blur-xl shadow-2xl ${
+          hasErrorFeedback
             ? "border-rose-500/80 ring-2 ring-rose-500/30 animate-shake"
-            : "border-zinc-800 focus-within:border-emerald-500/60 focus-within:ring-2 focus-within:ring-emerald-500/20"
-          }`}
+            : "border-white/10 focus-within:border-emerald-500/60 focus-within:ring-2 focus-within:ring-emerald-500/20"
+        }`}
       >
-        <div className="pl-4 pr-2 text-zinc-500">
+        <div className="pl-4 pr-2 text-zinc-400">
           <UserCheck className="w-5 h-5" />
         </div>
 
@@ -118,7 +120,7 @@ export function PlayerAnswerInput({
           }}
           onKeyDown={handleKeyDown}
           placeholder="İki takımda da oynayan futbolcuyu yaz..."
-          disabled={disabled || isSubmitting}
+          disabled={disabled}
           className="w-full py-4 pr-12 bg-transparent text-zinc-100 placeholder:text-zinc-500 focus:outline-none text-base font-medium"
         />
 
@@ -126,7 +128,7 @@ export function PlayerAnswerInput({
           type="button"
           onClick={() => handleSubmit(inputValue)}
           disabled={!inputValue.trim() || disabled || isSubmitting}
-          className="absolute right-3 p-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-30 disabled:hover:bg-emerald-500 text-black font-bold transition-all duration-200 cursor-pointer disabled:cursor-not-allowed"
+          className="absolute right-3 p-2.5 rounded-xl bg-gradient-to-b from-[#168841] to-[#126d34] hover:from-[#15803d] hover:to-[#0f5c2b] disabled:opacity-30 disabled:hover:from-[#168841] disabled:hover:to-[#126d34] text-white font-bold transition-all duration-200 cursor-pointer disabled:cursor-not-allowed shadow-md shadow-emerald-950/40"
           aria-label="Cevabı Gönder"
         >
           <Send className="w-4 h-4" />
@@ -141,7 +143,7 @@ export function PlayerAnswerInput({
       )}
 
       {isDropdownOpen && suggestions.length > 0 && (
-        <ul className="absolute z-50 w-full mt-2 py-1.5 bg-zinc-900/95 backdrop-blur-xl border border-zinc-800/90 rounded-xl shadow-2xl overflow-y-auto max-h-[220px] sm:max-h-[260px] custom-scrollbar animate-fadeIn">
+        <ul className="absolute z-50 w-full mt-2 py-1.5 bg-[#0c1612]/98 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-y-auto max-h-[220px] sm:max-h-[260px] custom-scrollbar animate-fadeIn">
           {suggestions.map((player, index) => {
             const isSelected = index === selectedIndex;
             return (
@@ -152,10 +154,11 @@ export function PlayerAnswerInput({
                   handleSubmit(player.name);
                 }}
                 onMouseEnter={() => setSelectedIndex(index)}
-                className={`px-4 py-2.5 cursor-pointer transition-all duration-150 text-sm font-medium flex items-center justify-between border-b border-zinc-800/40 last:border-0 ${isSelected
+                className={`px-4 py-2.5 cursor-pointer transition-all duration-150 text-sm font-medium flex items-center justify-between border-b border-white/5 last:border-0 ${
+                  isSelected
                     ? "bg-emerald-500/20 text-white border-l-4 border-l-emerald-400 pl-3"
-                    : "hover:bg-zinc-800/70 text-zinc-300 hover:text-white"
-                  }`}
+                    : "hover:bg-white/5 text-zinc-300 hover:text-white"
+                }`}
               >
                 <div className="flex flex-col text-left">
                   <span className={isSelected ? "text-emerald-300 font-bold" : "text-zinc-100"}>
@@ -168,10 +171,11 @@ export function PlayerAnswerInput({
                   )}
                 </div>
                 <span
-                  className={`text-xs px-2 py-0.5 rounded-md font-medium transition-colors ${isSelected
+                  className={`text-xs px-2.5 py-0.5 rounded-md font-medium transition-colors ${
+                    isSelected
                       ? "bg-emerald-500 text-zinc-950 font-bold"
                       : "text-zinc-500 font-normal"
-                    }`}
+                  }`}
                 >
                   {isSelected ? "Gönder (Enter)" : "Seç & Gönder"}
                 </span>

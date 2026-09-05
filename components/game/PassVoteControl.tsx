@@ -40,7 +40,7 @@ export function PassVoteControl({
           className="bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs px-4 py-2 rounded-xl shadow-lg shadow-amber-500/25 animate-bounce flex items-center gap-1.5"
         >
           <FastForward className="w-4 h-4" />
-          ⚡ Rakip Pas İstiyor! Turu Geçmek İçin Tıkla (1/2)
+          Rakip Pas İstiyor! Turu Geçmek İçin Tıkla (1/2)
         </Button>
       ) : (
         <Button
@@ -48,9 +48,9 @@ export function PassVoteControl({
           variant="outline"
           onClick={onVotePass}
           disabled={isSubmitting}
-          className="text-xs text-zinc-400 hover:text-zinc-200 border-zinc-800 bg-zinc-900/40 hover:bg-zinc-800/80 px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5"
+          className="text-xs text-zinc-300 hover:text-white border-white/10 bg-[#0c1612]/60 hover:bg-white/10 px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 backdrop-blur-md"
         >
-          <FastForward className="w-3.5 h-3.5 text-zinc-500" />
+          <FastForward className="w-3.5 h-3.5 text-zinc-400" />
           <span>Pas Geç (İki taraf da onaylarsa tur atlanır)</span>
         </Button>
       )}

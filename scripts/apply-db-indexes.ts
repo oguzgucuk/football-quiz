@@ -27,7 +27,7 @@ async function applyIndexes() {
 
     // 4. Doğrulama: pg_indexes tablosundan kontrol et
     console.log("\n4. Veritabanındaki indeksler doğrulanıyor...");
-    const indexes: any[] = await prisma.$queryRawUnsafe(`
+    const indexes: Record<string, unknown>[] = await prisma.$queryRawUnsafe(`
       SELECT tablename, indexname, indexdef 
       FROM pg_indexes 
       WHERE indexname IN ('idx_players_fullname_trgm', 'idx_teams_name_trgm');
@@ -35,7 +35,7 @@ async function applyIndexes() {
 
     console.table(indexes);
 
-    const extensions: any[] = await prisma.$queryRawUnsafe(`
+    const extensions: Record<string, unknown>[] = await prisma.$queryRawUnsafe(`
       SELECT extname, extversion FROM pg_extension WHERE extname = 'pg_trgm';
     `);
     console.log("\nEklenti Durumu:", extensions);

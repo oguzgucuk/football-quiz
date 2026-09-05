@@ -23,6 +23,15 @@ export interface Team {
   popularityScore?: number;
 }
 
+export interface Nation {
+  id: string;
+  name: string;
+  englishName: string;
+  aliases: string[];
+  flagCode: string;
+  popularityScore?: number;
+}
+
 export interface PlayerTeamHistory {
   id: string;
   playerId: string;

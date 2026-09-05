@@ -8,7 +8,7 @@
 
 import { useState, useCallback } from "react";
 import { RoomState, createInitialRoomState } from "@/lib/realtime/roomState";
-import { Team } from "@/types/game";
+import { Team, Nation } from "@/types/game";
 import { useGameRoomData } from "./useGameRoomData";
 import { useGameRoomSocket, MatchEloResult, RoundWinnerState } from "./useGameRoomSocket";
 
@@ -44,6 +44,7 @@ interface UseGameRoomProps {
 export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
   const [roomState, setRoomState] = useState<RoomState>(() => createInitialRoomState(roomId));
   const [mySelectedTeam, setMySelectedTeam] = useState<Team | null>(null);
+  const [mySelectedNation, setMySelectedNation] = useState<Nation | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasErrorFeedback, setHasErrorFeedback] = useState(false);
   const [serverSecondsLeft, setServerSecondsLeft] = useState<number | null>(null);
@@ -61,13 +62,14 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
     setRoomState,
     setServerSecondsLeft,
     setMySelectedTeam,
+    setMySelectedNation,
     setIsSubmitting,
     setHasErrorFeedback,
     setLastRoundWinner,
     setMatchEloResult,
   });
 
-  // 3. Kullanıcı Takım Seçimi
+  // 3. Kullanıcı Takım / Millet Seçimi
   const handleSelectTeam = useCallback(
     (team: Team) => {
       setMySelectedTeam(team);
@@ -80,13 +82,35 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
     [userId, sendSocketMessage]
   );
 
+  const handleSelectNation = useCallback(
+    (nation: Nation) => {
+      setMySelectedNation(nation);
+      sendSocketMessage({
+        type: "NATION_PICKED",
+        userId,
+        nation,
+      });
+    },
+    [userId, sendSocketMessage]
+  );
+
   // 4. Cevap Gönderme ve Doğrulama
   const handleSubmitAnswer = useCallback(
     async (submittedName: string) => {
-      if (!roomState.team1 || !roomState.team2 || isSubmitting) return;
+      const isCountryVsTeam = roomState.gameMode === "country_vs_team";
+      const hasEntities = isCountryVsTeam
+        ? Boolean(roomState.nation && roomState.team1)
+        : Boolean(roomState.team1 && roomState.team2);
+
+      if (!hasEntities || isSubmitting) return;
 
       setIsSubmitting(true);
       setHasErrorFeedback(false);
+
+      // Güvenlik zaman aşımı: Sunucudan yanıt gecikse bile kilidi 2.5sn sonra otomatik aç
+      const safetyTimer = setTimeout(() => {
+        setIsSubmitting(false);
+      }, 2500);
 
       try {
         const sent = sendSocketMessage({
@@ -96,55 +120,16 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
         });
 
         if (!sent) {
-          // LOKAL BOT MODU FALLBACK
-          const res = await fetch("/api/game/verify-answer", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              team1Id: roomState.team1.id,
-              team2Id: roomState.team2.id,
-              submittedName,
-            }),
-          });
-
-          const data = await res.json();
-
-          if (data.isCorrect && data.player) {
-            setLastRoundWinner({
-              username,
-              correctAnswer: data.player.fullName,
-              isDraw: false,
-            });
-
-            setRoomState((prev) => ({
-              ...prev,
-              roundStatus: "round_finished",
-              player1: prev.player1 ? { ...prev.player1, score: prev.player1.score + 1 } : null,
-            }));
-
-            setTimeout(() => {
-              setLastRoundWinner(null);
-              setMySelectedTeam(null);
-              setRoomState((prev) => ({
-                ...prev,
-                currentRound: prev.currentRound + 1,
-                roundStatus: "picking_teams",
-                team1: null,
-                team2: null,
-              }));
-            }, 3000);
-          } else {
-            setHasErrorFeedback(true);
-            setTimeout(() => setHasErrorFeedback(false), 800);
-          }
+          clearTimeout(safetyTimer);
+          setIsSubmitting(false);
         }
       } catch (err) {
-        console.error("Cevap gönderim hatası:", err);
-      } finally {
+        clearTimeout(safetyTimer);
         setIsSubmitting(false);
+        console.error("Cevap gönderim hatası:", err);
       }
     },
-    [roomState.team1, roomState.team2, isSubmitting, userId, username, sendSocketMessage]
+    [roomState.gameMode, roomState.nation, roomState.team1, roomState.team2, isSubmitting, userId, sendSocketMessage]
   );
 
   // 5. Süre Dolduğunda (Local Fallback)
@@ -188,11 +173,19 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
   const opponentWantsPass = Boolean(roomState.passVotes?.some((id) => id !== userId));
   const passVotesCount = roomState.passVotes?.length || 0;
 
+  const isCountryVsTeam = roomState.gameMode === "country_vs_team";
+  const isMyTurnToPickNation = isCountryVsTeam && roomState.currentNationPickerUserId === userId;
+  const isMyTurnToPickTeam = isCountryVsTeam ? roomState.currentTeamPickerUserId === userId : true;
+
   return {
     roomState,
     allTeams,
     playerList,
     mySelectedTeam,
+    mySelectedNation,
+    isCountryVsTeam,
+    isMyTurnToPickNation,
+    isMyTurnToPickTeam,
     isSubmitting,
     hasErrorFeedback,
     serverSecondsLeft,
@@ -203,6 +196,7 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
     opponentWantsPass,
     passVotesCount,
     handleSelectTeam,
+    handleSelectNation,
     handleSubmitAnswer,
     handleTimeExpired,
     handleVotePass,

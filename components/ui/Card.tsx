@@ -13,10 +13,10 @@ export function Card({
   ...props
 }: CardProps) {
   const variantStyles = {
-    default: "bg-zinc-900/80 border-zinc-800/80 text-zinc-100",
+    default: "bg-[#0c1612]/85 backdrop-blur-xl border-white/10 text-white shadow-lg",
     glass:
-      "bg-zinc-900/40 backdrop-blur-xl border-zinc-800/60 text-zinc-100 shadow-2xl",
-    glow: "bg-zinc-900/60 backdrop-blur-xl border-emerald-500/20 shadow-xl shadow-emerald-500/5 text-zinc-100",
+      "bg-[#0c1612]/90 backdrop-blur-2xl border-white/15 text-white shadow-[0_0_50px_rgba(0,0,0,0.8)]",
+    glow: "bg-[#0c1612]/90 backdrop-blur-2xl border-emerald-500/30 shadow-[0_0_40px_rgba(34,197,94,0.15)] text-white",
   };
 
   return (

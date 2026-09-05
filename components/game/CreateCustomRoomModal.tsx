@@ -5,17 +5,20 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Copy, Check, Share2, Play, Users, LogIn, X, Link as LinkIcon } from "lucide-react";
+import { GameMode } from "@/types/game";
 
 interface CreateCustomRoomModalProps {
   isOpen: boolean;
   onClose: () => void;
+  gameMode?: GameMode;
 }
 
-export function CreateCustomRoomModal({ isOpen, onClose }: CreateCustomRoomModalProps) {
+export function CreateCustomRoomModal({ isOpen, onClose, gameMode = "team_vs_team" }: CreateCustomRoomModalProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"create" | "join">("create");
   const [copied, setCopied] = useState(false);
-  const [customRoomId] = useState(() => `oda_${Math.floor(1000 + Math.random() * 9000)}`);
+  const prefix = gameMode === "country_vs_team" ? "oda_millet" : "oda";
+  const [customRoomId] = useState(() => `${prefix}_${Math.floor(1000 + Math.random() * 9000)}`);
   const [joinCode, setJoinCode] = useState("");
 
   if (!isOpen) return null;
@@ -32,7 +35,11 @@ export function CreateCustomRoomModal({ isOpen, onClose }: CreateCustomRoomModal
   };
 
   const handleShareWhatsApp = () => {
-    const text = encodeURIComponent(`Futbol Quiz 1v1 düellosuna davet edildin! İki takım, ortak futbolcu. Hemen katıl: ${roomUrl}`);
+    const shareDesc =
+      gameMode === "country_vs_team"
+        ? "Futbol Quiz Millet-Takım düellosuna davet edildin! Bir millet, bir kulüp. Hemen katıl: "
+        : "Futbol Quiz 1v1 düellosuna davet edildin! İki takım, ortak futbolcu. Hemen katıl: ";
+    const text = encodeURIComponent(`${shareDesc}${roomUrl}`);
     window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
   };
 
@@ -55,17 +62,17 @@ export function CreateCustomRoomModal({ isOpen, onClose }: CreateCustomRoomModal
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-md animate-fadeIn">
-      <Card variant="glass" className="max-w-md w-full p-8 text-center relative overflow-hidden shadow-2xl border-zinc-700/80">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fadeIn">
+      <Card variant="glass" className="max-w-md w-full p-8 text-center relative overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.9)] border-white/15 bg-[#0c1612]/95 backdrop-blur-2xl">
         {/* Kapat Butonu */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-zinc-400 hover:text-white rounded-xl hover:bg-zinc-800 transition-colors"
+          className="absolute top-4 right-4 p-2 text-zinc-400 hover:text-white rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
 
-        <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 mx-auto mb-4">
+        <div className="w-14 h-14 rounded-2xl bg-emerald-950/70 border border-emerald-500/40 flex items-center justify-center text-emerald-400 mx-auto mb-4 shadow-[0_0_20px_rgba(34,197,94,0.25)]">
           <Users className="w-7 h-7" />
         </div>
 
@@ -75,13 +82,13 @@ export function CreateCustomRoomModal({ isOpen, onClose }: CreateCustomRoomModal
         </p>
 
         {/* Tab Seçimi */}
-        <div className="grid grid-cols-2 gap-1 p-1 bg-zinc-950/80 rounded-xl border border-zinc-800 mb-6">
+        <div className="grid grid-cols-2 gap-1 p-1 bg-black/40 rounded-xl border border-white/10 mb-6">
           <button
             type="button"
             onClick={() => setActiveTab("create")}
-            className={`py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+            className={`py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === "create"
-                ? "bg-emerald-500 text-zinc-950 shadow-md shadow-emerald-500/20"
+                ? "bg-[#15803d] text-white shadow-md shadow-emerald-900/40 font-black"
                 : "text-zinc-400 hover:text-zinc-200"
             }`}
           >
@@ -92,9 +99,9 @@ export function CreateCustomRoomModal({ isOpen, onClose }: CreateCustomRoomModal
           <button
             type="button"
             onClick={() => setActiveTab("join")}
-            className={`py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+            className={`py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === "join"
-                ? "bg-emerald-500 text-zinc-950 shadow-md shadow-emerald-500/20"
+                ? "bg-[#15803d] text-white shadow-md shadow-emerald-900/40 font-black"
                 : "text-zinc-400 hover:text-zinc-200"
             }`}
           >
@@ -110,7 +117,7 @@ export function CreateCustomRoomModal({ isOpen, onClose }: CreateCustomRoomModal
               <label className="block text-xs font-bold text-zinc-400 mb-1.5">
                 Oda Davet Bağlantısı
               </label>
-              <div className="flex items-center gap-2 p-2 rounded-xl bg-zinc-950 border border-zinc-800">
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-black/30 border border-white/10 focus-within:border-emerald-500/50">
                 <input
                   type="text"
                   readOnly
@@ -129,7 +136,7 @@ export function CreateCustomRoomModal({ isOpen, onClose }: CreateCustomRoomModal
                 variant="outline"
                 size="md"
                 onClick={handleShareWhatsApp}
-                className="text-xs border-emerald-600/40 text-emerald-400 hover:bg-emerald-500/10"
+                className="text-xs border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
               >
                 <Share2 className="w-3.5 h-3.5 mr-1" />
                 WhatsApp&apos;ta Paylaş
@@ -139,7 +146,7 @@ export function CreateCustomRoomModal({ isOpen, onClose }: CreateCustomRoomModal
                 variant="primary"
                 size="md"
                 onClick={handleEnterCreatedRoom}
-                className="text-xs font-bold"
+                className="text-xs font-bold bg-gradient-to-b from-[#168841] to-[#126d34] hover:from-[#15803d] hover:to-[#0f5c2b]"
               >
                 <Play className="w-3.5 h-3.5 mr-1" />
                 Odaya Gir & Bekle
@@ -165,12 +172,16 @@ export function CreateCustomRoomModal({ isOpen, onClose }: CreateCustomRoomModal
                   onChange={(e) => setJoinCode(e.target.value)}
                   placeholder="Örn: oda_4876 veya link..."
                   required
-                  className="w-full py-3 pl-10 pr-4 rounded-xl bg-zinc-950 border border-zinc-800 text-white placeholder-zinc-500 text-sm focus:outline-none focus:border-emerald-500"
+                  className="w-full py-3 pl-10 pr-4 rounded-xl bg-black/30 border border-white/10 text-white placeholder-zinc-500 text-sm focus:outline-none focus:border-emerald-500"
                 />
               </div>
             </div>
 
-            <Button type="submit" size="lg" className="w-full mt-1">
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full mt-1 bg-gradient-to-b from-[#168841] to-[#126d34] hover:from-[#15803d] hover:to-[#0f5c2b] text-white font-bold"
+            >
               <LogIn className="w-4 h-4 mr-1.5" />
               Odaya Katıl
             </Button>

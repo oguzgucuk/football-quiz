@@ -21,5 +21,6 @@ export function normalizeText(text: string): string {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "") // Aksan işaretlerini kaldır
     .replace(/[^a-z0-9\s]/g, "") // Özel karakterleri kaldır
+    .replace(/\bjr\b/g, "junior") // Yaygın futbolcu kısaltması jr -> junior
     .replace(/\s+/g, " "); // Çoklu boşlukları tek boşluğa indir
 }

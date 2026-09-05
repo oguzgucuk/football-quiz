@@ -15,7 +15,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { StoreItemCard, StoreItemDto } from "./store/StoreItemCard";
 import { AcPackageCard } from "./store/AcPackageCard";
-import { ACPackage, AC_PACKAGES } from "@/lib/db/storeCatalog";
+import { ACPackage, AC_PACKAGES, INITIAL_STORE_ITEMS } from "@/lib/store/catalogConstants";
 
 interface StoreStageProps {
   onOpenAuthModal?: (tab: "login" | "register") => void;
@@ -23,37 +23,40 @@ interface StoreStageProps {
 
 type StoreTab = "all" | "frame" | "title" | "theme" | "packages";
 
+// Modül seviyesinde istemci önbelleği (sayfalar arası geçişte 0ms beklemesiz render)
+let clientCachedItems: StoreItemDto[] = INITIAL_STORE_ITEMS;
+let clientCachedOwnedIds: string[] = [];
+
 export function StoreStage({ onOpenAuthModal }: StoreStageProps = {}) {
   const { user, updateBalances } = useAuth();
   const [activeTab, setActiveTab] = useState<StoreTab>("all");
-  const [items, setItems] = useState<StoreItemDto[]>([]);
-  const [packages, setPackages] = useState<ACPackage[]>(AC_PACKAGES);
-  const [ownedItemIds, setOwnedItemIds] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [items, setItems] = useState<StoreItemDto[]>(clientCachedItems);
+  const [packages] = useState<ACPackage[]>(AC_PACKAGES);
+  const [ownedItemIds, setOwnedItemIds] = useState<string[]>(clientCachedOwnedIds);
+  const [isLoading, setIsLoading] = useState(clientCachedItems.length === 0);
   const [actionInProgressId, setActionInProgressId] = useState<string | null>(null);
   const [notification, setNotification] = useState<{
     type: "success" | "error" | "info";
     message: string;
   } | null>(null);
 
-  // Mağaza ürünlerini ve kullanıcının envanterini API'den çek
+  // Mağaza ürünlerini ve kullanıcının envanterini API'den çek (arka planda sessiz senkronizasyon)
   const fetchStoreData = useCallback(async () => {
     try {
-      setIsLoading(true);
+      if (items.length === 0) {
+        setIsLoading(true);
+      }
       const res = await fetch("/api/store/items");
       if (res.ok) {
         const data = await res.json();
-        setItems(data.items || []);
+        const serverItems = data.items || [];
+        if (serverItems.length > 0) {
+          setItems(serverItems);
+          clientCachedItems = serverItems;
+        }
         if (data.ownedItemIds) {
           setOwnedItemIds(data.ownedItemIds);
-        }
-      }
-
-      const pkgRes = await fetch("/api/store/packages");
-      if (pkgRes.ok) {
-        const pkgData = await pkgRes.json();
-        if (pkgData.packages) {
-          setPackages(pkgData.packages);
+          clientCachedOwnedIds = data.ownedItemIds;
         }
       }
     } catch (err) {
@@ -61,7 +64,7 @@ export function StoreStage({ onOpenAuthModal }: StoreStageProps = {}) {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [items.length]);
 
   useEffect(() => {
     fetchStoreData();
@@ -151,7 +154,7 @@ export function StoreStage({ onOpenAuthModal }: StoreStageProps = {}) {
 
       setNotification({
         type: "success",
-        message: `💎 Tebrikler! ${data.addedAlimCoins} AC hesabınıza yüklendi. Yeni Bakiyeniz: ${data.newAlimCoins.toLocaleString()} AC.`,
+        message: `Tebrikler! ${data.addedAlimCoins} AC hesabınıza yüklendi. Yeni Bakiyeniz: ${data.newAlimCoins.toLocaleString()} AC.`,
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Ödeme doğrulanırken bir hata oluştu.";
@@ -255,7 +258,7 @@ export function StoreStage({ onOpenAuthModal }: StoreStageProps = {}) {
             { id: "frame" as const, label: "AVATAR ÇERÇEVELERİ" },
             { id: "title" as const, label: "UNVANLAR" },
             { id: "theme" as const, label: "STADYUM TEMALARI" },
-            { id: "packages" as const, label: "💎 ALİMCOİN (AC) YÜKLE", isHighlight: true },
+            { id: "packages" as const, label: "ALİMCOİN (AC) YÜKLE", isHighlight: true },
           ].map((cat) => {
             const isSelected = activeTab === cat.id;
             return (

@@ -8,6 +8,8 @@ interface RoundTimerProps {
   serverSecondsLeft?: number | null;
   onTimeExpired?: () => void;
   isPaused?: boolean;
+  label?: string;
+  variant?: "picking" | "answering";
 }
 
 export function RoundTimer({
@@ -15,6 +17,8 @@ export function RoundTimer({
   serverSecondsLeft,
   onTimeExpired,
   isPaused = false,
+  label,
+  variant = "answering",
 }: RoundTimerProps) {
   const [timeLeft, setTimeLeft] = useState(durationSeconds);
   const onExpiredRef = useRef(onTimeExpired);
@@ -59,16 +63,29 @@ export function RoundTimer({
   }, [isPaused, timeLeft, serverSecondsLeft]);
 
   const isLowTime = timeLeft <= 3 && timeLeft > 0;
+  const isPicking = variant === "picking";
 
   return (
     <div
-      className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border backdrop-blur-md transition-all duration-300 ${isLowTime
-          ? "bg-rose-950/80 border-rose-500 text-rose-400 animate-pulse ring-2 ring-rose-500/30"
-          : "bg-zinc-900/80 border-zinc-800 text-zinc-200"
-        }`}
+      className={`inline-flex items-center gap-2.5 px-4 py-2 rounded-2xl border backdrop-blur-md transition-all duration-300 shadow-lg ${
+        isLowTime
+          ? "bg-rose-950/80 border-rose-500 text-rose-300 animate-pulse ring-2 ring-rose-500/30 shadow-rose-900/30"
+          : isPicking
+          ? "bg-amber-950/70 border-amber-500/50 text-amber-200 ring-1 ring-amber-500/20 shadow-amber-950/40"
+          : "bg-[#0c1612]/90 border-white/15 text-zinc-100 ring-1 ring-emerald-500/20"
+      }`}
     >
-      <Timer className={`w-4 h-4 ${isLowTime ? "text-rose-400" : "text-emerald-400"}`} />
-      <span className="font-mono font-bold text-lg">{timeLeft}s</span>
+      <Timer
+        className={`w-4 h-4 ${
+          isLowTime ? "text-rose-400" : isPicking ? "text-amber-400" : "text-emerald-400"
+        }`}
+      />
+      {label && (
+        <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 border-r border-zinc-700/60 pr-2.5">
+          {label}
+        </span>
+      )}
+      <span className="font-mono font-black text-lg sm:text-xl tracking-tight">{timeLeft}s</span>
     </div>
   );
 }

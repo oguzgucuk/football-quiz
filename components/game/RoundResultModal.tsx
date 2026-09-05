@@ -18,6 +18,7 @@ interface RoundResultModalProps {
   isDraw?: boolean;
   team1Id?: string | null;
   team2Id?: string | null;
+  nationId?: string | null;
 }
 
 export function RoundResultModal({
@@ -27,17 +28,27 @@ export function RoundResultModal({
   isDraw = false,
   team1Id,
   team2Id,
+  nationId,
 }: RoundResultModalProps) {
   const [commonPlayers, setCommonPlayers] = useState<CommonPlayer[]>([]);
   const [isLoadingExamples, setIsLoadingExamples] = useState(false);
 
   useEffect(() => {
-    if (!team1Id || !team2Id) return;
-
     let isMounted = true;
     setIsLoadingExamples(true);
 
-    fetch(`/api/teams/common-players?team1Id=${encodeURIComponent(team1Id)}&team2Id=${encodeURIComponent(team2Id)}&limit=5`)
+    const apiUrl = nationId && team1Id
+      ? `/api/nations/common-players?nationId=${encodeURIComponent(nationId)}&teamId=${encodeURIComponent(team1Id)}&limit=5`
+      : team1Id && team2Id
+      ? `/api/teams/common-players?team1Id=${encodeURIComponent(team1Id)}&team2Id=${encodeURIComponent(team2Id)}&limit=5`
+      : null;
+
+    if (!apiUrl) {
+      setIsLoadingExamples(false);
+      return;
+    }
+
+    fetch(apiUrl)
       .then((res) => res.json())
       .then((data) => {
         if (isMounted && data.success && Array.isArray(data.commonPlayers)) {
@@ -52,13 +63,13 @@ export function RoundResultModal({
     return () => {
       isMounted = false;
     };
-  }, [team1Id, team2Id]);
+  }, [team1Id, team2Id, nationId]);
 
   const isSkip = correctAnswer?.includes("Pas Geçildi");
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fadeIn">
-      <div className="w-full max-w-lg p-6 sm:p-8 rounded-3xl bg-zinc-900/95 border border-zinc-800 shadow-2xl text-center flex flex-col items-center">
+      <div className="w-full max-w-lg p-6 sm:p-8 rounded-3xl bg-[#0c1612]/95 backdrop-blur-2xl border border-white/15 shadow-[0_0_50px_rgba(0,0,0,0.8)] text-center flex flex-col items-center">
         {/* Üst Rozet */}
         <Badge variant={isDraw ? "warning" : "brand"} className="mb-3 px-3 py-1 font-bold text-xs">
           TUR {roundNumber} TAMAMLANDI
@@ -89,14 +100,14 @@ export function RoundResultModal({
         <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight mb-2">
           {isDraw
             ? isSkip
-              ? "Tur Karşılıklı Pas Geçildi ⏩"
+              ? "Tur Karşılıklı Pas Geçildi"
               : "Süre Doldu (Puan Verilmedi)"
-            : `🎉 ${winnerUsername} Kazandı!`}
+            : `${winnerUsername} Kazandı!`}
         </h3>
 
         {/* Doğru Cevap Alanı (Biri bildiyse) */}
         {!isDraw && correctAnswer && (
-          <div className="my-2 p-3.5 rounded-2xl bg-zinc-950/80 border border-emerald-500/20 w-full">
+          <div className="my-2 p-3.5 rounded-2xl bg-black/40 border border-emerald-500/30 w-full">
             <span className="text-[11px] text-zinc-400 font-semibold block mb-0.5">
               VERİLEN DOĞRU CEVAP
             </span>
@@ -108,7 +119,7 @@ export function RoundResultModal({
         )}
 
         {/* Ortak Futbolcu Örnekleri (3-5 En Popüler Oyuncu) */}
-        <div className="my-2 p-4 rounded-2xl bg-zinc-950/90 border border-zinc-800 w-full text-left">
+        <div className="my-2 p-4 rounded-2xl bg-black/30 border border-white/10 w-full text-left">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-zinc-400 font-bold flex items-center gap-1.5">
               <Users className="w-3.5 h-3.5 text-cyan-400" />
@@ -130,7 +141,7 @@ export function RoundResultModal({
               {commonPlayers.map((player) => (
                 <div
                   key={player.id}
-                  className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-700/60 text-zinc-200 text-xs font-medium flex items-center gap-1.5"
+                  className="px-2.5 py-1 rounded-lg bg-[#0c1612] border border-white/10 text-zinc-200 text-xs font-medium flex items-center gap-1.5"
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
                   <span>{player.fullName}</span>

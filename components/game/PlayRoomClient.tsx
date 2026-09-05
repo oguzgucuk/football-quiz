@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { MatchHeader } from "./MatchHeader";
 import { TeamPicker } from "./TeamPicker";
+import { NationPicker } from "./NationPicker";
 import { VersusDisplay } from "./VersusDisplay";
 import { PlayerAnswerInput } from "./PlayerAnswerInput";
 import { RoundTimer } from "./RoundTimer";
@@ -50,15 +51,20 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
     allTeams,
     playerList,
     mySelectedTeam,
+    mySelectedNation,
+    isCountryVsTeam,
+    isMyTurnToPickNation,
     isSubmitting,
     hasErrorFeedback,
     serverSecondsLeft,
     isConnectedToSocket,
     lastRoundWinner,
+    matchEloResult,
     hasVotedPass,
     opponentWantsPass,
     passVotesCount,
     handleSelectTeam,
+    handleSelectNation,
     handleSubmitAnswer,
     handleTimeExpired,
     handleVotePass,
@@ -77,7 +83,7 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
 
   if (isLoading || !currentUserId) {
     return (
-      <div className="flex flex-col min-h-screen bg-[#090a0f] text-zinc-100 items-center justify-center p-4">
+      <div className="flex flex-col min-h-screen bg-[#0d1611] text-zinc-100 items-center justify-center p-4">
         <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 animate-pulse">
           <RotateCcw className="w-6 h-6 animate-spin" />
         </div>
@@ -92,12 +98,13 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
         roomState={roomState}
         currentUserId={currentUserId}
         username={username}
+        matchEloResult={matchEloResult}
       />
     );
   }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-[#090a0f] text-zinc-100 relative">
+    <div className="flex flex-col h-screen overflow-hidden bg-[#0d1611] text-zinc-100 relative">
       {/* 1v1 Maç Odası Stadyum Arka Planı (Koyu Varyant) */}
       <StadiumBackground variant="dark" />
 
@@ -109,6 +116,8 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
         player2={roomState.player2}
         currentUserId={currentUserId}
         h2hSummary={h2hSummary}
+        roundDuration={roomState.roundDuration || 15}
+        roundStatus={roomState.roundStatus}
       />
 
       {/* Rakip Bağlantı Kopması (Grace Period) Bildirimi */}
@@ -122,7 +131,7 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
           <Button
             variant="outline"
             size="sm"
-            className="text-xs font-bold text-zinc-400 hover:text-white border-zinc-800 hover:bg-zinc-900"
+            className="text-xs font-bold text-zinc-300 hover:text-white border-white/10 hover:bg-white/5"
           >
             <ArrowLeft className="w-3.5 h-3.5 mr-1" />
             Ana Sayfa
@@ -159,36 +168,68 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
               <WaitingForOpponentView onAddBot={addBotOpponent} />
             )}
 
-            {/* FAZ 1: Serbest Takım Yazma Ekranı (5 sn) */}
+            {/* FAZ 1: Serbest Takım veya Millet Yazma Ekranı (Dinamik Süre: roundDuration) */}
             {roomState.status === "in_round" && roomState.roundStatus === "picking_teams" && (
               <div className="w-full flex flex-col items-center animate-fadeIn">
-                <div className="mb-6">
+                <div className="flex flex-col items-center gap-2 mb-6">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-amber-950/80 text-amber-300 border border-amber-500/40 shadow-sm shadow-amber-950">
+                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                    1. Aşama: {isCountryVsTeam ? (isMyTurnToPickNation ? "Milletini Seç" : "Kulübünü Seç") : "Takımını Seç"} ({roomState.roundDuration || 15} sn)
+                  </span>
                   <RoundTimer
+                    label={isCountryVsTeam ? (isMyTurnToPickNation ? "Millet Seçim Süresi" : "Kulüp Seçim Süresi") : "Takım Seçim Süresi"}
+                    variant="picking"
                     durationSeconds={roomState.roundDuration || 15}
                     serverSecondsLeft={serverSecondsLeft}
                     onTimeExpired={handleTimeExpired}
                   />
+                  <span className="text-xs text-zinc-400 font-medium text-center">
+                    {isCountryVsTeam
+                      ? (isMyTurnToPickNation
+                          ? "Bu tur milleti sen belirliyorsun! Rakip bir kulüp seçecek."
+                          : "Bu tur kulübü sen belirliyorsun! Rakip bir millet seçecek.")
+                      : `Takımını belirle (veya otomatik atansın). Ardından ${roomState.roundDuration || 15} saniyelik ortak oyuncu tahmini başlayacak!`}
+                  </span>
                 </div>
-                <TeamPicker
-                  teams={allTeams}
-                  selectedTeam={mySelectedTeam}
-                  onSelectTeam={handleSelectTeam}
-                />
+                {isCountryVsTeam && isMyTurnToPickNation ? (
+                  <NationPicker
+                    selectedNation={mySelectedNation}
+                    onSelectNation={handleSelectNation}
+                  />
+                ) : (
+                  <TeamPicker
+                    teams={allTeams}
+                    selectedTeam={mySelectedTeam}
+                    onSelectTeam={handleSelectTeam}
+                  />
+                )}
               </div>
             )}
 
             {/* FAZ 2: Cevap Yazma Ekranı (Dinamik Süre) */}
             {roomState.status === "in_round" && roomState.roundStatus === "answering" && (
               <div className="w-full flex flex-col items-center animate-fadeIn">
-                <div className="mb-4">
+                <div className="flex flex-col items-center gap-1.5 mb-4">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-emerald-950/80 text-emerald-300 border border-emerald-500/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    {isCountryVsTeam
+                      ? "2. Aşama: O Milletten ve O Kulüpten Futbolcuyu İlk Yazan Kazanır"
+                      : "2. Aşama: Ortak Futbolcuyu İlk Yazan Kazanır"}
+                  </span>
                   <RoundTimer
+                    label="Kalan Süre"
+                    variant="answering"
                     durationSeconds={roomState.roundDuration || 15}
                     serverSecondsLeft={serverSecondsLeft}
                     onTimeExpired={handleTimeExpired}
                   />
                 </div>
 
-                <VersusDisplay team1={roomState.team1} team2={roomState.team2} />
+                <VersusDisplay
+                  team1={roomState.team1}
+                  team2={roomState.team2}
+                  nation={roomState.nation}
+                />
 
                 <div className="w-full mt-4 flex flex-col items-center gap-3">
                   <PlayerAnswerInput
@@ -218,6 +259,7 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
                 isDraw={lastRoundWinner.isDraw}
                 team1Id={roomState.team1?.id}
                 team2Id={roomState.team2?.id}
+                nationId={roomState.nation?.id}
               />
             )}
           </>
@@ -225,7 +267,7 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
       </main>
 
       {/* Alt Bar */}
-      <footer className="py-4 border-t border-zinc-800/60 bg-zinc-950/40 text-center text-xs text-zinc-500 flex items-center justify-between px-6 max-w-4xl w-full mx-auto">
+      <footer className="py-4 border-t border-white/10 bg-[#0c1612]/70 backdrop-blur-md text-center text-xs text-zinc-400 flex items-center justify-between px-6 max-w-4xl w-full mx-auto">
         <div className="flex items-center gap-2">
           <div
             className={`w-2 h-2 rounded-full ${
@@ -234,7 +276,11 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
           />
           <span>{isConnectedToSocket ? "Canlı 1v1 Çok Oyunculu Aktif" : "Tek Oyunculu Mod"}</span>
         </div>
-        <span>Oda: #{roomId} • İki takımda da forma giymiş futbolcuyu en hızlı yazan kazanır</span>
+        <span>
+          {isCountryVsTeam
+            ? `Oda: #${roomId} • O milletten olup kulüpte forma giymiş futbolcuyu ilk yazan kazanır`
+            : `Oda: #${roomId} • İki takımda da forma giymiş futbolcuyu en hızlı yazan kazanır`}
+        </span>
       </footer>
     </div>
   );

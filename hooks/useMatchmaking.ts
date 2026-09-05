@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { getWebSocketUrl } from "@/lib/realtime/getWebSocketUrl";
+import { GameMode } from "@/types/game";
 
 export type MatchmakingStatus = "idle" | "searching" | "matched" | "error";
 
@@ -53,7 +54,14 @@ export function useMatchmaking() {
   }, [cleanup]);
 
   const startMatchmaking = useCallback(
-    (userId: string, username: string, eloRating: number = 1000, roundDuration: number = 15) => {
+    (
+      userId: string,
+      username: string,
+      eloRating: number = 1000,
+      roundDuration: number = 15,
+      mode: "ranked" | "casual" = "ranked",
+      gameMode: GameMode = "team_vs_team"
+    ) => {
       cleanup();
       setSelectedDuration(roundDuration);
       setStatus("searching");
@@ -79,6 +87,8 @@ export function useMatchmaking() {
               username,
               eloRating,
               roundDuration,
+              mode,
+              gameMode,
             })
           );
         };
@@ -134,11 +144,16 @@ export function useMatchmaking() {
     setWaitingSeconds(0);
   }, [cleanup]);
 
-  const requestBotMatch = useCallback((duration: number = selectedDuration) => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: "REQUEST_BOT_MATCH", roundDuration: duration }));
-    }
-  }, [selectedDuration]);
+  const requestBotMatch = useCallback(
+    (duration: number = selectedDuration, mode: "ranked" | "casual" = "ranked", gameMode: GameMode = "team_vs_team") => {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(
+          JSON.stringify({ type: "REQUEST_BOT_MATCH", roundDuration: duration, mode, gameMode })
+        );
+      }
+    },
+    [selectedDuration]
+  );
 
   return {
     status,

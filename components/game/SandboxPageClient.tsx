@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { SandboxMode } from "./SandboxMode";
 import { Team, PlayerSearchItem } from "@/types/game";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { StadiumBackground } from "@/components/ui/StadiumBackground";
 
@@ -46,12 +46,12 @@ export function SandboxPageClient() {
   }, []);
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#090a0f] text-zinc-100 relative overflow-hidden">
+    <div className="flex flex-col min-h-screen bg-[#0d1611] text-zinc-100 relative overflow-hidden">
       {/* Koyu Temalı Stadyum Arka Planı */}
       <StadiumBackground variant="dark" />
 
       {/* Üst Bar */}
-      <header className="border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-xl px-4 py-3 sticky top-0 z-40">
+      <header className="border-b border-white/10 bg-[#0c1612]/80 backdrop-blur-xl px-4 py-3 sticky top-0 z-40">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <Link href="/">
             <Button variant="ghost" size="sm" className="text-zinc-400 hover:text-white">
@@ -60,8 +60,9 @@ export function SandboxPageClient() {
             </Button>
           </Link>
           <div className="flex items-center gap-2">
-            <span className="text-xs bg-amber-500/10 text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded-full font-bold">
-              🛠️ Süresiz Serbest Mod
+            <span className="text-xs bg-amber-500/10 text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded-full font-bold flex items-center gap-1.5">
+              <Wrench className="w-3.5 h-3.5" />
+              Süresiz Serbest Mod
             </span>
           </div>
         </div>
@@ -78,7 +79,7 @@ export function SandboxPageClient() {
         )}
       </main>
 
-      <footer className="py-4 border-t border-zinc-800/60 bg-zinc-950/40 text-center text-xs text-zinc-500">
+      <footer className="py-4 border-t border-white/10 bg-[#0c1612]/70 text-center text-xs text-zinc-400">
         <span>Futbol Quiz Sandbox • İstediğin iki kulübü seç ve ortak oyuncuları sınırsız sürede test et</span>
       </footer>
     </div>

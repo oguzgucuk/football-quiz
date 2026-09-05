@@ -8,7 +8,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { RoomState } from "@/lib/realtime/roomState";
 import { getWebSocketUrl } from "@/lib/realtime/getWebSocketUrl";
-import { Team } from "@/types/game";
+import { Team, Nation } from "@/types/game";
 import {
   getStoredSessionToken,
   saveStoredSessionToken,
@@ -37,6 +37,7 @@ interface UseGameRoomSocketProps {
   setRoomState: React.Dispatch<React.SetStateAction<RoomState>>;
   setServerSecondsLeft: React.Dispatch<React.SetStateAction<number | null>>;
   setMySelectedTeam: React.Dispatch<React.SetStateAction<Team | null>>;
+  setMySelectedNation?: React.Dispatch<React.SetStateAction<Nation | null>>;
   setIsSubmitting: React.Dispatch<React.SetStateAction<boolean>>;
   setHasErrorFeedback: React.Dispatch<React.SetStateAction<boolean>>;
   setLastRoundWinner: React.Dispatch<React.SetStateAction<RoundWinnerState | null>>;
@@ -50,6 +51,7 @@ export function useGameRoomSocket({
   setRoomState,
   setServerSecondsLeft,
   setMySelectedTeam,
+  setMySelectedNation,
   setIsSubmitting,
   setHasErrorFeedback,
   setLastRoundWinner,
@@ -201,8 +203,9 @@ export function useGameRoomSocket({
               if (data.state.status === "match_finished") {
                 clearStoredSessionToken(roomId);
               }
-              if (data.state.roundStatus === "picking_teams" && !data.state.team1 && !data.state.team2) {
+              if (data.state.roundStatus === "picking_teams" && !data.state.team1 && !data.state.team2 && !data.state.nation) {
                 setMySelectedTeam(null);
+                setMySelectedNation?.(null);
               }
               break;
 
@@ -225,6 +228,7 @@ export function useGameRoomSocket({
               setTimeout(() => {
                 setLastRoundWinner(null);
                 setMySelectedTeam(null);
+                setMySelectedNation?.(null);
               }, 3000);
               break;
 
@@ -264,6 +268,7 @@ export function useGameRoomSocket({
     setRoomState,
     setServerSecondsLeft,
     setMySelectedTeam,
+    setMySelectedNation,
     setIsSubmitting,
     setHasErrorFeedback,
     setLastRoundWinner,

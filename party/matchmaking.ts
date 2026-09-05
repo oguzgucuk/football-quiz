@@ -5,18 +5,17 @@
  */
 
 import type * as Party from "partykit/server";
-
-interface QueuedPlayer {
-  connectionId: string;
-  userId: string;
-  username: string;
-  eloRating?: number;
-  roundDuration: number;
-  joinedAt: number;
-}
+import {
+  MatchmakingQueuePlayer,
+  sanitizeRoundDuration,
+  enqueueAndMatch,
+  removePlayerFromQueue,
+  generateMatchId,
+} from "../lib/realtime/matchmakingEngine";
+import { getBotOpponentMetadata } from "../lib/realtime/botSimulator";
 
 export default class MatchmakingServer implements Party.Server {
-  queue: QueuedPlayer[] = [];
+  queue: MatchmakingQueuePlayer[] = [];
 
   constructor(readonly room: Party.Room) {}
 
@@ -30,7 +29,7 @@ export default class MatchmakingServer implements Party.Server {
   }
 
   onClose(conn: Party.Connection) {
-    this.queue = this.queue.filter((p) => p.connectionId !== conn.id);
+    this.queue = removePlayerFromQueue(this.queue, conn.id);
   }
 
   onMessage(message: string, sender: Party.Connection) {
@@ -38,86 +37,79 @@ export default class MatchmakingServer implements Party.Server {
       const data = JSON.parse(message);
 
       if (data.type === "MATCHMAKING_JOIN") {
-        const { userId, username, eloRating } = data;
-        const roundDuration = [5, 10, 15, 20].includes(Number(data.roundDuration))
-          ? Number(data.roundDuration)
-          : 15;
+        const roundDuration = sanitizeRoundDuration(data.roundDuration);
+        const mode = data.mode === "casual" ? "casual" : "ranked";
+        const player: MatchmakingQueuePlayer = {
+          id: sender.id,
+          userId: data.userId,
+          username: data.username,
+          eloRating: data.eloRating,
+          roundDuration,
+          mode,
+          joinedAt: Date.now(),
+        };
 
-        // Eski bağlantıyı temizle
-        this.queue = this.queue.filter((p) => p.connectionId !== sender.id && p.userId !== userId);
+        const { updatedQueue, match } = enqueueAndMatch(this.queue, player);
+        this.queue = updatedQueue;
 
-        // Kuyrukta AYNI SÜREYİ seçmiş başka bir oyuncu var mı?
-        const opponentIndex = this.queue.findIndex((p) => p.roundDuration === roundDuration);
-
-        if (opponentIndex !== -1) {
-          // Rakip bulundu!
-          const opponent = this.queue.splice(opponentIndex, 1)[0];
-          const matchId = `match_${roundDuration}s_${Math.random().toString(36).substring(2, 8)}`;
-
-          // 1. Yeni katılan oyuncuya bildir
+        if (match) {
           sender.send(
             JSON.stringify({
               type: "MATCH_FOUND",
-              matchId,
-              roundDuration,
+              matchId: match.matchId,
+              roundDuration: match.roundDuration,
+              mode: match.mode,
               opponent: {
-                userId: opponent.userId,
-                username: opponent.username,
-                eloRating: opponent.eloRating || 1000,
+                userId: match.player2.userId,
+                username: match.player2.username,
+                eloRating: match.player2.eloRating || 1000,
               },
             })
           );
 
-          // 2. Bekleyen rakibe bildir
-          const opponentConn = this.room.getConnection(opponent.connectionId);
+          const opponentConn = this.room.getConnection(match.player2.id);
           if (opponentConn) {
             opponentConn.send(
               JSON.stringify({
                 type: "MATCH_FOUND",
-                matchId,
-                roundDuration,
+                matchId: match.matchId,
+                roundDuration: match.roundDuration,
+                mode: match.mode,
                 opponent: {
-                  userId,
-                  username,
-                  eloRating: eloRating || 1000,
+                  userId: match.player1.userId,
+                  username: match.player1.username,
+                  eloRating: match.player1.eloRating || 1000,
                 },
               })
             );
           }
         } else {
-          // Kuyrukta bu süre için kimse yok, sıraya gir
-          this.queue.push({
-            connectionId: sender.id,
-            userId,
-            username,
-            eloRating,
-            roundDuration,
-            joinedAt: Date.now(),
-          });
-
           sender.send(
             JSON.stringify({
               type: "QUEUE_STATUS",
-              queueSize: this.queue.filter((p) => p.roundDuration === roundDuration).length,
+              queueSize: this.queue.filter(
+                (p) => p.roundDuration === roundDuration && (p.mode || "ranked") === mode
+              ).length,
               roundDuration,
+              mode,
             })
           );
         }
       } else if (data.type === "MATCHMAKING_LEAVE") {
-        this.queue = this.queue.filter((p) => p.connectionId !== sender.id);
+        this.queue = removePlayerFromQueue(this.queue, sender.id);
       } else if (data.type === "REQUEST_BOT_MATCH") {
-        const roundDuration = [5, 10, 15, 20].includes(Number(data.roundDuration))
-          ? Number(data.roundDuration)
-          : 15;
-        this.queue = this.queue.filter((p) => p.connectionId !== sender.id);
-        const matchId = `match_bot_${roundDuration}s_${Math.random().toString(36).substring(2, 8)}`;
+        const roundDuration = sanitizeRoundDuration(data.roundDuration);
+        const mode = data.mode === "casual" ? "casual" : "ranked";
+        this.queue = removePlayerFromQueue(this.queue, sender.id);
+        const matchId = generateMatchId("match_bot", roundDuration, mode);
         sender.send(
           JSON.stringify({
             type: "MATCH_FOUND",
             matchId,
             roundDuration,
+            mode,
             isBot: true,
-            opponent: { userId: "bot_ai", username: "Yapay Zeka 🤖", eloRating: 1000 },
+            opponent: getBotOpponentMetadata(),
           })
         );
       }
