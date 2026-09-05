@@ -99,10 +99,43 @@ export const ALLOWED_LEAGUE_KEYWORDS = [
 ];
 
 /**
+ * Bir takım adının milli takım olup olmadığını kontrol eder.
+ * Kulüp seçimi havuzlarında (TeamPicker) milli takımların yer almasını engeller.
+ */
+export function isNationalTeamName(name?: string | null): boolean {
+  if (!name) return false;
+  const n = name.trim().toLowerCase();
+  return (
+    n.includes("millî") ||
+    n.includes("milli ") ||
+    n.includes("milli takım") ||
+    n.includes("national team") ||
+    n.includes("national football team") ||
+    n.includes("yaş altı") ||
+    n.includes("under-") ||
+    n.includes("u-17") ||
+    n.includes("u-19") ||
+    n.includes("u-20") ||
+    n.includes("u-21") ||
+    n.includes("u-23")
+  );
+}
+
+/**
  * Bir takımın oyunda seçilebilir olup olmadığını belirler.
  * Ülke kontrolü case-insensitive yapılır (DB normalize edildikten sonra lowercase dönüşümü yeterli).
+ * Milli takımlar kulüp seçimi için kesinlikle elenir.
  */
-export function isTeamPlayableInGame(team: { country?: string | null; league?: string | null }): boolean {
+export function isTeamPlayableInGame(team: {
+  name?: string | null;
+  country?: string | null;
+  league?: string | null;
+}): boolean {
+  // Milli takımlar kulüp havuzundan hariç tutulur
+  if (isNationalTeamName(team.name)) {
+    return false;
+  }
+
   const country = (team.country || "").trim().toLowerCase();
   const league = (team.league || "").trim().toLowerCase();
 

@@ -94,12 +94,16 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
     setIsMatchmakingOpen(true);
   };
 
-  const handleStartSearching = (duration: number) => {
+  const handleStartSearching = (
+    duration: number,
+    mode: "ranked" | "casual" = matchmakingMode,
+    gameMode: GameMode = matchmakingGameMode
+  ) => {
     if (!user) {
       handleOpenAuthModal("login");
       return;
     }
-    startMatchmaking(user.id, user.username, user.eloRating || 1000, duration, matchmakingMode, matchmakingGameMode);
+    startMatchmaking(user.id, user.username, user.eloRating || 1000, duration, mode, gameMode);
   };
 
   const handleOpenCustomRoom = (gameMode: GameMode = "team_vs_team") => {

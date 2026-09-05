@@ -102,7 +102,17 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
         ? Boolean(roomState.nation && roomState.team1)
         : Boolean(roomState.team1 && roomState.team2);
 
-      if (!hasEntities || isSubmitting) return;
+      if (!hasEntities) {
+        console.warn("[GameRoom] Cevap gönderilemedi: Seçimler henüz tamamlanmadı", {
+          gameMode: roomState.gameMode,
+          nation: roomState.nation?.name,
+          team1: roomState.team1?.name,
+          team2: roomState.team2?.name,
+        });
+        return;
+      }
+
+      if (isSubmitting) return;
 
       setIsSubmitting(true);
       setHasErrorFeedback(false);

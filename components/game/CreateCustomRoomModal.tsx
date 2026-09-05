@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -17,9 +17,16 @@ export function CreateCustomRoomModal({ isOpen, onClose, gameMode = "team_vs_tea
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"create" | "join">("create");
   const [copied, setCopied] = useState(false);
-  const prefix = gameMode === "country_vs_team" ? "oda_millet" : "oda";
-  const [customRoomId] = useState(() => `${prefix}_${Math.floor(1000 + Math.random() * 9000)}`);
+  const [customRoomId, setCustomRoomId] = useState("");
   const [joinCode, setJoinCode] = useState("");
+
+  useEffect(() => {
+    if (isOpen) {
+      const prefix = gameMode === "country_vs_team" ? "oda_millet" : "oda";
+      setCustomRoomId(`${prefix}_${Math.floor(1000 + Math.random() * 9000)}`);
+      setCopied(false);
+    }
+  }, [isOpen, gameMode]);
 
   if (!isOpen) return null;
 
@@ -58,8 +65,11 @@ export function CreateCustomRoomModal({ isOpen, onClose, gameMode = "team_vs_tea
   };
 
   const handleEnterCreatedRoom = () => {
+    if (!customRoomId) return;
     router.push(`/play/${customRoomId}`);
   };
+
+  const isCountryVsTeam = gameMode === "country_vs_team";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fadeIn">
@@ -76,9 +86,21 @@ export function CreateCustomRoomModal({ isOpen, onClose, gameMode = "team_vs_tea
           <Users className="w-7 h-7" />
         </div>
 
+        {isCountryVsTeam ? (
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-950/70 border border-amber-500/30 px-3 py-1 rounded-full mb-2">
+            Millet-Takım Düellosu
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-950/70 border border-emerald-500/30 px-3 py-1 rounded-full mb-2">
+            Ortak Oyuncu Düellosu
+          </span>
+        )}
+
         <h2 className="text-2xl font-black text-white tracking-tight">Arkadaşınla Oyna</h2>
         <p className="text-xs text-zinc-400 mt-1 mb-6">
-          Özel bir oda oluşturup linki arkadaşına gönder veya mevcut bir odaya katıl.
+          {isCountryVsTeam
+            ? "Millet-Takım özel odası oluşturup linki arkadaşına gönder veya mevcut bir odaya katıl."
+            : "Özel bir oda oluşturup linki arkadaşına gönder veya mevcut bir odaya katıl."}
         </p>
 
         {/* Tab Seçimi */}

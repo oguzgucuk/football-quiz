@@ -27,7 +27,7 @@ interface MatchmakingModalProps {
   mode?: "ranked" | "casual";
   gameMode?: GameMode;
   onSelectDuration: (duration: number) => void;
-  onStartSearching: (duration: number) => void;
+  onStartSearching: (duration: number, mode: "ranked" | "casual", gameMode: GameMode) => void;
   onCancel: () => void;
 }
 
@@ -167,7 +167,7 @@ export function MatchmakingModal({
 
             {/* Sıraya Gir Butonu */}
             <button
-              onClick={() => onStartSearching(selectedDuration)}
+              onClick={() => onStartSearching(selectedDuration, mode, gameMode)}
               className="w-full h-12 rounded-xl bg-gradient-to-b from-[#168841] to-[#126d34] hover:from-[#15803d] hover:to-[#0f5c2b] text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-emerald-900/50 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <span>Sıraya Gir</span>
@@ -188,14 +188,36 @@ export function MatchmakingModal({
               </div>
             </div>
 
-            <h3 className="text-xl font-black text-white tracking-tight mb-2">
-              {mode === "casual" ? "Hızlı Maç Aranıyor..." : "Rakip Aranıyor..."}
-            </h3>
+            <div className="flex flex-col items-center gap-1 mb-2">
+              {isCountryVsTeam ? (
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-950/70 border border-amber-500/30 px-3 py-1 rounded-full">
+                  <Zap className="size-3 text-amber-400" />
+                  Millet-Takım Hızlı Maç
+                </span>
+              ) : mode === "casual" ? (
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-cyan-400 bg-cyan-950/70 border border-cyan-500/30 px-3 py-1 rounded-full">
+                  <Zap className="size-3 text-cyan-400" />
+                  Ortak Oyuncu • Hızlı Maç
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-950/70 border border-emerald-500/30 px-3 py-1 rounded-full">
+                  <Trophy className="size-3 text-emerald-400" />
+                  Ortak Oyuncu • Dereceli Maç
+                </span>
+              )}
+              <h3 className="text-xl font-black text-white tracking-tight">
+                {isCountryVsTeam
+                  ? "Millet-Takım Rakibi Aranıyor..."
+                  : mode === "casual"
+                  ? "Hızlı Maç Rakibi Aranıyor..."
+                  : "Dereceli Rakip Aranıyor..."}
+              </h3>
+            </div>
 
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/70 border border-emerald-500/30 text-emerald-400 text-xs font-bold mb-3">
               <Timer className="w-3.5 h-3.5" />
               <span>
-                {selectedDuration} Saniye Modu • {mode === "casual" ? "Hızlı Eşleşme (Serbest)" : "ELO Dengeli Eşleşme"}
+                {selectedDuration} Saniye • {mode === "casual" ? "Serbest (0 ELO)" : "ELO Dengeli Karşılaşma"}
               </span>
             </div>
 

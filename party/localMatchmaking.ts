@@ -50,6 +50,8 @@ export function handleLocalMatchmakingSocket(ws: WebSocket) {
           ws,
         };
 
+        console.log(`⏱️ [Matchmaking] Kuyruğa katıldı (${roundDuration}s, ${mode}, ${gameMode}): ${player.username}`);
+
         const { updatedQueue, match } = enqueueAndMatch(matchmakingQueue, player);
         matchmakingQueue = updatedQueue as LocalQueuedPlayer[];
 

@@ -191,11 +191,23 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
                       : `Takımını belirle (veya otomatik atansın). Ardından ${roomState.roundDuration || 15} saniyelik ortak oyuncu tahmini başlayacak!`}
                   </span>
                 </div>
-                {isCountryVsTeam && isMyTurnToPickNation ? (
-                  <NationPicker
-                    selectedNation={mySelectedNation}
-                    onSelectNation={handleSelectNation}
-                  />
+                {isCountryVsTeam ? (
+                  !roomState.currentNationPickerUserId ? (
+                    <div className="flex flex-col items-center justify-center py-8 text-zinc-400 text-sm animate-pulse">
+                      <span className="font-semibold text-emerald-400">Roller kura ile belirleniyor...</span>
+                    </div>
+                  ) : isMyTurnToPickNation ? (
+                    <NationPicker
+                      selectedNation={mySelectedNation}
+                      onSelectNation={handleSelectNation}
+                    />
+                  ) : (
+                    <TeamPicker
+                      teams={allTeams}
+                      selectedTeam={mySelectedTeam}
+                      onSelectTeam={handleSelectTeam}
+                    />
+                  )
                 ) : (
                   <TeamPicker
                     teams={allTeams}
