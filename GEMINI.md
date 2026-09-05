@@ -1,7 +1,7 @@
 # Proje Kodlama Standartları — Futbol Quiz Oyunu
 
-> Bu dosya Antigravity ajanının her görevde okuyup uygulaması için hazırlanmıştır.
-> Proje kök dizinine `AGENTS.md` olarak koy (Antigravity, Cursor, Claude Code gibi
+> Bu dosya Antigravity / Gemini ajanının her görevde okuyup uygulaması için hazırlanmıştır.
+> Proje kök dizinine `GEMINI.md` olarak koy (Antigravity, Cursor, Claude Code gibi
 > birçok ajan aracı bu dosyayı otomatik okur). Kurallar büyüdükçe konuya göre
 > `.agents/rules/` klasörü altında ayrı dosyalara bölebilirsin (örn.
 > `.agents/rules/backend.md`, `.agents/rules/frontend.md`).
@@ -152,6 +152,7 @@ bağımlı olması) baştan engeller.
 
 ## 10. Git ve Commit Kuralları
 
+- **GitHub Push Kuralı (KRİTİK):** Kullanıcı özellikle ve açıkça belirtmedikçe ("pushla", "github'a at" vb. doğrudan bir talimat vermedikçe) **asla GitHub'a push yapılmaz (`git push` kesinlikle çalıştırılamaz)**. Kodlar yalnızca yerel repository'de tutulur, sadece kullanıcı açık onay ve talimat verirse uzak sunucuya pushlanır.
 - Conventional Commits formatı: `feat:`, `fix:`, `refactor:`, `chore:`,
   `docs:`. Örn. `feat: add elo calculation for ranked matches`.
 - Bir commit tek bir mantıksal değişikliği içersin — "genel güncelleme" gibi
@@ -239,6 +240,7 @@ Dropdown sadece yazım/hafıza asistanıdır, doğruluğu hâlâ server belirler
 
 ## 14. Ajan Bu Projede Kod Yazarken Ek Kurallar
 
+- **GitHub Push Kuralı (ÖNEMLİ):** Kullanıcı özellikle belirtmedikçe GitHub'a kesinlikle push yapılmaz (`git push` komutu yasaktır). Yalnızca kullanıcı açıkça talimat verirse pushlanır.
 - Yeni bir dosya oluşturmadan önce, benzer bir işlevin zaten var olup
   olmadığını kontrol et — tekrar yazma.
 - Bir özelliği uygularken ilgili tüm katmanları (UI + iş mantığı + DB) aynı
