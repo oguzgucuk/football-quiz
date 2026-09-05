@@ -3,6 +3,7 @@
 import React from "react";
 import { TeamBadge } from "@/components/ui/TeamBadge";
 import { Team, Nation } from "@/types/game";
+import { NationFlag } from "@/components/ui/NationFlag";
 import { Globe } from "lucide-react";
 
 interface VersusDisplayProps {
@@ -23,8 +24,13 @@ export function VersusDisplay({ team1, team2, nation }: VersusDisplayProps) {
       {/* Sol Taraf: Millet (Varsa) veya Takım 1 */}
       {isNationMode && nation ? (
         <div className="flex-1 flex flex-col items-center text-center animate-fadeIn">
-          <div className="mb-3 size-14 sm:size-16 rounded-2xl bg-emerald-950/80 border-2 border-emerald-500/40 flex items-center justify-center font-mono font-black text-emerald-300 text-lg shadow-[0_0_20px_rgba(34,197,94,0.2)]">
-            {nation.flagCode.toUpperCase()}
+          <div className="mb-3">
+            <NationFlag
+              flagCode={nation.flagCode}
+              name={nation.name}
+              size="xl"
+              className="shadow-[0_0_30px_rgba(34,197,94,0.35)] border-emerald-400/40"
+            />
           </div>
           <h3 className="text-base sm:text-xl font-black text-white tracking-tight line-clamp-1">
             {nation.name}

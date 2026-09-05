@@ -5,6 +5,7 @@ import Fuse from "fuse.js";
 import { CheckCircle2, Search, Lock, Globe } from "lucide-react";
 import { Nation } from "@/types/game";
 import { POPULAR_NATIONS } from "@/lib/data/nations";
+import { NationFlag } from "@/components/ui/NationFlag";
 
 interface NationPickerProps {
   nations?: Nation[];
@@ -115,9 +116,12 @@ export function NationPicker({
       {selectedNation ? (
         <div className="w-full p-4 rounded-2xl bg-[#0c1612]/95 border-2 border-emerald-500/80 shadow-[0_0_30px_rgba(34,197,94,0.3)] flex items-center justify-between animate-scaleUp">
           <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-xl bg-emerald-950/70 border border-emerald-500/40 flex items-center justify-center font-mono font-black text-emerald-400 text-sm shadow-xs">
-              {selectedNation.flagCode.toUpperCase()}
-            </div>
+            <NationFlag
+              flagCode={selectedNation.flagCode}
+              name={selectedNation.name}
+              size="lg"
+              className="shadow-[0_0_20px_rgba(34,197,94,0.3)] border-emerald-500/50"
+            />
             <div className="text-left">
               <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest block">
                 SEÇİLEN MİLLET
@@ -160,7 +164,7 @@ export function NationPicker({
             </div>
           </div>
 
-          {/* Hızlı Seçim Hapları (En Popüler 6 Ülke) */}
+          {/* Hızlı Seçim Hapları (En Popüler 8 Ülke) */}
           {!inputValue && (
             <div className="flex flex-wrap items-center justify-center gap-1.5 mt-3">
               {nations.slice(0, 8).map((nation) => (
@@ -168,11 +172,14 @@ export function NationPicker({
                   key={nation.id}
                   type="button"
                   onClick={() => handlePick(nation)}
-                  className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-emerald-950/50 hover:border-emerald-500/40 border border-white/10 text-xs text-zinc-300 hover:text-emerald-300 font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                  className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-emerald-950/50 hover:border-emerald-500/40 border border-white/10 text-xs text-zinc-300 hover:text-emerald-300 font-bold transition-all cursor-pointer flex items-center gap-2 group"
                 >
-                  <span className="font-mono text-[10px] text-emerald-400 font-black">
-                    {nation.flagCode.toUpperCase()}
-                  </span>
+                  <NationFlag
+                    flagCode={nation.flagCode}
+                    name={nation.name}
+                    size="xs"
+                    className="group-hover:scale-105 transition-transform"
+                  />
                   <span>{nation.name}</span>
                 </button>
               ))}
@@ -196,9 +203,11 @@ export function NationPicker({
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-lg bg-emerald-950/80 border border-emerald-500/30 flex items-center justify-center text-[10px] font-mono font-black text-emerald-400">
-                        {nation.flagCode.toUpperCase()}
-                      </div>
+                      <NationFlag
+                        flagCode={nation.flagCode}
+                        name={nation.name}
+                        size="sm"
+                      />
                       <span className={`text-sm font-bold ${isSelected ? "text-emerald-300" : "text-zinc-100"}`}>
                         {nation.name}
                       </span>
