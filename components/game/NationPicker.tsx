@@ -6,6 +6,7 @@ import { CheckCircle2, Search, Lock, Globe } from "lucide-react";
 import { Nation } from "@/types/game";
 import { POPULAR_NATIONS } from "@/lib/data/nations";
 import { NationFlag } from "@/components/ui/NationFlag";
+import { normalizeText } from "@/lib/validation/normalizeText";
 
 interface NationPickerProps {
   nations?: Nation[];
@@ -30,10 +31,10 @@ export function NationPicker({
       keys: [
         { name: "name", weight: 0.6 },
         { name: "englishName", weight: 0.3 },
-        { name: "aliases", weight: 0.3 },
+        { name: "aliases", weight: 0.4 },
       ],
       includeScore: true,
-      threshold: 0.35,
+      threshold: 0.38,
       ignoreLocation: true,
       minMatchCharLength: 2,
     });
@@ -42,21 +43,32 @@ export function NationPicker({
   const suggestions = useMemo(() => {
     if (!inputValue || inputValue.trim().length < 2) return [];
     const lowerQuery = inputValue.toLowerCase().trim();
-    const results = fuse.search(inputValue, { limit: 20 });
+    const normalizedQuery = normalizeText(inputValue);
 
-    const scored = results.map((r) => {
+    const results = fuse.search(inputValue, { limit: 20 });
+    const resultsNorm = normalizedQuery !== lowerQuery ? fuse.search(normalizedQuery, { limit: 20 }) : [];
+
+    const uniqueMap = new Map<string, (typeof results)[0]>();
+    for (const r of [...results, ...resultsNorm]) {
+      const existing = uniqueMap.get(r.item.id);
+      if (!existing || (r.score ?? 1) < (existing.score ?? 1)) {
+        uniqueMap.set(r.item.id, r);
+      }
+    }
+
+    const scored = Array.from(uniqueMap.values()).map((r) => {
       const textMatchScore = 1 - (r.score ?? 1);
       const normalizedPopularity = (r.item.popularityScore ?? 0) / 100;
       const lowerName = r.item.name.toLowerCase();
-      const exactWordMatch = lowerName.startsWith(lowerQuery);
-      const bonus = exactWordMatch ? 0.2 : 0;
+      const exactWordMatch = lowerName.startsWith(lowerQuery) || lowerName.startsWith(normalizedQuery);
+      const bonus = exactWordMatch ? 0.3 : 0;
       const finalScore = textMatchScore * 0.5 + normalizedPopularity * 0.3 + bonus;
       return { item: r.item, finalScore };
     });
 
     return scored
       .sort((a, b) => b.finalScore - a.finalScore)
-      .slice(0, 6)
+      .slice(0, 8)
       .map((s) => s.item);
   }, [fuse, inputValue]);
 
@@ -154,7 +166,7 @@ export function NationPicker({
               }}
               onFocus={() => setIsDropdownOpen(true)}
               onKeyDown={handleKeyDown}
-              placeholder="Örn: Brezilya, Türkiye, İspanya, Fransa..."
+              placeholder="Örn: Brezilya, Çin, Arnavutluk, Cezayir, İspanya, Nijerya..."
               disabled={disabled}
               className="w-full py-4 pr-10 bg-transparent text-white placeholder:text-zinc-500 focus:outline-none text-sm sm:text-base font-medium"
             />
