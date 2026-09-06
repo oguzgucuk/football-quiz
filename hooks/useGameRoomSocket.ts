@@ -209,6 +209,12 @@ export function useGameRoomSocket({
               }
               break;
 
+            case "FOUL_APPLIED":
+              if (data.state) {
+                setRoomState(data.state);
+              }
+              break;
+
             case "TIMER_START":
               setServerSecondsLeft(data.durationSeconds || data.duration || 5);
               break;

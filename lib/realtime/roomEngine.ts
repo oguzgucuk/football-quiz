@@ -304,48 +304,26 @@ export function checkSelectionTimeoutsAndApplyFouls(
 }
 
 /**
- * Takım seçimi süresi bittiğinde veya her iki oyuncu da seçtiğinde
- * eksik takımları kullanılmamış varsayılanlardan tamamlar, kullanılanları kilitler
- * ve cevaplama aşamasını başlatır.
+ * Her iki oyuncu da seçimini tamamladığında cevaplama aşamasını başlatır.
+ * Otomatik takım seçimi KALDIRILMIŞTIR: Sadece her iki taraf da seçimini yaptığında cevaplama başlar.
  */
 export function prepareAnsweringPhase(
-  state: RoomState,
-  availableTeams: Team[] = DEFAULT_POPULAR_TEAMS
+  state: RoomState
 ): { state: RoomState; duration: number } {
   const next = { ...state };
   next.usedTeamIds = [...(next.usedTeamIds || [])];
   next.usedNationIds = [...(next.usedNationIds || [])];
 
   if (next.gameMode === "country_vs_team") {
-    if (!next.nation) {
-      const unusedNations = POPULAR_NATIONS.filter((n) => !next.usedNationIds.includes(n.id));
-      const pool = unusedNations.length > 0 ? unusedNations : POPULAR_NATIONS;
-      const randomNation = pool[Math.floor(Math.random() * Math.min(8, pool.length))];
-      next.nation = randomNation;
-      if (next.player1 && next.player1.userId === next.currentNationPickerUserId) {
-        next.player1.selectedNationId = randomNation.id;
-      } else if (next.player2 && next.player2.userId === next.currentNationPickerUserId) {
-        next.player2.selectedNationId = randomNation.id;
-      }
+    // Hem millet hem takım seçilmeden cevaplama aşamasına geçilemez
+    if (!next.nation || !next.team1) {
+      return { state: next, duration: next.roundDuration || DEFAULT_ROUND_DURATION };
     }
 
-    if (!next.team1) {
-      const unusedTeams = availableTeams.filter((t) => !next.usedTeamIds.includes(t.id));
-      const pool = unusedTeams.length > 0 ? unusedTeams : availableTeams;
-      const randomTeam = pool[Math.floor(Math.random() * pool.length)];
-      next.team1 = randomTeam;
-      if (next.player1 && next.player1.userId === next.currentTeamPickerUserId) {
-        next.player1.selectedTeamId = randomTeam.id;
-      } else if (next.player2 && next.player2.userId === next.currentTeamPickerUserId) {
-        next.player2.selectedTeamId = randomTeam.id;
-      }
-    }
-
-    // Cevaplama aşamasına girildiği için bu turda seçilenleri kilit listesine ekle
-    if (next.team1 && !next.usedTeamIds.includes(next.team1.id)) {
+    if (!next.usedTeamIds.includes(next.team1.id)) {
       next.usedTeamIds.push(next.team1.id);
     }
-    if (next.nation && !next.usedNationIds.includes(next.nation.id)) {
+    if (!next.usedNationIds.includes(next.nation.id)) {
       next.usedNationIds.push(next.nation.id);
     }
 
@@ -357,26 +335,15 @@ export function prepareAnsweringPhase(
     return { state: next, duration };
   }
 
-  // Takım vs Takım Modu
-  const unusedTeams = availableTeams.filter((t) => !next.usedTeamIds.includes(t.id));
-  const fallbackTeams = unusedTeams.length >= 2 ? unusedTeams : availableTeams;
-
-  if (!next.team1) {
-    next.team1 = fallbackTeams[0];
-    if (next.player1) next.player1.selectedTeamId = next.team1.id;
+  // Takım vs Takım Modu: Her iki takım da oyuncular tarafından seçilmiş olmalı
+  if (!next.team1 || !next.team2) {
+    return { state: next, duration: next.roundDuration || DEFAULT_ROUND_DURATION };
   }
 
-  if (!next.team2) {
-    const available = fallbackTeams.filter((t) => t.id !== next.team1?.id);
-    next.team2 = available[0] || availableTeams.find((t) => t.id !== next.team1?.id) || availableTeams[1];
-    if (next.player2) next.player2.selectedTeamId = next.team2.id;
-  }
-
-  // Cevaplama aşamasına girildiği için bu turda seçilen takımları kilit listesine ekle
-  if (next.team1 && !next.usedTeamIds.includes(next.team1.id)) {
+  if (!next.usedTeamIds.includes(next.team1.id)) {
     next.usedTeamIds.push(next.team1.id);
   }
-  if (next.team2 && !next.usedTeamIds.includes(next.team2.id)) {
+  if (!next.usedTeamIds.includes(next.team2.id)) {
     next.usedTeamIds.push(next.team2.id);
   }
 

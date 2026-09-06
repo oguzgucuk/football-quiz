@@ -151,6 +151,8 @@ export default class GameRoomServer implements Party.Server {
   }
 
   handlePickTimeout() {
+    if (this.state.roundStatus !== "picking_teams") return;
+
     this.clearServerTimer();
 
     // Süre dolduğunda seçim yapmayan tarafa faul yaz (3 faul = rakibe +1 puan)
@@ -171,12 +173,19 @@ export default class GameRoomServer implements Party.Server {
       return;
     }
 
-    this.transitionToAnsweringPhase();
+    // Otomatik takım seçimi KALDIRILDI!
+    // Seçim yapılmadığı için cevaplamaya geçilmez, seçim sayacı yeniden başlatılır.
+    this.broadcastState();
+
+    const pickDuration = this.state.roundDuration || DEFAULT_ROUND_DURATION;
+    this.startServerTimer(pickDuration, () => {
+      this.handlePickTimeout();
+    });
   }
 
   transitionToAnsweringPhase() {
     this.clearServerTimer();
-    const { state, duration } = prepareAnsweringPhase(this.state, DEFAULT_POPULAR_TEAMS);
+    const { state, duration } = prepareAnsweringPhase(this.state);
     this.state = state;
     this.broadcastState();
 
@@ -422,6 +431,13 @@ export default class GameRoomServer implements Party.Server {
             this.scheduleNextRound();
           } else {
             this.broadcastState();
+          }
+          break;
+        }
+
+        case "PICK_TIMEOUT": {
+          if (this.state.roundStatus === "picking_teams") {
+            this.handlePickTimeout();
           }
           break;
         }

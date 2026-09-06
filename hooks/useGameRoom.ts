@@ -142,34 +142,16 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
     [roomState.gameMode, roomState.nation, roomState.team1, roomState.team2, isSubmitting, userId, sendSocketMessage]
   );
 
-  // 5. Süre Dolduğunda (Local Fallback)
+  // 5. Süre Dolduğunda (Server-Authoritative: Otomatik seçim kaldırıldı)
   const handleTimeExpired = useCallback(() => {
     if (isConnectedToSocket) {
       if (roomState.roundStatus === "answering") {
         sendSocketMessage({ type: "ROUND_TIMEOUT" });
+      } else if (roomState.roundStatus === "picking_teams") {
+        sendSocketMessage({ type: "PICK_TIMEOUT" });
       }
-      return;
     }
-
-    // Lokal Bot Fallback:
-    if (roomState.roundStatus === "picking_teams") {
-      const popular = allTeams.filter((t) =>
-        POPULAR_CLUB_NAMES.some((n) => t.name.toLowerCase().includes(n.toLowerCase()))
-      );
-      const pool = popular.length > 0 ? popular : allTeams;
-      const t1 = mySelectedTeam || pool[Math.floor(Math.random() * pool.length)];
-      const remaining = pool.filter((t) => t.id !== t1.id);
-      const t2 = remaining[Math.floor(Math.random() * remaining.length)] || allTeams[0];
-
-      setRoomState((prev) => ({
-        ...prev,
-        team1: t1,
-        team2: t2,
-        roundStatus: "answering",
-        roundStartTime: Date.now(),
-      }));
-    }
-  }, [isConnectedToSocket, roomState.roundStatus, allTeams, mySelectedTeam, sendSocketMessage]);
+  }, [isConnectedToSocket, roomState.roundStatus, sendSocketMessage]);
 
   // 6. Pas Geçme İsteği Gönder (Mutual Skip)
   const handleVotePass = useCallback(() => {

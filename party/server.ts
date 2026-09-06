@@ -188,6 +188,8 @@ function finalizeRoomMatch(room: Room) {
 }
 
 function handlePickTimeout(room: Room) {
+  if (room.state.roundStatus !== "picking_teams") return;
+
   clearRoomTimer(room);
 
   // Süre dolduğunda seçim yapmayan tarafa faul yaz (3 faul = rakibe +1 puan)
@@ -208,12 +210,20 @@ function handlePickTimeout(room: Room) {
     return;
   }
 
-  transitionToAnsweringPhase(room);
+  // Otomatik takım seçimi KALDIRILDI!
+  // Seçim yapmayan taraf faul aldı; cevaplama aşamasına geçilmez.
+  // Seçimlerin tamamlanabilmesi için sayaç yeniden başlatılır.
+  broadcastRoomState(room);
+
+  const pickDuration = room.state.roundDuration || DEFAULT_ROUND_DURATION;
+  startServerTimer(room, pickDuration, () => {
+    handlePickTimeout(room);
+  });
 }
 
 function transitionToAnsweringPhase(room: Room) {
   clearRoomTimer(room);
-  const { state, duration } = prepareAnsweringPhase(room.state, DEFAULT_POPULAR_TEAMS);
+  const { state, duration } = prepareAnsweringPhase(room.state);
   room.state = state;
   broadcastRoomState(room);
 
@@ -575,6 +585,11 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
           } catch (err) {
             console.error("[Party/Server] SUBMIT_ANSWER verification error:", err);
           }
+          break;
+        }
+
+        case "PICK_TIMEOUT": {
+          handlePickTimeout(room);
           break;
         }
 

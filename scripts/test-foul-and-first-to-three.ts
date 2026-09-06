@@ -58,6 +58,11 @@ async function runTests() {
   assert(room.player2?.score === 0, "Henüz 3 faul olmadığı için ceza puanı verilmedi");
   assert(foulResult.foulsApplied.length === 1, "1 adet faul olayı üretildi");
 
+  // Otomatik takım seçilmediğini ve cevaplama aşamasına geçilmediğini doğrula
+  const noAutoAns = prepareAnsweringPhase(room);
+  assert(noAutoAns.state.roundStatus === "picking_teams", "Otomatik takım seçilmedi, answering aşamasına geçilmedi");
+  assert(noAutoAns.state.team1 === null, "P1 için sahte/otomatik takım atanmadı (seçim null kaldı)");
+
   // 2. Turda P1 yine seçmedi
   room.team1 = null;
   room.team2 = null;

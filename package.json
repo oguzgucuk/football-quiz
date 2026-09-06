@@ -4,9 +4,9 @@
   "private": true,
   "packageManager": "pnpm@11.22.0",
   "scripts": {
-    "dev": "concurrently -n \"next,party\" -c \"cyan,magenta\" \"next dev -H 0.0.0.0 -p 5000\" \"tsx party/server.ts\"",
+    "dev": "concurrently -n \"next,party\" -c \"cyan,magenta\" \"next dev -H 0.0.0.0 -p 5000\" \"tsx watch party/server.ts\"",
     "dev:next": "next dev -H 0.0.0.0 -p 5000",
-    "party": "tsx party/server.ts",
+    "party": "tsx watch party/server.ts",
     "build": "prisma generate && tsx scripts/guard-logo-urls.ts && tsx scripts/generate-static-player-index.ts && next build",
     "guard:logos": "tsx scripts/guard-logo-urls.ts",
     "generate:index": "tsx scripts/generate-static-player-index.ts",
