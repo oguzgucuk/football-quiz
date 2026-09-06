@@ -3,7 +3,8 @@
   "main": "party/game.ts",
   "parties": {
     "game": "party/game.ts",
-    "matchmaking": "party/matchmaking.ts"
+    "matchmaking": "party/matchmaking.ts",
+    "auction": "party/auction.ts"
   },
   "compatibilityDate": "2024-04-03"
 }

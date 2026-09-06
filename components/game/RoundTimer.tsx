@@ -43,7 +43,7 @@ export function RoundTimer({
     }
   }, [durationSeconds, serverSecondsLeft]);
 
-  // Yerel fallback sayacı (Sunucu saniyeleri gelmediğinde devreye girer)
+  // Yerel kesintisiz sayaç (Sunucu saniyeleri geldiğinde üstteki effect onu anında senkronize eder)
   useEffect(() => {
     if (isPaused) return;
 
@@ -52,15 +52,12 @@ export function RoundTimer({
       return;
     }
 
-    // Sunucudan aktif tick geliyorsa yerel timeout tetikleme
-    if (serverSecondsLeft !== undefined && serverSecondsLeft !== null) return;
-
     const timer = setTimeout(() => {
-      setTimeLeft((prev) => prev - 1);
+      setTimeLeft((prev) => Math.max(0, prev - 1));
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [isPaused, timeLeft, serverSecondsLeft]);
+  }, [isPaused, timeLeft]);
 
   const isLowTime = timeLeft <= 3 && timeLeft > 0;
   const isPicking = variant === "picking";

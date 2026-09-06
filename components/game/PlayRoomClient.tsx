@@ -210,7 +210,7 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
                       ? (isMyTurnToPickNation
                           ? "Bu tur milleti sen belirliyorsun! Rakip bir kulüp seçecek."
                           : "Bu tur kulübü sen belirliyorsun! Rakip bir millet seçecek.")
-                      : `Takımını belirle (veya otomatik atansın). Ardından ${roomState.roundDuration || 15} saniyelik ortak oyuncu tahmini başlayacak!`}
+                      : `Takımını seç! Süre biterse faul alırsın (3 faul = rakibe +1 puan). Ardından ${roomState.roundDuration || 15} saniyelik tahmin turu başlayacak!`}
                   </span>
                 </div>
                 {isCountryVsTeam ? (

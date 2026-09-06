@@ -30,6 +30,16 @@ export function JoinAuctionRoomModal({ isOpen, onClose }: JoinAuctionRoomModalPr
       const parts = cleaned.split("/auction/");
       cleaned = parts[parts.length - 1];
     }
+    // Query string veya hash varsa temizle
+    cleaned = cleaned.split("?")[0].split("#")[0].trim();
+
+    // Sadece 3-8 basamaklı sayı girilmişse oda_muzayede_ öneki ekle
+    if (/^\d{3,8}$/.test(cleaned)) {
+      cleaned = `oda_muzayede_${cleaned}`;
+    } else if (cleaned.startsWith("oda_") && !cleaned.startsWith("oda_muzayede_")) {
+      cleaned = cleaned.replace(/^oda_/, "oda_muzayede_");
+    }
+
     onClose();
     router.push(`/auction/${cleaned}`);
   };

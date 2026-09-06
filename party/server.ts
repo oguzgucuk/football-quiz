@@ -299,7 +299,7 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
     return;
   }
 
-  if (isAuctionRoomId(roomId)) {
+  if (isAuctionRoomId(roomId) || request.url?.includes("/parties/auction")) {
     handleAuctionSocketConnection(ws, roomId);
     return;
   }

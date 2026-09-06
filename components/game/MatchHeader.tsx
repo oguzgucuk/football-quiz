@@ -59,27 +59,31 @@ export function MatchHeader({
                 <Trophy className="w-3.5 h-3.5 text-amber-400" />
                 <span className="font-semibold text-zinc-200">{player1?.score ?? 0}</span> puan
               </div>
-              {/* Faul Göstergesi (3 Kart) */}
+              {/* Faul Göstergesi (3 Kart + Sayısal Sayaç) */}
               <div
-                className="flex items-center gap-1"
+                className="flex items-center gap-1.5"
                 title={`${player1?.fouls ?? 0}/3 Faul (Zamanında seçim yapılmazsa faul verilir; 3 faul = rakibe +1 puan)`}
               >
-                <span className="text-[9px] text-zinc-500 font-bold uppercase">Faul:</span>
-                {[1, 2, 3].map((f) => {
-                  const isFouled = (player1?.fouls ?? 0) >= f;
-                  return (
-                    <span
-                      key={f}
-                      className={`inline-block w-2.5 h-3.5 rounded-xs transition-all ${
-                        isFouled
-                          ? f === 3
-                            ? "bg-rose-500 shadow-xs shadow-rose-500/50"
-                            : "bg-amber-400 shadow-xs shadow-amber-400/50 animate-pulse"
-                          : "bg-white/10 border border-white/15"
-                      }`}
-                    />
-                  );
-                })}
+                <span className="text-[10px] text-zinc-400 font-bold uppercase">
+                  Faul: <strong className={player1?.fouls ? "text-amber-400 font-mono" : "text-zinc-500 font-mono"}>{player1?.fouls ?? 0}/3</strong>
+                </span>
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3].map((f) => {
+                    const isFouled = (player1?.fouls ?? 0) >= f;
+                    return (
+                      <span
+                        key={f}
+                        className={`inline-block w-2.5 h-3.5 rounded-xs transition-all ${
+                          isFouled
+                            ? f === 3
+                              ? "bg-rose-500 shadow-xs shadow-rose-500/50"
+                              : "bg-amber-400 shadow-xs shadow-amber-400/50 animate-pulse"
+                            : "bg-white/10 border border-white/15"
+                        }`}
+                      />
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
@@ -137,27 +141,31 @@ export function MatchHeader({
               </span>
             </div>
             <div className="flex items-center justify-end gap-3">
-              {/* Faul Göstergesi (3 Kart) */}
+              {/* Faul Göstergesi (3 Kart + Sayısal Sayaç) */}
               <div
-                className="flex items-center gap-1"
+                className="flex items-center gap-1.5"
                 title={`${player2?.fouls ?? 0}/3 Faul (Zamanında seçim yapılmazsa faul verilir; 3 faul = rakibe +1 puan)`}
               >
-                {[3, 2, 1].map((f) => {
-                  const isFouled = (player2?.fouls ?? 0) >= f;
-                  return (
-                    <span
-                      key={f}
-                      className={`inline-block w-2.5 h-3.5 rounded-xs transition-all ${
-                        isFouled
-                          ? f === 3
-                            ? "bg-rose-500 shadow-xs shadow-rose-500/50"
-                            : "bg-amber-400 shadow-xs shadow-amber-400/50 animate-pulse"
-                          : "bg-white/10 border border-white/15"
-                      }`}
-                    />
-                  );
-                })}
-                <span className="text-[9px] text-zinc-500 font-bold uppercase">:Faul</span>
+                <div className="flex items-center gap-1">
+                  {[3, 2, 1].map((f) => {
+                    const isFouled = (player2?.fouls ?? 0) >= f;
+                    return (
+                      <span
+                        key={f}
+                        className={`inline-block w-2.5 h-3.5 rounded-xs transition-all ${
+                          isFouled
+                            ? f === 3
+                              ? "bg-rose-500 shadow-xs shadow-rose-500/50"
+                              : "bg-amber-400 shadow-xs shadow-amber-400/50 animate-pulse"
+                            : "bg-white/10 border border-white/15"
+                        }`}
+                      />
+                    );
+                  })}
+                </div>
+                <span className="text-[10px] text-zinc-400 font-bold uppercase">
+                  Faul: <strong className={player2?.fouls ? "text-amber-400 font-mono" : "text-zinc-500 font-mono"}>{player2?.fouls ?? 0}/3</strong>
+                </span>
               </div>
               <div className="flex items-center gap-1 text-xs text-zinc-400">
                 <span className="font-semibold text-zinc-200">{player2?.score ?? 0}</span> puan

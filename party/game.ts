@@ -1,13 +1,14 @@
 /**
  * PartyKit Cloud Canlı Oyun Odası Sunucusu (GameRoom Server).
- * - 1v1 Oyun Yönetimi
+ * - 1v1 Oyun Yönetimi (Klasik Kulüp vs Kulüp ve Millet vs Kulüp Modları)
  * - Dinamik Süre Ayarı (5s, 10s, 15s, 20s)
- * - Server-Side Sayacı, Pas Mekanizması, Bot ve Tur Senkronizasyonu
+ * - Kesintisiz Server-Side Sayacı, Faul Sistemi ve Otomatik Takım Seçimi İptali
+ * - Canlı Origin Tespiti ile Hatasız API Cevap Doğrulaması
  */
 
 import type * as Party from "partykit/server";
 import { RoomState, createInitialRoomState } from "../lib/realtime/roomState";
-import { Team } from "../types/game";
+import { Team, Nation } from "../types/game";
 import {
   createSession,
   validateSession,
@@ -27,9 +28,15 @@ import {
   evaluatePassVote,
   prepareNextRound,
   registerTeamPick,
+  registerNationPick,
   checkSelectionTimeoutsAndApplyFouls,
 } from "../lib/realtime/roomEngine";
-import { createBotPlayer, pickBotTeam, isBotPlayer } from "../lib/realtime/botSimulator";
+import {
+  createBotPlayer,
+  pickBotTeam,
+  pickBotNation,
+  isBotPlayer,
+} from "../lib/realtime/botSimulator";
 import { handleMatchPlayerDisconnect } from "../lib/realtime/disconnectManager";
 import { CompletedRoundData } from "../lib/db/matches";
 
@@ -37,6 +44,7 @@ const ROUNDS_PER_MATCH = DEFAULT_MAX_ROUNDS;
 
 export default class GameRoomServer implements Party.Server {
   state: RoomState;
+  siteUrl?: string;
   timerInterval?: ReturnType<typeof setInterval>;
   timerSecondsLeft?: number;
   connectionMeta = new Map<string, { userId?: string; username?: string }>();
@@ -48,7 +56,8 @@ export default class GameRoomServer implements Party.Server {
     this.state.roundDuration = resolveRoundDuration(this.room.id, this.state.roundDuration);
   }
 
-  onConnect(conn: Party.Connection) {
+  onConnect(conn: Party.Connection, ctx: Party.ConnectionContext) {
+    this.extractSiteUrl(ctx);
     conn.send(
       JSON.stringify({
         type: "ROOM_STATE_SYNC",
@@ -82,7 +91,6 @@ export default class GameRoomServer implements Party.Server {
           });
           this.broadcastState();
 
-          // Hükmen maç sonucunu DB'ye işle
           if (this.state.player1 && this.state.player2) {
             const isP1Winner = forfeitInfo.winnerUserId === this.state.player1.userId;
             this.state.player1.score = isP1Winner ? 3 : 0;
@@ -104,6 +112,25 @@ export default class GameRoomServer implements Party.Server {
       this.clearServerTimer();
       clearRoomSessions(this.room.id);
     }
+  }
+
+  private extractSiteUrl(ctx: Party.ConnectionContext) {
+    const origin = ctx.request.headers.get("origin") || ctx.request.headers.get("referer");
+    let queryOrigin = "";
+    try {
+      const url = new URL(ctx.request.url);
+      queryOrigin = url.searchParams.get("origin") || "";
+    } catch {
+      // ignore
+    }
+    const detected = origin || queryOrigin;
+    if (detected && detected.startsWith("http")) {
+      this.siteUrl = detected.replace(/\/$/, "");
+    }
+  }
+
+  private getApiUrl(): string {
+    return this.siteUrl || (this.room.env?.NEXT_PUBLIC_SITE_URL as string) || process.env.NEXT_PUBLIC_SITE_URL || "http://127.0.0.1:5000";
   }
 
   broadcast(message: object) {
@@ -152,10 +179,8 @@ export default class GameRoomServer implements Party.Server {
 
   handlePickTimeout() {
     if (this.state.roundStatus !== "picking_teams") return;
-
     this.clearServerTimer();
 
-    // Süre dolduğunda seçim yapmayan tarafa faul yaz (3 faul = rakibe +1 puan)
     const { state: foulState, foulsApplied, isMatchFinished } = checkSelectionTimeoutsAndApplyFouls(this.state);
     this.state = foulState;
 
@@ -173,10 +198,7 @@ export default class GameRoomServer implements Party.Server {
       return;
     }
 
-    // Otomatik takım seçimi KALDIRILDI!
-    // Seçim yapılmadığı için cevaplamaya geçilmez, seçim sayacı yeniden başlatılır.
     this.broadcastState();
-
     const pickDuration = this.state.roundDuration || DEFAULT_ROUND_DURATION;
     this.startServerTimer(pickDuration, () => {
       this.handlePickTimeout();
@@ -219,7 +241,7 @@ export default class GameRoomServer implements Party.Server {
     const p2Id = this.state.player2?.userId;
     if (!p1Id || !p2Id) return;
 
-    const apiUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://127.0.0.1:5000";
+    const apiUrl = this.getApiUrl();
     const secret = process.env.INTERNAL_API_SECRET || "";
 
     const isCasual = this.room.id.includes("_casual_");
@@ -248,7 +270,6 @@ export default class GameRoomServer implements Party.Server {
 
       const data = await res.json();
       if (data.success && data.result) {
-        console.log(`🏆 [Party/Game] Maç ${this.room.id} DB'ye işlendi:`, data.result);
         this.broadcast({
           type: "MATCH_PERSISTED",
           result: data.result,
@@ -268,246 +289,308 @@ export default class GameRoomServer implements Party.Server {
       if (isMatchFinished) {
         this.broadcastState();
         this.persistMatchResult();
-      } else {
-        if (isBotPlayer(this.state.player2?.userId)) {
-          const botTeam = pickBotTeam(DEFAULT_POPULAR_TEAMS, this.state.usedTeamIds);
-          if (this.state.player2) {
-            this.state.player2.selectedTeamId = botTeam.id;
-          }
-          this.state.team2 = botTeam;
-        }
-
-        this.broadcastState();
-        const pickDuration = this.state.roundDuration || DEFAULT_ROUND_DURATION;
-        this.startServerTimer(pickDuration, () => {
-          this.handlePickTimeout();
-        });
+        return;
       }
+
+      if (isBotPlayer(this.state.player2?.userId)) {
+        const botUserId = this.state.player2!.userId;
+        if (this.state.gameMode === "country_vs_team") {
+          if (this.state.currentNationPickerUserId === botUserId) {
+            const botNation = pickBotNation(undefined, this.state.usedNationIds);
+            registerNationPick(this.state, botUserId, botNation);
+          } else if (this.state.currentTeamPickerUserId === botUserId) {
+            const botTeam = pickBotTeam(DEFAULT_POPULAR_TEAMS, this.state.usedTeamIds);
+            registerTeamPick(this.state, botUserId, botTeam);
+          }
+        } else {
+          const botTeam = pickBotTeam(DEFAULT_POPULAR_TEAMS, this.state.usedTeamIds);
+          registerTeamPick(this.state, botUserId, botTeam);
+        }
+      }
+
+      this.broadcastState();
+      const pickDuration = this.state.roundDuration || DEFAULT_ROUND_DURATION;
+      this.startServerTimer(pickDuration, () => {
+        this.handlePickTimeout();
+      });
     }, 3000);
   }
 
   async onMessage(message: string, sender: Party.Connection) {
     try {
       const data = JSON.parse(message);
+      if (data.siteUrl && typeof data.siteUrl === "string" && data.siteUrl.startsWith("http")) {
+        this.siteUrl = data.siteUrl.replace(/\/$/, "");
+      }
 
       switch (data.type) {
-        case "PLAYER_JOIN": {
-          const { userId, username, roundDuration } = data;
-          this.connectionMeta.set(sender.id, { userId, username });
-
-          if (roundDuration && [5, 10, 15, 20].includes(Number(roundDuration))) {
-            this.state.roundDuration = Number(roundDuration);
-          }
-
-          const slot = (!this.state.player1 || this.state.player1.userId === userId) ? "player1" : "player2";
-          const sessionToken = createSession(this.room.id, userId, slot);
-
-          sender.send(JSON.stringify({ type: "SESSION_GRANTED", sessionToken, userId }));
-
-          if (!this.state.player1 || this.state.player1.userId === userId) {
-            this.state.player1 = {
-              userId,
-              username,
-              score: this.state.player1?.score || 0,
-              fouls: this.state.player1?.fouls || 0,
-              isReady: true,
-              isDisconnected: false,
-              disconnectedAt: null,
-            };
-          } else if (!this.state.player2 || this.state.player2.userId === userId) {
-            this.state.player2 = {
-              userId,
-              username,
-              score: this.state.player2?.score || 0,
-              fouls: this.state.player2?.fouls || 0,
-              isReady: true,
-              isDisconnected: false,
-              disconnectedAt: null,
-            };
-            this.state.status = "in_round";
-            this.state.roundStatus = "picking_teams";
-            this.state.passVotes = [];
-            const pickDuration = this.state.roundDuration || DEFAULT_ROUND_DURATION;
-            this.startServerTimer(pickDuration, () => {
-              this.handlePickTimeout();
-            });
-          }
-          this.broadcastState();
+        case "PLAYER_JOIN":
+          this.handlePlayerJoin(sender, data);
           break;
-        }
-
-        case "REJOIN": {
-          const { sessionToken, userId, username } = data;
-          const validSession = validateSession(this.room.id, userId, sessionToken);
-          if (!validSession) {
-            sender.send(JSON.stringify({ type: "REJOIN_FAILED", reason: "Geçersiz oturum belirteci." }));
-            break;
-          }
-
-          clearGracePeriod(this.room.id);
-          this.state.disconnectGrace = null;
-          this.connectionMeta.set(sender.id, { userId, username });
-
-          if (this.state.player1 && this.state.player1.userId === userId) {
-            this.state.player1.isDisconnected = false;
-            this.state.player1.disconnectedAt = null;
-          } else if (this.state.player2 && this.state.player2.userId === userId) {
-            this.state.player2.isDisconnected = false;
-            this.state.player2.disconnectedAt = null;
-          }
-
-          sender.send(JSON.stringify({ type: "REJOIN_SUCCESS", sessionToken, userId, state: this.state }));
-          this.broadcast({ type: "PLAYER_RECONNECTED", userId });
-          this.broadcastState();
+        case "REJOIN":
+          this.handleRejoin(sender, data);
           break;
-        }
-
         case "ADD_BOT":
-        case "ADD_BOT_PLAYER": {
-          if (this.state.status !== "waiting_for_players" || this.state.player2) break;
-
-          const { player: botPlayer, team: botTeam } = createBotPlayer(DEFAULT_POPULAR_TEAMS);
-          this.state.player2 = botPlayer;
-          this.state.team2 = botTeam;
-          this.state.status = "in_round";
-          this.state.roundStatus = "picking_teams";
-          this.state.passVotes = [];
-          this.broadcastState();
-
-          const pickDuration = this.state.roundDuration || DEFAULT_ROUND_DURATION;
-          this.startServerTimer(pickDuration, () => {
-            this.handlePickTimeout();
-          });
+        case "ADD_BOT_PLAYER":
+          this.handleAddBot();
           break;
-        }
-
-        case "TEAM_PICKED": {
-          const { userId, team } = data as { userId: string; team: Team };
-          const clientMeta = this.connectionMeta.get(sender.id);
-          const effectiveUserId = userId || clientMeta?.userId;
-          if (!effectiveUserId || !team) break;
-
-          const pickResult = registerTeamPick(this.state, effectiveUserId, team);
-          this.state = pickResult.state;
-
-          if (pickResult.bothPicked && this.state.roundStatus === "picking_teams") {
-            this.transitionToAnsweringPhase();
-            return;
-          }
-
-          this.broadcastState();
+        case "NATION_PICKED":
+          this.handleNationPicked(sender, data);
           break;
-        }
-
-        case "PASS_VOTE": {
-          const { userId } = data;
-          const clientMeta = this.connectionMeta.get(sender.id);
-          const effectiveUserId = userId || clientMeta?.userId;
-          if (this.state.roundStatus !== "answering" || !effectiveUserId) return;
-
-          const isVsBot = isBotPlayer(this.state.player2?.userId);
-          const passResult = evaluatePassVote(this.state, effectiveUserId);
-          this.state = passResult.state;
-
-          const allVoted = passResult.bothPassed || (isVsBot && this.state.passVotes.includes(effectiveUserId));
-
-          if (allVoted) {
-            this.clearServerTimer();
-            this.state.roundStatus = "round_finished";
-            this.state.lastRoundWasDraw = true;
-            if (passResult.completedRound) {
-              this.completedRounds.push(passResult.completedRound);
-            }
-
-            this.broadcast({
-              type: "ROUND_RESULT",
-              winnerUserId: null,
-              correctAnswer: "Tur Karşılıklı Pas Geçildi ⏩",
-              isDraw: true,
-              isReplay: true,
-              state: this.state,
-            });
-
-            this.scheduleNextRound();
-          } else {
-            this.broadcastState();
-          }
+        case "TEAM_PICKED":
+          this.handleTeamPicked(sender, data);
           break;
-        }
-
-        case "PICK_TIMEOUT": {
-          if (this.state.roundStatus === "picking_teams") {
-            this.handlePickTimeout();
-          }
+        case "PASS_VOTE":
+          this.handlePassVote(sender, data);
           break;
-        }
-
-        case "SUBMIT_ANSWER": {
-          const { name, userId } = data;
-          if (this.state.roundStatus !== "answering" || !this.state.team1 || !this.state.team2) return;
-
-          const clientMeta = this.connectionMeta.get(sender.id);
-          const senderId = clientMeta?.userId || userId;
-          if (!senderId) return;
-
-          const apiUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://127.0.0.1:5000";
-          try {
-            const res = await fetch(`${apiUrl}/api/game/verify-answer`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                team1Id: this.state.team1.id,
-                team2Id: this.state.team2.id,
-                submittedName: name,
-              }),
-            });
-            const verifyData = await res.json();
-
-            if (this.state.roundStatus !== "answering") return;
-
-            if (verifyData.isCorrect && verifyData.player) {
-              this.clearServerTimer();
-
-              const outcome = evaluateAnswerSubmission(
-                this.state,
-                senderId,
-                { isCorrect: true, playerName: verifyData.player.fullName },
-                this.state.roundStartTime ? Date.now() - this.state.roundStartTime : undefined
-              );
-
-              if (!outcome.accepted) return;
-
-              this.state = outcome.state;
-              this.state.lastRoundWasDraw = false;
-              if (outcome.completedRound) {
-                this.completedRounds.push(outcome.completedRound);
-              }
-
-              this.broadcast({
-                type: "ROUND_RESULT",
-                winnerUserId: senderId,
-                correctAnswer: verifyData.player.fullName,
-                isDraw: false,
-                state: this.state,
-              });
-
-              this.scheduleNextRound();
-            } else {
-              sender.send(JSON.stringify({ type: "ANSWER_FEEDBACK", isCorrect: false }));
-            }
-          } catch (err) {
-            console.error("[Party/Game] SUBMIT_ANSWER fetch error:", err);
-            try {
-              sender.send(JSON.stringify({ type: "ANSWER_FEEDBACK", isCorrect: false }));
-            } catch {
-              // ignore
-            }
-          }
+        case "PICK_TIMEOUT":
+          if (this.state.roundStatus === "picking_teams") this.handlePickTimeout();
           break;
-        }
+        case "SUBMIT_ANSWER":
+          await this.handleSubmitAnswer(sender, data);
+          break;
       }
     } catch (err) {
       console.error("[GameRoomServer Error]:", err);
+    }
+  }
+
+  private handlePlayerJoin(sender: Party.Connection, data: { userId: string; username: string; roundDuration?: number }) {
+    const { userId, username, roundDuration } = data;
+    this.connectionMeta.set(sender.id, { userId, username });
+
+    if (roundDuration && [5, 10, 15, 20].includes(Number(roundDuration))) {
+      this.state.roundDuration = Number(roundDuration);
+    }
+
+    const slot = (!this.state.player1 || this.state.player1.userId === userId) ? "player1" : "player2";
+    const sessionToken = createSession(this.room.id, userId, slot);
+    sender.send(JSON.stringify({ type: "SESSION_GRANTED", sessionToken, userId }));
+
+    if (!this.state.player1 || this.state.player1.userId === userId) {
+      this.state.player1 = {
+        userId,
+        username,
+        score: this.state.player1?.score || 0,
+        fouls: this.state.player1?.fouls || 0,
+        isReady: true,
+        isDisconnected: false,
+        disconnectedAt: null,
+      };
+    } else if (!this.state.player2 || this.state.player2.userId === userId) {
+      this.state.player2 = {
+        userId,
+        username,
+        score: this.state.player2?.score || 0,
+        fouls: this.state.player2?.fouls || 0,
+        isReady: true,
+        isDisconnected: false,
+        disconnectedAt: null,
+      };
+      this.state.status = "in_round";
+      this.state.roundStatus = "picking_teams";
+      this.state.currentRound = 1;
+      this.state.passVotes = [];
+
+      if (this.state.gameMode === "country_vs_team" && !this.state.initialNationPickerUserId) {
+        const startWithP1 = Math.random() < 0.5;
+        this.state.initialNationPickerUserId = startWithP1 ? this.state.player1.userId : this.state.player2.userId;
+        this.state.currentNationPickerUserId = this.state.initialNationPickerUserId;
+        this.state.currentTeamPickerUserId = startWithP1 ? this.state.player2.userId : this.state.player1.userId;
+      }
+
+      const pickDuration = this.state.roundDuration || DEFAULT_ROUND_DURATION;
+      this.startServerTimer(pickDuration, () => {
+        this.handlePickTimeout();
+      });
+    }
+    this.broadcastState();
+  }
+
+  private handleRejoin(sender: Party.Connection, data: { sessionToken: string; userId: string; username?: string }) {
+    const { sessionToken, userId, username } = data;
+    const validSession = validateSession(this.room.id, userId, sessionToken);
+    if (!validSession) {
+      sender.send(JSON.stringify({ type: "REJOIN_FAILED", reason: "Geçersiz oturum belirteci." }));
+      return;
+    }
+
+    clearGracePeriod(this.room.id);
+    this.state.disconnectGrace = null;
+    this.connectionMeta.set(sender.id, { userId, username });
+
+    if (this.state.player1 && this.state.player1.userId === userId) {
+      this.state.player1.isDisconnected = false;
+      this.state.player1.disconnectedAt = null;
+    } else if (this.state.player2 && this.state.player2.userId === userId) {
+      this.state.player2.isDisconnected = false;
+      this.state.player2.disconnectedAt = null;
+    }
+
+    sender.send(JSON.stringify({ type: "REJOIN_SUCCESS", sessionToken, userId, state: this.state }));
+    this.broadcast({ type: "PLAYER_RECONNECTED", userId });
+    this.broadcastState();
+  }
+
+  private handleAddBot() {
+    if (this.state.status !== "waiting_for_players" || this.state.player2) return;
+
+    const { player: botPlayer, team: botTeam } = createBotPlayer(DEFAULT_POPULAR_TEAMS);
+    this.state.player2 = botPlayer;
+    this.state.status = "in_round";
+    this.state.roundStatus = "picking_teams";
+    this.state.currentRound = 1;
+    this.state.passVotes = [];
+
+    if (this.state.gameMode === "country_vs_team") {
+      const startWithP1 = Math.random() < 0.5;
+      this.state.initialNationPickerUserId = startWithP1 ? this.state.player1!.userId : botPlayer.userId;
+      this.state.currentNationPickerUserId = this.state.initialNationPickerUserId;
+      this.state.currentTeamPickerUserId = startWithP1 ? botPlayer.userId : this.state.player1!.userId;
+
+      if (this.state.currentNationPickerUserId === botPlayer.userId) {
+        const botNation = pickBotNation();
+        registerNationPick(this.state, botPlayer.userId, botNation);
+      } else {
+        registerTeamPick(this.state, botPlayer.userId, botTeam);
+      }
+    } else {
+      this.state.team2 = botTeam;
+    }
+
+    this.broadcastState();
+    const pickDuration = this.state.roundDuration || DEFAULT_ROUND_DURATION;
+    this.startServerTimer(pickDuration, () => {
+      this.handlePickTimeout();
+    });
+  }
+
+  private handleNationPicked(sender: Party.Connection, data: { userId: string; nation: Nation }) {
+    const clientMeta = this.connectionMeta.get(sender.id);
+    const effectiveUserId = data.userId || clientMeta?.userId;
+    if (!effectiveUserId || !data.nation) return;
+
+    const pickResult = registerNationPick(this.state, effectiveUserId, data.nation);
+    this.state = pickResult.state;
+
+    if (pickResult.bothPicked && this.state.roundStatus === "picking_teams") {
+      this.transitionToAnsweringPhase();
+      return;
+    }
+    this.broadcastState();
+  }
+
+  private handleTeamPicked(sender: Party.Connection, data: { userId: string; team: Team }) {
+    const clientMeta = this.connectionMeta.get(sender.id);
+    const effectiveUserId = data.userId || clientMeta?.userId;
+    if (!effectiveUserId || !data.team) return;
+
+    const pickResult = registerTeamPick(this.state, effectiveUserId, data.team);
+    this.state = pickResult.state;
+
+    if (pickResult.bothPicked && this.state.roundStatus === "picking_teams") {
+      this.transitionToAnsweringPhase();
+      return;
+    }
+    this.broadcastState();
+  }
+
+  private handlePassVote(sender: Party.Connection, data: { userId: string }) {
+    const clientMeta = this.connectionMeta.get(sender.id);
+    const effectiveUserId = data.userId || clientMeta?.userId;
+    if (this.state.roundStatus !== "answering" || !effectiveUserId) return;
+
+    const isVsBot = isBotPlayer(this.state.player2?.userId);
+    const passResult = evaluatePassVote(this.state, effectiveUserId);
+    this.state = passResult.state;
+
+    const allVoted = passResult.bothPassed || (isVsBot && this.state.passVotes.includes(effectiveUserId));
+
+    if (allVoted) {
+      this.clearServerTimer();
+      this.state.roundStatus = "round_finished";
+      this.state.lastRoundWasDraw = true;
+      if (passResult.completedRound) {
+        this.completedRounds.push(passResult.completedRound);
+      }
+
+      this.broadcast({
+        type: "ROUND_RESULT",
+        winnerUserId: null,
+        correctAnswer: "Tur Karşılıklı Pas Geçildi ⏩",
+        isDraw: true,
+        isReplay: true,
+        state: this.state,
+      });
+
+      this.scheduleNextRound();
+    } else {
+      this.broadcastState();
+    }
+  }
+
+  private async handleSubmitAnswer(sender: Party.Connection, data: { name: string; userId: string }) {
+    const { name, userId } = data;
+    if (this.state.roundStatus !== "answering" || !this.state.team1) return;
+    if (this.state.gameMode === "country_vs_team") {
+      if (!this.state.nation) return;
+    } else {
+      if (!this.state.team2) return;
+    }
+
+    const clientMeta = this.connectionMeta.get(sender.id);
+    const senderId = clientMeta?.userId || userId;
+    if (!senderId) return;
+
+    const apiUrl = this.getApiUrl();
+    try {
+      const res = await fetch(`${apiUrl}/api/game/verify-answer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          team1Id: this.state.team1.id,
+          team2Id: this.state.team2?.id,
+          nation: this.state.nation || undefined,
+          submittedName: name,
+        }),
+      });
+      const verifyData = await res.json();
+      if (this.state.roundStatus !== "answering") return;
+
+      const playerName = verifyData.player?.fullName || verifyData.playerName;
+      if (verifyData.isCorrect && playerName) {
+        this.clearServerTimer();
+
+        const outcome = evaluateAnswerSubmission(
+          this.state,
+          senderId,
+          { isCorrect: true, playerName },
+          this.state.roundStartTime ? Date.now() - this.state.roundStartTime : undefined
+        );
+
+        if (!outcome.accepted) return;
+
+        this.state = outcome.state;
+        this.state.lastRoundWasDraw = false;
+        if (outcome.completedRound) {
+          this.completedRounds.push(outcome.completedRound);
+        }
+
+        this.broadcast({
+          type: "ROUND_RESULT",
+          winnerUserId: senderId,
+          correctAnswer: playerName,
+          isDraw: false,
+          state: this.state,
+        });
+
+        this.scheduleNextRound();
+      } else {
+        sender.send(JSON.stringify({ type: "ANSWER_FEEDBACK", isCorrect: false }));
+      }
+    } catch (err) {
+      console.error("[Party/Game] SUBMIT_ANSWER fetch error:", err);
+      sender.send(JSON.stringify({ type: "ANSWER_FEEDBACK", isCorrect: false }));
     }
   }
 }

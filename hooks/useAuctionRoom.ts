@@ -35,7 +35,9 @@ export function useAuctionRoom({ roomId, userId, username }: UseAuctionRoomProps
   useEffect(() => {
     if (!roomId || !userId) return;
 
-    const wsUrl = getWebSocketUrl(`/${roomId}`);
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const originParam = origin ? `?origin=${encodeURIComponent(origin)}` : "";
+    const wsUrl = getWebSocketUrl(`/parties/auction/${roomId}${originParam}`);
     const socket = new WebSocket(wsUrl);
     wsRef.current = socket;
 
@@ -45,6 +47,7 @@ export function useAuctionRoom({ roomId, userId, username }: UseAuctionRoomProps
         type: "AUCTION_JOIN",
         userId,
         username,
+        siteUrl: origin,
       });
     };
 

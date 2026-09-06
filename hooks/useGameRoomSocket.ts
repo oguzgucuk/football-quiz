@@ -71,7 +71,9 @@ export function useGameRoomSocket({
   useEffect(() => {
     if (typeof window === "undefined" || !userId || !username) return;
 
-    const wsUrl = getWebSocketUrl(`/parties/game/${roomId}`);
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const originParam = origin ? `?origin=${encodeURIComponent(origin)}` : "";
+    const wsUrl = getWebSocketUrl(`/parties/game/${roomId}${originParam}`);
     let ws: WebSocket | null = null;
 
     try {
@@ -91,6 +93,7 @@ export function useGameRoomSocket({
               sessionToken: existingToken,
               userId,
               username,
+              siteUrl: origin,
             })
           );
         } else {
@@ -106,6 +109,7 @@ export function useGameRoomSocket({
               userId,
               username,
               roundDuration,
+              siteUrl: origin,
             })
           );
         }

@@ -1,18 +1,25 @@
 /**
- * Kullanıcının gönderdiği futbolcu ismini iki takımın ortak oyuncu havuzunda doğrular.
- * Aksan temizleme, tam isim, tek kelimelik soyadı/isim ve Levenshtein typo toleransı içerir.
+ * Kullanıcının gönderdiği futbolcu ismini doğrular.
+ * Hem iki kulübün ortak oyuncusunu (team_vs_team) hem de
+ * millet + kulüp eşleşmesini (country_vs_team) destekler.
  */
 
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db/client";
-import { normalizeText } from "@/lib/validation/normalizeText";
-import { matchPlayerAnswer } from "@/lib/validation/matchPlayerAnswer";
-import { logMissingAnswer } from "@/lib/db/missingAnswers";
+import { verifyPlayerAnswerInServer } from "@/lib/realtime/verifyPlayerAnswerInServer";
+import { verifyNationAnswerInServer } from "@/lib/realtime/verifyNationAnswer";
+import { Nation } from "@/types/game";
 import { z } from "zod";
 
 const verifyAnswerInputSchema = z.object({
   team1Id: z.string().min(1, "Takım 1 ID gereklidir"),
-  team2Id: z.string().min(1, "Takım 2 ID gereklidir"),
+  team2Id: z.string().optional(),
+  nation: z
+    .object({
+      id: z.string(),
+      name: z.string(),
+      flagUrl: z.string().optional(),
+    })
+    .optional(),
   submittedName: z.string().trim().min(2, "Oyuncu adı en az 2 karakter olmalıdır"),
 });
 
@@ -28,46 +35,36 @@ export async function POST(req: Request) {
       );
     }
 
-    const { team1Id, team2Id, submittedName } = parsed.data;
-    const normalizedInput = normalizeText(submittedName);
+    const { team1Id, team2Id, nation, submittedName } = parsed.data;
 
-    if (!normalizedInput || normalizedInput.length < 2) {
-      return NextResponse.json({ isCorrect: false, player: null });
+    let result: { isCorrect: boolean; playerName?: string };
+
+    if (nation) {
+      result = await verifyNationAnswerInServer(submittedName, nation as Nation, team1Id);
+    } else if (team2Id) {
+      result = await verifyPlayerAnswerInServer(submittedName, team1Id, team2Id);
+    } else {
+      return NextResponse.json(
+        { error: "team2Id veya nation parametresi zorunludur" },
+        { status: 400 }
+      );
     }
 
-    // Her iki takımda da oynamış tüm ortak oyuncuları getir
-    const commonPlayers = await prisma.player.findMany({
-      where: {
-        teamsHistory: { some: { teamId: team1Id } },
-        AND: [{ teamsHistory: { some: { teamId: team2Id } } }],
-      },
-      select: {
-        id: true,
-        fullName: true,
-        nationality: true,
-      },
-    });
-
-    // Akıllı puanlama ve tüm kelimeleri eşleştirme algoritması
-    const matchedPlayer = matchPlayerAnswer(submittedName, commonPlayers);
-
-    if (matchedPlayer) {
+    if (result.isCorrect && result.playerName) {
       return NextResponse.json({
         isCorrect: true,
+        playerName: result.playerName,
         player: {
-          id: matchedPlayer.id,
-          fullName: matchedPlayer.fullName,
-          nationality: matchedPlayer.nationality,
+          id: result.playerName,
+          fullName: result.playerName,
         },
       });
     }
 
-    // P1-4: Doğru bulunamadıysa eksik log tablosuna tekilleştirerek kaydet
-    await logMissingAnswer({ rawAnswer: submittedName, team1Id, team2Id });
-
     return NextResponse.json({
       isCorrect: false,
       player: null,
+      playerName: null,
     });
   } catch (error) {
     console.error("[API /api/game/verify-answer] Hata:", error);

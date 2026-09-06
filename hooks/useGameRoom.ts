@@ -123,10 +123,12 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
       }, 2500);
 
       try {
+        const origin = typeof window !== "undefined" ? window.location.origin : undefined;
         const sent = sendSocketMessage({
           type: "SUBMIT_ANSWER",
           userId,
           name: submittedName,
+          siteUrl: origin,
         });
 
         if (!sent) {
