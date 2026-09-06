@@ -1,12 +1,12 @@
 /**
- * Next.js Middleware — Korunan rota erişim kontrolü.
- * Oturum cookie'si yoksa kullanıcıyı /login sayfasına yönlendirir.
+ * Next.js Proxy — Korunan rota erişim kontrolü (Next.js 16 proxy convention).
+ * Oturum cookie'si yoksa kullanıcıyı /login parametresiyle ana sayfaya yönlendirir.
  */
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// Middleware Edge Runtime'da çalışır; @/ alias kullanmak yerine sabiti inline tutuyoruz.
+// Proxy Edge/Node runtime'da çalışır; @/ alias kullanmak yerine sabiti inline tutuyoruz.
 const AUTH_COOKIE_NAME = "football_quiz_token";
 
 // Oturum gerektiren rota önekleri (canlı maç odaları doğrudan URL ile girilemez)
@@ -34,7 +34,7 @@ function isProtectedPath(pathname: string): boolean {
   return PROTECTED_PREFIXES.some((p) => pathname.startsWith(p));
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Korunan canlı maç rotası kontrolü
