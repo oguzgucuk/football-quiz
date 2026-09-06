@@ -19,10 +19,13 @@ model Player {
   externalRef     String?             @unique @map("external_ref")
   kaggleId        String?             @unique @map("kaggle_id")
   wikidataId      String?             @unique @map("wikidata_id")
+  overallPrime    Int?                @map("overall_prime")
+  positions       String[]            @default([])
   createdAt       DateTime            @default(now()) @map("created_at")
   teamsHistory    PlayerTeamHistory[]
 
   @@index([popularityScore])
+  @@index([overallPrime])
   @@map("players")
 }
 

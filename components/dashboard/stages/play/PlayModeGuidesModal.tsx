@@ -50,6 +50,18 @@ export const MODE_GUIDES: Record<string, GuideInfo> = {
     tip: "Tüm bütçeni tek bir forvete harcama; savunma ve kaleci mevkileri zayıf kalırsa puan kaybedersin!",
     mediaPlaceholder: "Canlı Müzayede Oynanış Rehberi (GIF / Video Yakında)",
   },
+  training: {
+    title: "Antrenman & Keşif Modu",
+    subtitle: "Veritabanını İncele ve Pratik Yap",
+    goal: "18.000'den fazla futbolcunun kariyer zirve reytinglerini, oynadığı takımları ve mevkilerini keşfederek hafızanı güçlendirmek.",
+    steps: [
+      "Oyuncular sekmesini seçerek devasa futbolcu veritabanına giriş yap.",
+      "İsim, reyting veya yaş sıralamasıyla istediğin futbolcunun geçmiş kulüplerini incele.",
+      "Maçlara çıkmadan önce iki takımda oynamış ortak yıldızları keşfet!",
+    ],
+    tip: "Arama kutusunu kullanarak hem güncel yıldızları hem de Henry, Ronaldinho, Buffon gibi efsaneleri filtreleyebilirsin.",
+    mediaPlaceholder: "Futbolcu Veritabanı Rehberi",
+  },
 };
 
 interface PlayModeGuidesModalProps {

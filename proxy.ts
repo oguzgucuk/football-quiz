@@ -15,6 +15,7 @@ const PROTECTED_PREFIXES = ["/play"];
 // Oturum gerektirmeyen public rotalar
 const PUBLIC_PATHS = [
   "/",
+  "/players",
   "/store",
   "/settings",
   "/sandbox",
@@ -30,8 +31,10 @@ function isPublicPath(pathname: string): boolean {
 }
 
 function isProtectedPath(pathname: string): boolean {
-  // Sadece /play (canlı maç odası) korumalıdır; ana dashboard ve vitrin herkese açıktır
-  return PROTECTED_PREFIXES.some((p) => pathname.startsWith(p));
+  // Sadece /play veya /play/... korumalıdır; /players gibi rotalar etkilenmez
+  return PROTECTED_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(p + "/")
+  );
 }
 
 export function proxy(request: NextRequest) {

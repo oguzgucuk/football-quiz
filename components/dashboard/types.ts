@@ -1,1 +1,1 @@
-export type DashboardTab = "home" | "play" | "profile" | "store" | "settings";
+export type DashboardTab = "home" | "play" | "profile" | "store" | "settings" | "players";

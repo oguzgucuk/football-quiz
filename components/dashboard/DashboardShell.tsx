@@ -11,6 +11,7 @@ import { PlayStage } from "./stages/PlayStage";
 import { ProfileStage } from "./stages/ProfileStage";
 import { StoreStage } from "./stages/StoreStage";
 import { SettingsStage } from "./stages/SettingsStage";
+import { PlayersStage } from "./stages/PlayersStage";
 import { useAuth } from "@/hooks/useAuth";
 import { useFriends } from "@/hooks/useFriends";
 import { useMatchmaking } from "@/hooks/useMatchmaking";
@@ -138,8 +139,8 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
           hasPendingRequests={hasPendingRequests}
         />
 
-        {/* Merkezde Değişen Sahne (Main Stage İçeriği) */}
-        <div className="flex-1 min-h-0 relative overflow-hidden">
+        {/* Merkezde Değişen Sahne (Main Stage İçeriği - Dikey Kaydırma Destekli) */}
+        <div className="flex-1 min-h-0 relative overflow-y-auto overflow-x-hidden">
           {activeTab === "home" && (
             <HomeStage onGoToPlay={() => setActiveTab("play")} />
           )}
@@ -149,6 +150,7 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
               onStartRanked={handleOpenRankedModal}
               onStartCasual={handleOpenCasualModal}
               onOpenCustomRoom={handleOpenCustomRoom}
+              onGoToPlayers={() => setActiveTab("players")}
               onOpenAuthModal={handleOpenAuthModal}
             />
           )}
@@ -162,6 +164,10 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
 
           {activeTab === "store" && (
             <StoreStage onOpenAuthModal={handleOpenAuthModal} />
+          )}
+
+          {activeTab === "players" && (
+            <PlayersStage onBackToPlay={() => setActiveTab("play")} />
           )}
 
           {activeTab === "settings" && <SettingsStage />}

@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { PlayCommonPlayerCard, SubModeType } from "./play/PlayCommonPlayerCard";
 import { PlayGridModeCard, NationTeamSubMode } from "./play/PlayGridModeCard";
 import { PlayAuctionModeCard } from "./play/PlayAuctionModeCard";
+import { PlayTrainingCard, TrainingSubMode } from "./play/PlayTrainingCard";
 import { PlayModeGuidesModal } from "./play/PlayModeGuidesModal";
 import { GameMode } from "@/types/game";
 
@@ -14,6 +15,7 @@ interface PlayStageProps {
   onStartRanked: () => void;
   onStartCasual: (gameMode?: GameMode) => void;
   onOpenCustomRoom: (gameMode?: GameMode) => void;
+  onGoToPlayers: () => void;
   onOpenAuthModal?: (tab: "login" | "register") => void;
 }
 
@@ -21,16 +23,25 @@ export function PlayStage({
   onStartRanked,
   onStartCasual,
   onOpenCustomRoom,
+  onGoToPlayers,
   onOpenAuthModal,
 }: PlayStageProps) {
   const router = useRouter();
   const { user } = useAuth();
-  const [selectedModeId, setSelectedModeId] = useState<"common_player" | "grid" | "auction">("common_player");
+  const [selectedModeId, setSelectedModeId] = useState<"common_player" | "grid" | "auction" | "training">("common_player");
   const [selectedSubMode, setSelectedSubMode] = useState<SubModeType>("ranked");
   const [selectedNationTeamSubMode, setSelectedNationTeamSubMode] = useState<NationTeamSubMode>("casual");
+  const [selectedTrainingSubMode, setSelectedTrainingSubMode] = useState<TrainingSubMode>("players");
   const [activeGuideKey, setActiveGuideKey] = useState<string | null>(null);
 
   const handleConfirm = () => {
+    if (selectedModeId === "training") {
+      if (selectedTrainingSubMode === "players") {
+        onGoToPlayers();
+      }
+      return;
+    }
+
     if (!user) {
       onOpenAuthModal?.("login");
       return;
@@ -55,6 +66,9 @@ export function PlayStage({
 
   const getButtonLabel = () => {
     if (selectedModeId === "auction") return "YAKINDA GELECEK";
+    if (selectedModeId === "training") {
+      return selectedTrainingSubMode === "players" ? "OYUNCULARI GÖRÜNTÜLE" : "YAKINDA GELECEK";
+    }
     if (selectedModeId === "grid") {
       return selectedNationTeamSubMode === "casual" ? "OYNA" : "OYUN KUR";
     }
@@ -63,7 +77,7 @@ export function PlayStage({
   };
 
   return (
-    <div className="relative flex flex-1 flex-col justify-between overflow-hidden bg-transparent text-white select-none font-sans p-8 lg:p-12 h-full">
+    <div className="relative flex flex-1 flex-col justify-between overflow-y-auto overflow-x-hidden bg-transparent text-white select-none font-sans p-4 sm:p-6 lg:p-8 min-h-full">
       {/* 1. Merkez Odaklı Sıcak Zümrüt Radyal Işık */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_75%_55%_at_50%_46%,rgba(34,197,94,0.12)_0%,rgba(10,18,14,0)_70%)] pointer-events-none z-0" />
 
@@ -83,9 +97,9 @@ export function PlayStage({
         </svg>
       </div>
 
-      {/* 3 Mod Grid */}
-      <div className="relative z-10 flex-1 flex items-center justify-center">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-7 lg:gap-10 w-full max-w-5xl">
+      {/* 4 Mod Grid */}
+      <div className="relative z-10 flex-1 flex items-center justify-center my-auto py-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6 w-full max-w-7xl">
           <PlayCommonPlayerCard
             isSelected={selectedModeId === "common_player"}
             onSelect={() => setSelectedModeId("common_player")}
@@ -107,12 +121,22 @@ export function PlayStage({
             onSelect={() => setSelectedModeId("auction")}
             onOpenGuide={() => setActiveGuideKey("auction")}
           />
+
+          <PlayTrainingCard
+            isSelected={selectedModeId === "training"}
+            onSelect={() => setSelectedModeId("training")}
+            selectedSubMode={selectedTrainingSubMode}
+            onSelectSubMode={setSelectedTrainingSubMode}
+            onGoToPlayers={onGoToPlayers}
+            onOpenGuide={() => setActiveGuideKey("training")}
+          />
         </div>
       </div>
 
       {/* Onay Butonu */}
-      <div className="relative z-10 flex justify-center pt-5">
-        {selectedModeId !== "auction" ? (
+      <div className="relative z-10 flex justify-center pt-4 pb-2 shrink-0">
+        {selectedModeId !== "auction" &&
+        (selectedModeId !== "training" || selectedTrainingSubMode === "players") ? (
           <button
             onClick={handleConfirm}
             className="relative group flex items-center justify-center transition-transform active:scale-[0.98] w-[340px] h-[62px] cursor-pointer"

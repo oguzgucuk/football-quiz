@@ -145,3 +145,122 @@ export async function logMissingAnswer(
     team2Id,
   });
 }
+
+export interface PlayerExplorerParams {
+  search?: string;
+  sortBy?: "rating_desc" | "rating_asc" | "age_asc" | "age_desc" | "name_asc" | "name_desc";
+  positionGroup?: "ALL" | "ATT" | "MID" | "DEF" | "GK";
+  page?: number;
+  limit?: number;
+  onlyPrime?: boolean;
+}
+
+function buildPlayerWhere(params: PlayerExplorerParams) {
+  const where: Record<string, unknown> = {};
+
+  if (params.onlyPrime !== false) {
+    where.overallPrime = { not: null };
+  }
+
+  if (params.search && params.search.trim().length > 0) {
+    where.fullName = { contains: params.search.trim(), mode: "insensitive" };
+  }
+
+  const posMap: Record<string, string[]> = {
+    ATT: ["ST", "CF", "LW", "RW"],
+    MID: ["CAM", "CM", "CDM", "LM", "RM"],
+    DEF: ["CB", "LB", "RB", "LWB", "RWB"],
+    GK: ["GK"],
+  };
+
+  if (params.positionGroup && params.positionGroup !== "ALL" && posMap[params.positionGroup]) {
+    where.positions = { hasSome: posMap[params.positionGroup] };
+  }
+
+  return where;
+}
+
+function buildPlayerOrderBy(sortBy: string = "rating_desc") {
+  switch (sortBy) {
+    case "rating_asc":
+      return [{ overallPrime: { sort: "asc" as const, nulls: "last" as const } }, { fullName: "asc" as const }];
+    case "age_asc":
+      return [{ birthDate: { sort: "desc" as const, nulls: "last" as const } }, { overallPrime: { sort: "desc" as const, nulls: "last" as const } }];
+    case "age_desc":
+      return [{ birthDate: { sort: "asc" as const, nulls: "last" as const } }, { overallPrime: { sort: "desc" as const, nulls: "last" as const } }];
+    case "name_asc":
+      return [{ fullName: "asc" as const }];
+    case "name_desc":
+      return [{ fullName: "desc" as const }];
+    case "rating_desc":
+    default:
+      return [{ overallPrime: { sort: "desc" as const, nulls: "last" as const } }, { fullName: "asc" as const }];
+  }
+}
+
+import { searchPlayersExplorer } from "./searchPlayersExplorer";
+
+export async function getPlayersExplorerList(params: PlayerExplorerParams) {
+  const page = Math.max(1, params.page || 1);
+  const limit = Math.min(60, Math.max(1, params.limit || 24));
+  const skip = (page - 1) * limit;
+
+  // Arama sorgusu varsa unaccent & typo toleranslı PostgreSQL motorunu kullan
+  if (params.search && params.search.trim().length > 0) {
+    return searchPlayersExplorer(params, limit, skip, page);
+  }
+
+  const where = buildPlayerWhere(params);
+  const orderBy = buildPlayerOrderBy(params.sortBy);
+
+  const [total, rawPlayers] = await Promise.all([
+    prisma.player.count({ where }),
+    prisma.player.findMany({
+      where,
+      orderBy,
+      skip,
+      take: limit,
+      select: {
+        id: true,
+        fullName: true,
+        birthDate: true,
+        nationality: true,
+        position: true,
+        overallPrime: true,
+        positions: true,
+        teamsHistory: {
+          take: 5,
+          select: {
+            team: {
+              select: {
+                id: true,
+                name: true,
+                logoUrl: true,
+              },
+            },
+          },
+        },
+      },
+    }),
+  ]);
+
+  const players = rawPlayers.map((p) => ({
+    id: p.id,
+    fullName: p.fullName,
+    birthDate: p.birthDate ? p.birthDate.toISOString().slice(0, 10) : null,
+    nationality: p.nationality,
+    position: p.position,
+    overallPrime: p.overallPrime,
+    positions: p.positions,
+    teams: p.teamsHistory.map((th) => th.team),
+  }));
+
+  return {
+    players,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
+}
+
