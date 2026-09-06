@@ -12,6 +12,8 @@ import React, { useState } from "react";
 import { AuctionRoomState, AuctionLobbySettings } from "@/lib/auction/auctionTypes";
 import { Users, Crown, Shield, Coins, Sparkles, Copy, Check, Share2, RotateCcw, ChevronRight } from "lucide-react";
 
+import { AuctionLobbySettingsCards } from "./AuctionLobbySettingsCards";
+
 interface AuctionLobbyViewProps {
   state: AuctionRoomState;
   currentUserId: string;
@@ -150,116 +152,12 @@ export function AuctionLobbyView({
         </div>
       </div>
 
-      {/* 2. AYARLAR KARTLARI (Çizimdeki Bütçe & Dual Rating Kaydırıcıları) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-        {/* Bütçe Kartı */}
-        <div className="p-5 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-xl flex flex-col justify-between gap-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-extrabold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-              <Coins className="w-4 h-4 text-amber-400" />
-              Başlangıç Bütçesi
-            </span>
-            <span className="px-3 py-1 rounded-lg bg-amber-950/50 border border-amber-500/40 text-amber-400 font-mono font-black text-sm">
-              ${state.settings.startingBudget}M
-            </span>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <input
-              type="range"
-              min="20"
-              max="100"
-              step="5"
-              disabled={!isHost}
-              value={state.settings.startingBudget}
-              onChange={(e) => onUpdateSettings({ startingBudget: Number(e.target.value) })}
-              className={`w-full accent-emerald-500 ${isHost ? "cursor-pointer" : "opacity-60 cursor-not-allowed"}`}
-            />
-            <div className="flex justify-between items-center text-[11px] text-zinc-500 font-mono">
-              <span>Min: $20M</span>
-              {isHost && (
-                <div className="flex gap-1.5">
-                  {[20, 30, 50, 100].map((amt) => (
-                    <button
-                      key={amt}
-                      onClick={() => onUpdateSettings({ startingBudget: amt })}
-                      className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition-colors cursor-pointer ${
-                        state.settings.startingBudget === amt
-                          ? "bg-amber-500/30 border-amber-500 text-amber-300"
-                          : "bg-white/5 border-white/10 text-zinc-400 hover:text-white"
-                      }`}
-                    >
-                      ${amt}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <span>Maks: $100M</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Rating Kartı (Baştan ve Sondan Çekilebilen Çift Aralık) */}
-        <div className="p-5 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-xl flex flex-col justify-between gap-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-extrabold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4 text-emerald-400" />
-              Reyting Aralığı
-            </span>
-            <span className="px-3 py-1 rounded-lg bg-emerald-950/50 border border-emerald-500/40 text-emerald-400 font-mono font-black text-sm">
-              {state.settings.ratingMin} - {state.settings.ratingMax} OVR
-            </span>
-          </div>
-
-          <div className="flex flex-col gap-2.5">
-            <div>
-              <div className="flex justify-between text-[11px] text-zinc-400 font-medium mb-1">
-                <span>Minimum: <strong className="text-emerald-400 font-mono">{state.settings.ratingMin} OVR</strong></span>
-                <span className="text-zinc-500">67 - 95</span>
-              </div>
-              <input
-                type="range"
-                min="67"
-                max="95"
-                step="1"
-                disabled={!isHost}
-                value={state.settings.ratingMin}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  onUpdateSettings({
-                    ratingMin: val,
-                    ratingMax: Math.max(val + 1, state.settings.ratingMax),
-                  });
-                }}
-                className={`w-full accent-emerald-500 ${isHost ? "cursor-pointer" : "opacity-60 cursor-not-allowed"}`}
-              />
-            </div>
-
-            <div>
-              <div className="flex justify-between text-[11px] text-zinc-400 font-medium mb-1">
-                <span>Maksimum: <strong className="text-emerald-400 font-mono">{state.settings.ratingMax} OVR</strong></span>
-                <span className="text-zinc-500">75 - 99</span>
-              </div>
-              <input
-                type="range"
-                min="75"
-                max="99"
-                step="1"
-                disabled={!isHost}
-                value={state.settings.ratingMax}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  onUpdateSettings({
-                    ratingMax: val,
-                    ratingMin: Math.min(val - 1, state.settings.ratingMin),
-                  });
-                }}
-                className={`w-full accent-emerald-500 ${isHost ? "cursor-pointer" : "opacity-60 cursor-not-allowed"}`}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* 2. AYARLAR KARTLARI */}
+      <AuctionLobbySettingsCards
+        settings={state.settings}
+        isHost={isHost}
+        onUpdateSettings={onUpdateSettings}
+      />
 
       {!isHost && (
         <p className="text-xs text-zinc-400 italic">

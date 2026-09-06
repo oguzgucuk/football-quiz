@@ -8,20 +8,24 @@
  */
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import { AuctionRoomState } from "@/lib/auction/auctionTypes";
-import { Trophy, Timer, Shield, Flame, ChevronRight, Award } from "lucide-react";
+import { Trophy, Timer, Shield, Flame, ChevronRight, Award, RotateCcw, Home } from "lucide-react";
 
 interface AuctionSimulationStageProps {
   state: AuctionRoomState;
   currentUserId: string;
   onNextMatch: () => void;
+  onReturnToLobby: () => void;
 }
 
 export function AuctionSimulationStage({
   state,
   currentUserId,
   onNextMatch,
+  onReturnToLobby,
 }: AuctionSimulationStageProps) {
+  const router = useRouter();
   const matchIndex = state.currentSimMatchIndex;
   const currentMatch = state.simulationMatches[matchIndex];
   const isAllMatchesFinished = state.status === "finished";
@@ -60,6 +64,25 @@ export function AuctionSimulationStage({
 
           <div className="w-full max-w-xl mt-6">
             <StandingsTable standings={state.standings} currentUserId={currentUserId} />
+          </div>
+
+          {/* Oyun Sonu Navigasyon Butonları */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-xl mt-8">
+            <button
+              onClick={onReturnToLobby}
+              className="w-full sm:w-1/2 py-3.5 px-5 rounded-2xl bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white font-black text-xs uppercase tracking-wider transition-all cursor-pointer shadow-xl flex items-center justify-center gap-2 active:scale-98"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span>Lobiye Dön</span>
+            </button>
+
+            <button
+              onClick={() => router.push("/?tab=play")}
+              className="w-full sm:w-1/2 py-3.5 px-5 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/15 text-zinc-200 hover:text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-98"
+            >
+              <Home className="w-4 h-4" />
+              <span>Ana Sayfaya Dön</span>
+            </button>
           </div>
         </div>
       ) : (

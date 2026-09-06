@@ -98,6 +98,10 @@ export function useAuctionRoom({ roomId, userId, username }: UseAuctionRoomProps
     sendMessage({ type: "AUCTION_NEXT_SIM_MATCH", userId });
   }, [userId, sendMessage]);
 
+  const returnToLobby = useCallback(() => {
+    sendMessage({ type: "AUCTION_RETURN_TO_LOBBY", userId });
+  }, [userId, sendMessage]);
+
   return {
     state,
     isConnected,
@@ -109,6 +113,7 @@ export function useAuctionRoom({ roomId, userId, username }: UseAuctionRoomProps
     passBid,
     confirmLineup,
     nextSimMatch,
+    returnToLobby,
   };
 }
 

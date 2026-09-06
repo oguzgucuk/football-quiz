@@ -17,6 +17,8 @@ import {
 } from "@/lib/auction/auctionTypes";
 import { FORMATION_CONFIGS, createInitialSlotsForFormation } from "@/lib/auction/formationTemplates";
 import { calculateSlotRating, calculateLineupPowers } from "@/lib/auction/positionSuitability";
+import { AuctionPitchSlot } from "./AuctionPitchSlot";
+import { AuctionSquadList } from "./AuctionSquadList";
 import { Shield, Sparkles, CheckCircle2, AlertTriangle, ChevronRight } from "lucide-react";
 
 interface AuctionPitchBuilderProps {
@@ -36,9 +38,14 @@ export function AuctionPitchBuilder({
   const [slots, setSlots] = useState<SquadSlot[]>(() => createInitialSlotsForFormation("4-3-3"));
   const [selectedPlayer, setSelectedPlayer] = useState<AuctionPlayerCard | null>(null);
 
+  // Sürükle-Bırak Durumu
+  const [draggedPlayerId, setDraggedPlayerId] = useState<string | null>(null);
+  const [draggedFromSlotIndex, setDraggedFromSlotIndex] = useState<number | null>(null);
+  const [dragOverSlotIndex, setDragOverSlotIndex] = useState<number | null>(null);
+
   // Yerleştirilen oyuncuların ID kümesi
   const placedPlayerIds = useMemo(
-    () => new Set(slots.map((s) => s.placedPlayer?.id).filter(Boolean)),
+    () => new Set(slots.map((s) => s.placedPlayer?.id).filter((id): id is string => Boolean(id))),
     [slots]
   );
 
@@ -50,7 +57,6 @@ export function AuctionPitchBuilder({
 
   const handleFormationChange = (f: FormationName) => {
     setFormation(f);
-    // Mevcut yerleşen oyuncuları yeni dizilişin slotlarına koruyarak aktar
     const newSlots = createInitialSlotsForFormation(f);
     const existingPlayers = slots.map((s) => s.placedPlayer).filter(Boolean) as AuctionPlayerCard[];
 
@@ -66,31 +72,91 @@ export function AuctionPitchBuilder({
     setSlots(newSlots);
   };
 
+  const handlePlayerDropOnSlot = (
+    playerId: string,
+    targetSlotIndex: number,
+    sourceSlotIndex: number | null
+  ) => {
+    const player = squad.find((p) => p.id === playerId);
+    if (!player) return;
+
+    const targetSlot = slots[targetSlotIndex];
+    if (!targetSlot) return;
+
+    const nextSlots = [...slots];
+    const targetRating = calculateSlotRating(player, targetSlot.targetPosition);
+
+    if (sourceSlotIndex !== null && sourceSlotIndex !== targetSlotIndex) {
+      const sourceSlot = slots[sourceSlotIndex];
+      const existingInTarget = targetSlot.placedPlayer;
+
+      if (existingInTarget) {
+        const sourceRating = calculateSlotRating(existingInTarget, sourceSlot.targetPosition);
+        nextSlots[sourceSlotIndex] = {
+          ...sourceSlot,
+          placedPlayer: existingInTarget,
+          effectiveRating: sourceRating.effectiveRating,
+          penalty: sourceRating.penalty,
+        };
+      } else {
+        nextSlots[sourceSlotIndex] = {
+          ...sourceSlot,
+          placedPlayer: null,
+          effectiveRating: 0,
+          penalty: 0,
+        };
+      }
+    } else {
+      for (let i = 0; i < nextSlots.length; i++) {
+        if (i !== targetSlotIndex && nextSlots[i].placedPlayer?.id === playerId) {
+          nextSlots[i] = { ...nextSlots[i], placedPlayer: null, effectiveRating: 0, penalty: 0 };
+        }
+      }
+    }
+
+    nextSlots[targetSlotIndex] = {
+      ...targetSlot,
+      placedPlayer: player,
+      effectiveRating: targetRating.effectiveRating,
+      penalty: targetRating.penalty,
+    };
+
+    setSlots(nextSlots);
+    setSelectedPlayer(null);
+  };
+
   const handleSlotClick = (slotIndex: number) => {
-    const slot = slots[slotIndex];
     if (selectedPlayer) {
-      // Seçili oyuncuyu bu slota yerleştir
-      const { effectiveRating, penalty } = calculateSlotRating(selectedPlayer, slot.targetPosition);
+      handlePlayerDropOnSlot(selectedPlayer.id, slotIndex, null);
+    } else if (slots[slotIndex].placedPlayer) {
       const nextSlots = [...slots];
-      nextSlots[slotIndex] = {
-        ...slot,
-        placedPlayer: selectedPlayer,
-        effectiveRating,
-        penalty,
-      };
-      setSlots(nextSlots);
-      setSelectedPlayer(null);
-    } else if (slot.placedPlayer) {
-      // Slottan oyuncuyu kaldır
-      const nextSlots = [...slots];
-      nextSlots[slotIndex] = {
-        ...slot,
-        placedPlayer: null,
-        effectiveRating: 0,
-        penalty: 0,
-      };
+      nextSlots[slotIndex] = { ...slots[slotIndex], placedPlayer: null, effectiveRating: 0, penalty: 0 };
       setSlots(nextSlots);
     }
+  };
+
+  const resetDragState = () => {
+    setDraggedPlayerId(null);
+    setDraggedFromSlotIndex(null);
+    setDragOverSlotIndex(null);
+  };
+
+  const handleSlotDragStart = (e: React.DragEvent, slot: SquadSlot, index: number) => {
+    if (!slot.placedPlayer) return;
+    e.dataTransfer.setData("text/plain", slot.placedPlayer.id);
+    e.dataTransfer.effectAllowed = "move";
+    setDraggedPlayerId(slot.placedPlayer.id);
+    setDraggedFromSlotIndex(index);
+  };
+
+  const handleSlotDrop = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverSlotIndex(null);
+    const pId = e.dataTransfer.getData("text/plain") || draggedPlayerId;
+    if (pId) {
+      handlePlayerDropOnSlot(pId, index, draggedFromSlotIndex);
+    }
+    resetDragState();
   };
 
   return (
@@ -150,42 +216,24 @@ export function AuctionPitchBuilder({
           </div>
 
           {/* 2. OYUNCULARIM (Çizimdeki Alt Kutu) */}
-          <div className="p-4 rounded-2xl bg-black/50 border border-white/10 backdrop-blur-xl flex flex-col gap-2 max-h-[440px] overflow-y-auto">
-            <span className="text-[11px] font-extrabold uppercase tracking-widest text-zinc-400 mb-1">
-              Oyuncularım ({squad.length - placedPlayerIds.size} Boşta)
-            </span>
-
-            {squad.map((player) => {
-              const isPlaced = placedPlayerIds.has(player.id);
-              const isSelected = selectedPlayer?.id === player.id;
-
-              return (
-                <div
-                  key={player.id}
-                  onClick={() => !isPlaced && setSelectedPlayer(isSelected ? null : player)}
-                  className={`flex items-center justify-between p-2.5 rounded-xl border transition-all ${
-                    isPlaced
-                      ? "opacity-30 bg-black/30 border-white/5 cursor-not-allowed"
-                      : isSelected
-                      ? "bg-emerald-950/70 border-emerald-500 shadow-md cursor-pointer"
-                      : "bg-white/5 border-white/10 hover:border-emerald-500/40 cursor-pointer"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="font-mono font-black text-xs text-emerald-400 px-1.5 py-0.5 rounded bg-emerald-950/60 border border-emerald-500/30">
-                      {player.overallPrime}
-                    </span>
-                    <span className="text-xs font-bold text-white truncate">
-                      {player.fullName}
-                    </span>
-                  </div>
-                  <span className="text-[10px] font-mono text-zinc-400">
-                    {player.positions.join("/")}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+          <AuctionSquadList
+            squad={squad}
+            placedPlayerIds={placedPlayerIds}
+            selectedPlayer={selectedPlayer}
+            draggedPlayerId={draggedPlayerId}
+            onSelectPlayer={setSelectedPlayer}
+            onDragStart={(e, player) => {
+              e.dataTransfer.setData("text/plain", player.id);
+              e.dataTransfer.effectAllowed = "move";
+              setDraggedPlayerId(player.id);
+              setDraggedFromSlotIndex(null);
+            }}
+            onDragEnd={() => {
+              setDraggedPlayerId(null);
+              setDraggedFromSlotIndex(null);
+              setDragOverSlotIndex(null);
+            }}
+          />
 
           {/* Kadroyu Onayla Butonu */}
           <button
@@ -212,55 +260,28 @@ export function AuctionPitchBuilder({
 
           {/* Sahadaki 11 Yuva */}
           <div className="relative w-full h-full">
-            {slots.map((slot, index) => {
-              const def = FORMATION_CONFIGS[formation][index];
-              const p = slot.placedPlayer;
-
-              return (
-                <div
-                  key={slot.slotId}
-                  onClick={() => handleSlotClick(index)}
-                  style={{
-                    left: `${def?.xPercent || 50}%`,
-                    top: `${def?.yPercent || 50}%`,
-                  }}
-                  className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center cursor-pointer group"
-                >
-                  {/* Oyuncu / Slot Dairesi */}
-                  <div
-                    className={`relative flex size-12 sm:size-14 items-center justify-center rounded-2xl border-2 transition-transform duration-200 group-hover:scale-105 shadow-xl ${
-                      p
-                        ? slot.penalty > 0
-                          ? "bg-amber-950/90 border-amber-500 text-amber-200"
-                          : "bg-emerald-950/90 border-emerald-400 text-emerald-200"
-                        : "bg-black/50 border-white/30 text-zinc-400 hover:border-emerald-400/80"
-                    }`}
-                  >
-                    {p ? (
-                      <div className="flex flex-col items-center">
-                        <span className="font-mono font-black text-sm sm:text-base leading-none">
-                          {slot.effectiveRating}
-                        </span>
-                        {slot.penalty > 0 && (
-                          <span className="text-[9px] font-bold text-red-400 font-mono -mt-0.5">
-                            -{slot.penalty}
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="font-mono font-extrabold text-xs text-zinc-400">
-                        {slot.targetPosition}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Oyuncu Adı Etiketi */}
-                  <span className="mt-1 px-2 py-0.5 rounded-md bg-black/75 border border-white/10 text-[10px] sm:text-[11px] font-bold text-white max-w-[90px] truncate text-center shadow-md">
-                    {p ? p.fullName.split(" ").slice(-1)[0] : def?.label || slot.targetPosition}
-                  </span>
-                </div>
-              );
-            })}
+            {slots.map((slot, index) => (
+              <AuctionPitchSlot
+                key={slot.slotId}
+                slot={slot}
+                def={FORMATION_CONFIGS[formation][index]}
+                index={index}
+                isDragOver={dragOverSlotIndex === index}
+                isAnyDragging={Boolean(draggedPlayerId)}
+                onClick={() => handleSlotClick(index)}
+                onDragStart={(e) => handleSlotDragStart(e, slot, index)}
+                onDragEnd={resetDragState}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  if (dragOverSlotIndex !== index) setDragOverSlotIndex(index);
+                }}
+                onDragLeave={() => {
+                  if (dragOverSlotIndex === index) setDragOverSlotIndex(null);
+                }}
+                onDrop={(e) => handleSlotDrop(e, index)}
+              />
+            ))}
           </div>
         </div>
       </div>

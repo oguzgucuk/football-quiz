@@ -44,6 +44,7 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
     passBid,
     confirmLineup,
     nextSimMatch,
+    returnToLobby,
   } = useAuctionRoom({ roomId, userId: currentUserId, username });
 
   if (isLoading || !currentUserId) {
@@ -133,6 +134,7 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
             state={state}
             currentUserId={currentUserId}
             onNextMatch={nextSimMatch}
+            onReturnToLobby={returnToLobby}
           />
         )}
       </div>

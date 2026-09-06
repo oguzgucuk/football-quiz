@@ -132,6 +132,10 @@ async function processAuctionMessage(
       handleNextSimMatch(room);
       break;
     }
+    case "AUCTION_RETURN_TO_LOBBY": {
+      handleReturnToLobby(room);
+      break;
+    }
   }
 }
 
@@ -319,6 +323,47 @@ function autoConfirmLineups(room: AuctionPartyRoom) {
       room.state.lineups[uid] = calculateLineupPowers(uid, defaultFormation, slots);
     }
   }
+}
+
+function handleReturnToLobby(room: AuctionPartyRoom) {
+  if (room.timer) {
+    clearInterval(room.timer);
+    room.timer = undefined;
+  }
+
+  const updatedParticipants: Record<string, AuctionParticipant> = {};
+  for (const [uid, p] of Object.entries(room.state.participants)) {
+    if (uid && uid.trim()) {
+      updatedParticipants[uid] = {
+        ...p,
+        budget: room.state.settings.startingBudget,
+        squad: [],
+        isReady: true,
+      };
+    }
+  }
+
+  room.state = {
+    ...room.state,
+    status: "lobby",
+    participants: updatedParticipants,
+    turnOrder: Object.keys(updatedParticipants),
+    pool: [],
+    currentCardIndex: 0,
+    currentCard: null,
+    currentTurnUserId: room.state.hostUserId || Object.keys(updatedParticipants)[0] || "",
+    currentHighestBid: null,
+    passedUserIds: [],
+    secondsLeft: 0,
+    lineups: {},
+    simulationMatches: [],
+    currentSimMatchIndex: 0,
+    currentSimMinute: 0,
+    standings: [],
+    championUserId: null,
+  };
+
+  broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
 }
 
 function broadcast(room: AuctionPartyRoom, payload: object) {
