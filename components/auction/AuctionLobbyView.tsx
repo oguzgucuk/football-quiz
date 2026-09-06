@@ -8,9 +8,9 @@
  * - "Oyunu Başlat" ana butonu
  */
 
-import React from "react";
+import React, { useState } from "react";
 import { AuctionRoomState, AuctionLobbySettings } from "@/lib/auction/auctionTypes";
-import { Users, Crown, Shield, Coins, Sparkles, Copy, Check } from "lucide-react";
+import { Users, Crown, Shield, Coins, Sparkles, Copy, Check, Share2, RotateCcw, ChevronRight } from "lucide-react";
 
 interface AuctionLobbyViewProps {
   state: AuctionRoomState;
@@ -26,6 +26,7 @@ export function AuctionLobbyView({
   onStartGame,
 }: AuctionLobbyViewProps) {
   const isHost = state.hostUserId === currentUserId;
+  const [isStarting, setIsStarting] = useState(false);
   const participantsList = Object.values(state.participants).filter(
     (p) => Boolean(p.userId && p.userId.trim())
   );
@@ -112,7 +113,44 @@ export function AuctionLobbyView({
         </div>
       </div>
 
-      {/* 2. AYARLAR KARTLARI (Çizimdeki Bütçe & Rating Kaydırıcıları) */}
+      {/* Davet Bağlantısı Barı */}
+      <div className="w-full p-3.5 px-5 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-xs text-zinc-300">
+          <span className="font-bold text-zinc-400">Davet Linki:</span>
+          <span className="font-mono text-emerald-400 truncate max-w-[240px] sm:max-w-[340px]">
+            {typeof window !== "undefined" ? `${window.location.origin}/auction/${state.roomId}` : state.roomId}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              const url = `${window.location.origin}/auction/${state.roomId}`;
+              navigator.clipboard.writeText(url);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }}
+            className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-emerald-600/30 border border-white/15 text-xs font-bold text-white transition-all cursor-pointer flex items-center gap-1.5"
+          >
+            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-zinc-400" />}
+            <span>{copied ? "Kopyalandı!" : "Linki Kopyala"}</span>
+          </button>
+
+          <button
+            onClick={() => {
+              const url = `${window.location.origin}/auction/${state.roomId}`;
+              const text = encodeURIComponent(`Futbol Quiz Canlı Müzayede Odasına katıl: ${url}`);
+              window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
+            }}
+            className="px-3 py-1.5 rounded-xl bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-500/40 text-xs font-bold text-emerald-300 transition-all cursor-pointer flex items-center gap-1.5"
+          >
+            <Share2 className="w-3.5 h-3.5" />
+            <span>WhatsApp</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 2. AYARLAR KARTLARI (Çizimdeki Bütçe & Dual Rating Kaydırıcıları) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
         {/* Bütçe Kartı */}
         <div className="p-5 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-xl flex flex-col justify-between gap-4">
@@ -126,7 +164,7 @@ export function AuctionLobbyView({
             </span>
           </div>
 
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2">
             <input
               type="range"
               min="20"
@@ -137,39 +175,87 @@ export function AuctionLobbyView({
               onChange={(e) => onUpdateSettings({ startingBudget: Number(e.target.value) })}
               className={`w-full accent-emerald-500 ${isHost ? "cursor-pointer" : "opacity-60 cursor-not-allowed"}`}
             />
-            <div className="flex justify-between text-[11px] text-zinc-500 font-mono">
-              <span>$20M</span>
-              <span>$100M</span>
+            <div className="flex justify-between items-center text-[11px] text-zinc-500 font-mono">
+              <span>Min: $20M</span>
+              {isHost && (
+                <div className="flex gap-1.5">
+                  {[20, 30, 50, 100].map((amt) => (
+                    <button
+                      key={amt}
+                      onClick={() => onUpdateSettings({ startingBudget: amt })}
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition-colors cursor-pointer ${
+                        state.settings.startingBudget === amt
+                          ? "bg-amber-500/30 border-amber-500 text-amber-300"
+                          : "bg-white/5 border-white/10 text-zinc-400 hover:text-white"
+                      }`}
+                    >
+                      ${amt}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <span>Maks: $100M</span>
             </div>
           </div>
         </div>
 
-        {/* Rating Kartı */}
+        {/* Rating Kartı (Baştan ve Sondan Çekilebilen Çift Aralık) */}
         <div className="p-5 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-xl flex flex-col justify-between gap-4">
           <div className="flex items-center justify-between">
             <span className="text-xs font-extrabold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
               <Sparkles className="w-4 h-4 text-emerald-400" />
-              Oyuncu Reyting Aralığı
+              Reyting Aralığı
             </span>
             <span className="px-3 py-1 rounded-lg bg-emerald-950/50 border border-emerald-500/40 text-emerald-400 font-mono font-black text-sm">
               {state.settings.ratingMin} - {state.settings.ratingMax} OVR
             </span>
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <input
-              type="range"
-              min="67"
-              max="85"
-              step="1"
-              disabled={!isHost}
-              value={state.settings.ratingMin}
-              onChange={(e) => onUpdateSettings({ ratingMin: Number(e.target.value) })}
-              className={`w-full accent-emerald-500 ${isHost ? "cursor-pointer" : "opacity-60 cursor-not-allowed"}`}
-            />
-            <div className="flex justify-between text-[11px] text-zinc-500 font-mono">
-              <span>Min: 67</span>
-              <span>Maks: 99</span>
+          <div className="flex flex-col gap-2.5">
+            <div>
+              <div className="flex justify-between text-[11px] text-zinc-400 font-medium mb-1">
+                <span>Minimum: <strong className="text-emerald-400 font-mono">{state.settings.ratingMin} OVR</strong></span>
+                <span className="text-zinc-500">67 - 95</span>
+              </div>
+              <input
+                type="range"
+                min="67"
+                max="95"
+                step="1"
+                disabled={!isHost}
+                value={state.settings.ratingMin}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  onUpdateSettings({
+                    ratingMin: val,
+                    ratingMax: Math.max(val + 1, state.settings.ratingMax),
+                  });
+                }}
+                className={`w-full accent-emerald-500 ${isHost ? "cursor-pointer" : "opacity-60 cursor-not-allowed"}`}
+              />
+            </div>
+
+            <div>
+              <div className="flex justify-between text-[11px] text-zinc-400 font-medium mb-1">
+                <span>Maksimum: <strong className="text-emerald-400 font-mono">{state.settings.ratingMax} OVR</strong></span>
+                <span className="text-zinc-500">75 - 99</span>
+              </div>
+              <input
+                type="range"
+                min="75"
+                max="99"
+                step="1"
+                disabled={!isHost}
+                value={state.settings.ratingMax}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  onUpdateSettings({
+                    ratingMax: val,
+                    ratingMin: Math.min(val - 1, state.settings.ratingMin),
+                  });
+                }}
+                className={`w-full accent-emerald-500 ${isHost ? "cursor-pointer" : "opacity-60 cursor-not-allowed"}`}
+              />
             </div>
           </div>
         </div>
@@ -181,19 +267,32 @@ export function AuctionLobbyView({
         </p>
       )}
 
-      {/* 3. OYUNU BAŞLAT BUTONU (Çizimdeki Buton) */}
+      {/* 3. OYUNU BAŞLAT BUTONU (Dönme Efektli Spinner ile) */}
       <div className="w-full flex justify-center pt-2">
         {isHost ? (
           <button
-            onClick={onStartGame}
-            disabled={!canStart}
-            className={`w-full sm:w-80 h-14 rounded-2xl font-black text-base uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2 ${
-              canStart
+            onClick={() => {
+              setIsStarting(true);
+              onStartGame();
+            }}
+            disabled={!canStart || isStarting}
+            className={`w-full sm:w-80 h-14 rounded-2xl font-black text-base uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2.5 ${
+              canStart && !isStarting
                 ? "bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white shadow-emerald-950/50 cursor-pointer active:scale-98"
                 : "bg-zinc-800 text-zinc-500 cursor-not-allowed border border-white/5"
             }`}
           >
-            Oyunu Başlat ➔
+            {isStarting ? (
+              <>
+                <RotateCcw className="w-5 h-5 animate-spin text-emerald-400" />
+                <span>Oyun Kuruluyor...</span>
+              </>
+            ) : (
+              <>
+                <span>Oyunu Başlat</span>
+                <ChevronRight className="w-5 h-5" />
+              </>
+            )}
           </button>
         ) : (
           <div className="w-full sm:w-80 h-14 rounded-2xl bg-black/40 border border-white/10 text-zinc-400 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2">

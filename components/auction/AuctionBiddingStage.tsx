@@ -114,7 +114,7 @@ export function AuctionBiddingStage({
             </div>
           )}
 
-          {/* MEVCUT TEKLİF (Çizimdeki Mevcut Teklif [ 10 $ ] Kutusu) */}
+          {/* MEVCUT TEKLİF */}
           <div className="flex flex-col items-center justify-center py-4 px-6 rounded-2xl bg-black/60 border border-white/10">
             <span className="text-xs font-extrabold uppercase tracking-widest text-zinc-400 mb-1">
               Mevcut Teklif
@@ -123,7 +123,9 @@ export function AuctionBiddingStage({
               {currentBid} $
             </div>
             <span className="text-[11px] text-zinc-400 font-medium mt-1.5">
-              {state.currentHighestBid
+              {isMyHighestBid
+                ? "👑 En yüksek teklif sende! Karşı tarafın hamlesi bekleniyor..."
+                : state.currentHighestBid
                 ? `En son teklif: ${state.currentHighestBid.bidderUsername}`
                 : "Teklif bekleniyor..."}
             </span>
@@ -134,7 +136,7 @@ export function AuctionBiddingStage({
             <div className="grid grid-cols-4 gap-2">
               <button
                 type="button"
-                disabled={isSquadFull || hasPassed}
+                disabled={isSquadFull || hasPassed || isMyHighestBid}
                 onClick={() => handleQuickAdd(1)}
                 className="py-3 rounded-xl bg-white/10 hover:bg-emerald-600/40 border border-white/15 text-white font-mono font-black text-sm transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               >
@@ -143,7 +145,7 @@ export function AuctionBiddingStage({
 
               <button
                 type="button"
-                disabled={isSquadFull || hasPassed}
+                disabled={isSquadFull || hasPassed || isMyHighestBid}
                 onClick={() => handleQuickAdd(2)}
                 className="py-3 rounded-xl bg-white/10 hover:bg-emerald-600/40 border border-white/15 text-white font-mono font-black text-sm transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               >
@@ -152,7 +154,7 @@ export function AuctionBiddingStage({
 
               <button
                 type="button"
-                disabled={isSquadFull || hasPassed}
+                disabled={isSquadFull || hasPassed || isMyHighestBid}
                 onClick={() => handleQuickAdd(3)}
                 className="py-3 rounded-xl bg-white/10 hover:bg-emerald-600/40 border border-white/15 text-white font-mono font-black text-sm transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               >
@@ -163,17 +165,17 @@ export function AuctionBiddingStage({
                 type="number"
                 min={currentBid + 1}
                 placeholder="... $"
-                disabled={isSquadFull || hasPassed}
+                disabled={isSquadFull || hasPassed || isMyHighestBid}
                 value={customBid}
                 onChange={(e) => setCustomBid(e.target.value)}
-                className="w-full text-center rounded-xl bg-black/40 border border-white/15 text-white font-mono font-bold text-sm focus:outline-none focus:border-amber-500"
+                className="w-full text-center rounded-xl bg-black/40 border border-white/15 text-white font-mono font-bold text-sm focus:outline-none focus:border-amber-500 disabled:opacity-40"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3 pt-1">
               <button
                 type="button"
-                disabled={isSquadFull || hasPassed || !customBid}
+                disabled={isSquadFull || hasPassed || isMyHighestBid || !customBid}
                 onClick={handleCustomSubmit}
                 className="py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white font-black text-sm uppercase tracking-wider transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
               >
@@ -193,66 +195,97 @@ export function AuctionBiddingStage({
           </div>
         </div>
 
-        {/* SAĞ BÖLGE (Çizimdeki Oyuncular Listesi) */}
-        <div className="lg:col-span-5 flex flex-col gap-3 p-5 rounded-3xl bg-black/50 border border-white/10 backdrop-blur-2xl shadow-2xl">
-          <span className="text-xs font-extrabold uppercase tracking-widest text-zinc-400 mb-1">
-            Lobi Oyuncuları & Durum
-          </span>
+        {/* SAĞ BÖLGE (Çizimdeki Oyuncular Listesi & Kadroları) */}
+        <div className="lg:col-span-5 flex flex-col gap-3 p-5 rounded-3xl bg-black/50 border border-white/10 backdrop-blur-2xl shadow-2xl max-h-[580px] overflow-y-auto">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-extrabold uppercase tracking-widest text-zinc-400">
+              Lobi Oyuncuları & Kadrolar
+            </span>
+            <span className="text-[11px] text-zinc-500 font-mono">
+              Hedef: 11
+            </span>
+          </div>
 
-          <div className="flex flex-col gap-2.5">
+          <div className="flex flex-col gap-3">
             {Object.values(state.participants)
               .filter((p) => Boolean(p.userId && p.userId.trim()))
               .map((p) => {
-              const isTurn = state.currentTurnUserId === p.userId;
-              const holdsHighest = currentBidderId === p.userId;
-              const didPass = state.passedUserIds.includes(p.userId);
+                const holdsHighest = currentBidderId === p.userId;
+                const didPass = state.passedUserIds.includes(p.userId);
+                const isAwaitingBid = !holdsHighest && !didPass && p.squad.length < 11;
 
-              return (
-                <div
-                  key={p.userId}
-                  className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all ${
-                    holdsHighest
-                      ? "bg-amber-950/40 border-amber-500/60 shadow-md shadow-amber-950/40"
-                      : isTurn
-                      ? "bg-emerald-950/30 border-emerald-500/40"
-                      : "bg-white/5 border-white/10"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span className="font-bold text-sm text-white truncate">
-                      {p.username}
-                      {p.userId === currentUserId && (
-                        <span className="text-[10px] text-emerald-400 font-mono ml-1">(Sen)</span>
-                      )}
-                    </span>
-                  </div>
+                return (
+                  <div
+                    key={p.userId}
+                    className={`flex flex-col p-3.5 rounded-2xl border transition-all ${
+                      isAwaitingBid
+                        ? "bg-emerald-950/40 border-emerald-500/70 shadow-md shadow-emerald-950/50 ring-1 ring-emerald-400/40"
+                        : holdsHighest
+                        ? "bg-amber-950/25 border-amber-500/40"
+                        : "bg-white/5 border-white/10 opacity-80"
+                    }`}
+                  >
+                    {/* Üst Kısım: İsim, Durum Rozeti, Bütçe ve Sayı */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="font-bold text-sm text-white truncate">
+                          {p.username}
+                          {p.userId === currentUserId && (
+                            <span className="text-[10px] text-emerald-400 font-mono ml-1 font-bold">(Sen)</span>
+                          )}
+                        </span>
+                        {holdsHighest && (
+                          <span className="px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-[10px] font-bold text-amber-300 font-mono">
+                            👑 Lider (${currentBid}M)
+                          </span>
+                        )}
+                        {isAwaitingBid && (
+                          <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-[10px] font-bold text-emerald-300 animate-pulse">
+                            ⚡ Sıra Onda
+                          </span>
+                        )}
+                      </div>
 
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-mono font-bold text-amber-400">
-                      ${p.budget}M
-                    </span>
-                    <span className="text-[11px] font-mono text-zinc-400">
-                      {p.squad.length}/11
-                    </span>
+                      <div className="flex items-center gap-2.5 shrink-0">
+                        <span className="text-xs font-mono font-bold text-amber-400">
+                          ${p.budget}M
+                        </span>
+                        <span className="text-[11px] font-mono text-zinc-400">
+                          {p.squad.length}/11
+                        </span>
 
-                    {/* Çizimdeki Kontrol İkonu (✓ / Pas) */}
-                    <div className="flex size-6 items-center justify-center rounded-lg bg-black/30 border border-white/10">
-                      {holdsHighest ? (
-                        <Check className="w-3.5 h-3.5 text-amber-400 stroke-[3]" />
-                      ) : didPass ? (
-                        <X className="w-3.5 h-3.5 text-zinc-500 stroke-[2.5]" />
+                        <div className="flex size-6 items-center justify-center rounded-lg bg-black/40 border border-white/10">
+                          {holdsHighest ? (
+                            <Check className="w-3.5 h-3.5 text-amber-400 stroke-[3]" />
+                          ) : didPass ? (
+                            <X className="w-3.5 h-3.5 text-red-400 stroke-[2.5]" />
+                          ) : (
+                            <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Alt Kısım: Bu Oyuncunun Satın Aldığı Futbolcular */}
+                    <div className="flex flex-wrap gap-1 mt-2.5 pt-2 border-t border-white/10">
+                      {p.squad.length > 0 ? (
+                        p.squad.map((player, idx) => (
+                          <span
+                            key={`${player.id}_${idx}`}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/60 border border-white/10 text-[10px] text-zinc-200"
+                          >
+                            <span className="font-mono font-bold text-emerald-400">{player.overallPrime}</span>
+                            <span className="truncate max-w-[75px] font-medium">{player.fullName.split(" ").slice(-1)[0]}</span>
+                            <span className="text-[9px] text-zinc-400 font-mono">({player.positions[0]})</span>
+                          </span>
+                        ))
                       ) : (
-                        <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        <span className="text-[10px] text-zinc-500 italic">Henüz oyuncu almadı</span>
                       )}
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="p-3 rounded-xl bg-black/30 border border-white/5 text-[11px] text-zinc-400 mt-2">
-            💡 Sırası gelen oyuncu vitrindeki futbolcuya zorunlu 1$ teklif verir. Kimse artırmazsa oyuncu onda kalır!
+                );
+              })}
           </div>
         </div>
       </div>

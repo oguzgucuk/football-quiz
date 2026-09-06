@@ -9,6 +9,7 @@ import { PlayGridModeCard, NationTeamSubMode } from "./play/PlayGridModeCard";
 import { PlayAuctionModeCard } from "./play/PlayAuctionModeCard";
 import { PlayTrainingCard, TrainingSubMode } from "./play/PlayTrainingCard";
 import { PlayModeGuidesModal } from "./play/PlayModeGuidesModal";
+import { JoinAuctionRoomModal } from "@/components/auction/JoinAuctionRoomModal";
 import { GameMode } from "@/types/game";
 
 interface PlayStageProps {
@@ -35,6 +36,24 @@ export function PlayStage({
   const [selectedNationTeamSubMode, setSelectedNationTeamSubMode] = useState<NationTeamSubMode>("casual");
   const [selectedTrainingSubMode, setSelectedTrainingSubMode] = useState<TrainingSubMode>("players");
   const [activeGuideKey, setActiveGuideKey] = useState<string | null>(null);
+  const [isJoinAuctionModalOpen, setIsJoinAuctionModalOpen] = useState(false);
+
+  const handleCreateAuction = () => {
+    if (!user) {
+      onOpenAuthModal?.("login");
+      return;
+    }
+    const roomId = `oda_muzayede_${Math.floor(1000 + Math.random() * 9000)}`;
+    router.push(`/auction/${roomId}`);
+  };
+
+  const handleJoinAuction = () => {
+    if (!user) {
+      onOpenAuthModal?.("login");
+      return;
+    }
+    setIsJoinAuctionModalOpen(true);
+  };
 
   const handleConfirm = () => {
     if (selectedModeId === "training") {
@@ -139,10 +158,36 @@ export function PlayStage({
         </div>
       </div>
 
-      {/* Onay Butonu */}
+      {/* Onay Butonları */}
       <div className="relative z-10 flex justify-center pt-4 pb-2 shrink-0">
-        {selectedModeId === "auction" ||
-        (selectedModeId !== "training" || selectedTrainingSubMode === "players") ? (
+        {selectedModeId === "auction" ? (
+          <div className="flex items-center gap-3 w-full max-w-[460px] justify-center px-2">
+            {/* 1. OYUN KUR (Doğrudan Lobiye Girer) */}
+            <button
+              onClick={handleCreateAuction}
+              className="relative group flex-1 h-[60px] flex items-center justify-center transition-transform active:scale-[0.98] cursor-pointer"
+            >
+              <div className="absolute -inset-1 border border-emerald-500/40 group-hover:border-emerald-400/80 transition-colors rounded-2xl" />
+              <div className="relative w-full h-full flex items-center justify-center bg-gradient-to-b from-[#168841] to-[#126d34] border border-emerald-400/50 rounded-xl shadow-[0_0_25px_rgba(34,197,94,0.35),inset_0_1px_1px_rgba(255,255,255,0.3)] transition-all overflow-hidden">
+                <span className="relative flex items-center gap-2 text-white font-black text-sm sm:text-base tracking-[0.14em] uppercase">
+                  OYUN KUR <ChevronRight className="size-4 text-white stroke-[2.5]" />
+                </span>
+              </div>
+            </button>
+
+            {/* 2. OYUNA KATIL (Sade Kod Girme Modalı Açar) */}
+            <button
+              onClick={handleJoinAuction}
+              className="relative group flex-1 h-[60px] flex items-center justify-center transition-transform active:scale-[0.98] cursor-pointer"
+            >
+              <div className="relative w-full h-full flex items-center justify-center bg-black/60 hover:bg-black/80 border border-white/20 hover:border-emerald-400/50 rounded-xl backdrop-blur-xl shadow-lg transition-all">
+                <span className="relative flex items-center gap-2 text-zinc-200 hover:text-white font-black text-sm sm:text-base tracking-[0.14em] uppercase">
+                  OYUNA KATIL
+                </span>
+              </div>
+            </button>
+          </div>
+        ) : selectedModeId !== "training" || selectedTrainingSubMode === "players" ? (
           <button
             onClick={handleConfirm}
             className="relative group flex items-center justify-center transition-transform active:scale-[0.98] w-[340px] h-[62px] cursor-pointer"
@@ -168,6 +213,12 @@ export function PlayStage({
       <PlayModeGuidesModal
         guideKey={activeGuideKey}
         onClose={() => setActiveGuideKey(null)}
+      />
+
+      {/* Sade Koda Katıl Modalı */}
+      <JoinAuctionRoomModal
+        isOpen={isJoinAuctionModalOpen}
+        onClose={() => setIsJoinAuctionModalOpen(false)}
       />
     </div>
   );
