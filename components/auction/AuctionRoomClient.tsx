@@ -14,7 +14,7 @@ import { AuctionBiddingStage } from "./AuctionBiddingStage";
 import { AuctionPitchBuilder } from "./AuctionPitchBuilder";
 import { AuctionSimulationStage } from "./AuctionSimulationStage";
 import { StadiumBackground } from "@/components/ui/StadiumBackground";
-import { RotateCcw, ArrowLeft } from "lucide-react";
+import { RotateCcw, ArrowLeft, AlertTriangle, AlertCircle } from "lucide-react";
 import Link from "next/link";
 
 interface AuctionRoomClientProps {
@@ -38,6 +38,8 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
     state,
     isConnected,
     errorMessage,
+    toastMessage,
+    roomClosedReason,
     updateSettings,
     startGame,
     placeBid,
@@ -45,7 +47,17 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
     confirmLineup,
     nextSimMatch,
     returnToLobby,
+    leaveRoom,
   } = useAuctionRoom({ roomId, userId: currentUserId, username });
+
+  useEffect(() => {
+    if (roomClosedReason) {
+      const t = setTimeout(() => {
+        router.push("/?tab=play");
+      }, 3500);
+      return () => clearTimeout(t);
+    }
+  }, [roomClosedReason, router]);
 
   if (isLoading || !currentUserId) {
     return (
@@ -66,13 +78,16 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
       {/* Üst Çubuk */}
       <header className="relative z-20 flex items-center justify-between px-4 sm:px-8 py-4 border-b border-white/10 bg-black/40 backdrop-blur-md">
         <div className="flex items-center gap-3">
-          <Link
-            href="/"
+          <button
+            onClick={() => {
+              leaveRoom();
+              router.push("/?tab=play");
+            }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-zinc-300 transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Ayrıl</span>
-          </Link>
+          </button>
           <span className="font-mono text-xs text-zinc-400 font-bold hidden sm:inline">
             Oda #{roomId}
           </span>
@@ -138,6 +153,34 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
           />
         )}
       </div>
+
+      {/* Oyuncu Ayrıldı Toast Bildirimi */}
+      {toastMessage && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-black/85 border border-amber-500/50 text-amber-300 font-bold text-xs shadow-2xl backdrop-blur-xl animate-fadeIn">
+          <AlertCircle className="w-4 h-4 text-amber-400 animate-pulse" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Lobi Sahibi Ayrıldı / Lobi Kapatıldı Modalı */}
+      {roomClosedReason && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fadeIn">
+          <div className="flex flex-col items-center text-center p-6 sm:p-8 rounded-3xl bg-[#121c15] border border-red-500/40 shadow-2xl max-w-md w-full">
+            <div className="size-16 rounded-2xl bg-red-950/60 border border-red-500/40 text-red-400 flex items-center justify-center mb-4">
+              <AlertTriangle className="w-8 h-8" />
+            </div>
+            <h2 className="text-xl font-black text-white mb-2">Lobi Kapatıldı</h2>
+            <p className="text-sm text-zinc-300 mb-6">{roomClosedReason}</p>
+            <button
+              onClick={() => router.push("/?tab=play")}
+              className="w-full py-3.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-lg"
+            >
+              Ana Sayfaya Dön
+            </button>
+            <span className="text-[11px] text-zinc-500 font-mono mt-3">3 saniye içinde yönlendiriliyorsunuz...</span>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

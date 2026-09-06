@@ -63,21 +63,14 @@ export function handleAuctionSocketConnection(ws: WebSocket, roomId: string) {
     const clientMeta = room.clients.get(ws);
     room.clients.delete(ws);
 
-    if (clientMeta?.userId && room.state.status === "lobby") {
-      const remainingSockets = Array.from(room.clients.values()).filter(
-        (c) => c.userId === clientMeta.userId
-      );
-      if (remainingSockets.length === 0) {
-        delete room.state.participants[clientMeta.userId];
-        room.state.turnOrder = Object.keys(room.state.participants).filter((id) => Boolean(id && id.trim()));
-        if (room.state.hostUserId === clientMeta.userId) {
-          room.state.hostUserId = room.state.turnOrder[0] || "";
-          if (room.state.hostUserId && room.state.participants[room.state.hostUserId]) {
-            room.state.participants[room.state.hostUserId].isHost = true;
-          }
-        }
-        broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
-      }
+    if (!clientMeta?.userId) return;
+
+    const remainingSockets = Array.from(room.clients.values()).filter(
+      (c) => c.userId === clientMeta.userId
+    );
+
+    if (remainingSockets.length === 0) {
+      handleUserDisconnect(room, clientMeta.userId, clientMeta.username || "Bir oyuncu");
     }
   });
 }
@@ -134,6 +127,13 @@ async function processAuctionMessage(
     }
     case "AUCTION_RETURN_TO_LOBBY": {
       handleReturnToLobby(room);
+      break;
+    }
+    case "AUCTION_LEAVE": {
+      const clientMeta = room.clients.get(ws);
+      const uname = clientMeta?.username || msg.username || "Bir oyuncu";
+      room.clients.delete(ws);
+      handleUserDisconnect(room, msg.userId, uname);
       break;
     }
   }
@@ -364,6 +364,43 @@ function handleReturnToLobby(room: AuctionPartyRoom) {
   };
 
   broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
+}
+
+function handleUserDisconnect(room: AuctionPartyRoom, userId: string, username: string) {
+  if (room.state.status === "lobby") {
+    const isHost = room.state.hostUserId === userId;
+
+    if (isHost) {
+      // 1. Lobi sahibi ayrıldı -> Lobi bozulur (kapatılır)
+      broadcast(room, {
+        type: "AUCTION_ROOM_CLOSED",
+        reason: `Lobi sahibi (${username}) ayrıldığı için lobi kapatıldı.`,
+      });
+      if (room.timer) {
+        clearInterval(room.timer);
+        room.timer = undefined;
+      }
+      auctionRooms.delete(room.roomId);
+      return;
+    }
+
+    // 2. Normal oyuncu ayrıldı -> Listeden silinir ve uyarı bildirimi gönderilir
+    delete room.state.participants[userId];
+    room.state.turnOrder = Object.keys(room.state.participants).filter(
+      (id) => Boolean(id && id.trim())
+    );
+    broadcast(room, {
+      type: "AUCTION_PLAYER_LEFT",
+      username,
+    });
+    broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
+  } else {
+    // Oyun sırasında biri ayrılırsa bildirim gönder
+    broadcast(room, {
+      type: "AUCTION_PLAYER_LEFT",
+      username,
+    });
+  }
 }
 
 function broadcast(room: AuctionPartyRoom, payload: object) {

@@ -22,6 +22,8 @@ export function useAuctionRoom({ roomId, userId, username }: UseAuctionRoomProps
   );
   const [isConnected, setIsConnected] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [roomClosedReason, setRoomClosedReason] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
 
   const sendMessage = useCallback((payload: object) => {
@@ -49,7 +51,7 @@ export function useAuctionRoom({ roomId, userId, username }: UseAuctionRoomProps
     socket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        handleIncomingMessage(data, setState, setErrorMessage);
+        handleIncomingMessage(data, setState, setErrorMessage, setToastMessage, setRoomClosedReason);
       } catch (err) {
         console.error("[AuctionSocket] Parse hatası:", err);
       }
@@ -102,11 +104,18 @@ export function useAuctionRoom({ roomId, userId, username }: UseAuctionRoomProps
     sendMessage({ type: "AUCTION_RETURN_TO_LOBBY", userId });
   }, [userId, sendMessage]);
 
+  const leaveRoom = useCallback(() => {
+    sendMessage({ type: "AUCTION_LEAVE", userId });
+  }, [userId, sendMessage]);
+
   return {
     state,
     isConnected,
     errorMessage,
     clearError: () => setErrorMessage(null),
+    toastMessage,
+    clearToast: () => setToastMessage(null),
+    roomClosedReason,
     updateSettings,
     startGame,
     placeBid,
@@ -114,6 +123,7 @@ export function useAuctionRoom({ roomId, userId, username }: UseAuctionRoomProps
     confirmLineup,
     nextSimMatch,
     returnToLobby,
+    leaveRoom,
   };
 }
 
@@ -124,12 +134,16 @@ type ServerAuctionEvent = {
   currentMinute?: number;
   currentMatchIndex?: number;
   message?: string;
+  username?: string;
+  reason?: string;
 };
 
 function handleIncomingMessage(
   data: ServerAuctionEvent,
   setState: React.Dispatch<React.SetStateAction<AuctionRoomState>>,
-  setErrorMessage: (msg: string | null) => void
+  setErrorMessage: (msg: string | null) => void,
+  setToastMessage: (msg: string | null) => void,
+  setRoomClosedReason: (msg: string | null) => void
 ) {
   if (data.type === "AUCTION_STATE_SYNC" && data.state) {
     setState(data.state);
@@ -144,5 +158,10 @@ function handleIncomingMessage(
   } else if (data.type === "AUCTION_ERROR") {
     setErrorMessage(data.message || "İşlem gerçekleştirilemedi");
     setTimeout(() => setErrorMessage(null), 4000);
+  } else if (data.type === "AUCTION_PLAYER_LEFT") {
+    setToastMessage(`${data.username || "Bir oyuncu"} lobiden ayrıldı.`);
+    setTimeout(() => setToastMessage(null), 4000);
+  } else if (data.type === "AUCTION_ROOM_CLOSED") {
+    setRoomClosedReason(data.reason || "Oda sahibi lobiden ayrıldığı için lobi kapatıldı.");
   }
 }
