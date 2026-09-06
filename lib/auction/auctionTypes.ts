@@ -60,6 +60,15 @@ export interface AuctionBid {
   timestamp: number;
 }
 
+export interface AuctionSoldEvent {
+  playerName: string;
+  buyerUserId: string;
+  buyerUsername: string;
+  amount: number;
+  overall: number;
+  timestamp: number;
+}
+
 export interface SquadSlot {
   slotId: string;
   targetPosition: PitchPosition;
@@ -135,4 +144,5 @@ export interface AuctionRoomState {
   currentSimMinute: number;
   standings: StandingRow[];
   championUserId: string | null;
+  lastSoldEvent?: AuctionSoldEvent | null;
 }

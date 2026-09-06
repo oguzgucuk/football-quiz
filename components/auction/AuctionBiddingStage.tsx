@@ -10,6 +10,8 @@
 import React, { useState } from "react";
 import { AuctionRoomState } from "@/lib/auction/auctionTypes";
 import { Timer, Check, X, ShieldAlert, Gavel } from "lucide-react";
+import { AuctionSoldNotification } from "./AuctionSoldNotification";
+import { AuctionParticipantSquad } from "./AuctionParticipantSquad";
 
 interface AuctionBiddingStageProps {
   state: AuctionRoomState;
@@ -51,7 +53,10 @@ export function AuctionBiddingStage({
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto flex flex-col gap-5 p-4 sm:p-6 select-none animate-fadeIn">
+    <div className="relative w-full max-w-5xl mx-auto flex flex-col gap-5 p-4 sm:p-6 select-none animate-fadeIn">
+      {/* 2 Saniyelik Oyuncu Satıldı Bildirimi */}
+      <AuctionSoldNotification soldEvent={state.lastSoldEvent} />
+
       {/* Üst Bilgi Çubuğu & Sayaç */}
       <div className="flex items-center justify-between p-3 px-5 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-md">
         <div className="flex items-center gap-3">
@@ -266,23 +271,8 @@ export function AuctionBiddingStage({
                       </div>
                     </div>
 
-                    {/* Alt Kısım: Bu Oyuncunun Satın Aldığı Futbolcular */}
-                    <div className="flex flex-wrap gap-1 mt-2.5 pt-2 border-t border-white/10">
-                      {p.squad.length > 0 ? (
-                        p.squad.map((player, idx) => (
-                          <span
-                            key={`${player.id}_${idx}`}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/60 border border-white/10 text-[10px] text-zinc-200"
-                          >
-                            <span className="font-mono font-bold text-emerald-400">{player.overallPrime}</span>
-                            <span className="truncate max-w-[75px] font-medium">{player.fullName.split(" ").slice(-1)[0]}</span>
-                            <span className="text-[9px] text-zinc-400 font-mono">({player.positions[0]})</span>
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-[10px] text-zinc-500 italic">Henüz oyuncu almadı</span>
-                      )}
-                    </div>
+                    {/* Alt Kısım: Bu Oyuncunun Satın Aldığı Futbolcular (Mevkilere Göre Ayrılmış) */}
+                    <AuctionParticipantSquad squad={p.squad} />
                   </div>
                 );
               })}

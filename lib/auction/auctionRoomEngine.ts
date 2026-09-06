@@ -57,6 +57,7 @@ export function createInitialAuctionState(
     currentSimMinute: 0,
     standings: [],
     championUserId: null,
+    lastSoldEvent: null,
   };
 }
 
@@ -178,9 +179,19 @@ export function advanceAuctionCard(state: AuctionRoomState): AuctionRoomState {
     };
   }
 
+  const soldEvent = {
+    playerName: state.currentCard.fullName,
+    buyerUserId: winnerId,
+    buyerUsername: winner?.username || state.currentHighestBid.bidderUsername || "Oyuncu",
+    amount: cost,
+    overall: state.currentCard.overallPrime,
+    timestamp: Date.now(),
+  };
+
   return finishOrNextTurn({
     ...state,
     participants: updatedParticipants,
+    lastSoldEvent: soldEvent,
   });
 }
 
