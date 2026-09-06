@@ -20,7 +20,7 @@ import {
 import { generateAuctionPool } from "./generateAuctionPool";
 import { createInitialSlotsForFormation } from "./formationTemplates";
 import { calculateLineupPowers, calculateSlotRating } from "./positionSuitability";
-import { generateLeagueFixtures, simulateEntireTournament } from "./auctionTournament";
+import { generateLeagueFixtures, simulateEntireTournament, calculateStandings } from "./auctionTournament";
 
 interface AuctionPartyRoom {
   roomId: string;
@@ -121,8 +121,12 @@ async function processAuctionMessage(
       }
       break;
     }
+    case "AUCTION_SIM_READY": {
+      handleSimReady(room, msg.userId);
+      break;
+    }
     case "AUCTION_NEXT_SIM_MATCH": {
-      handleNextSimMatch(room);
+      handleNextSimMatch(room, msg.userId);
       break;
     }
     case "AUCTION_RETURN_TO_LOBBY": {
@@ -210,32 +214,41 @@ function handlePass(room: AuctionPartyRoom, userId: string) {
 }
 
 function handleConfirmLineup(room: AuctionPartyRoom, userId: string, lineup: TeamLineup) {
+  if (!room.state.confirmedLineupUserIds) {
+    room.state.confirmedLineupUserIds = [];
+  }
+  if (!room.state.confirmedLineupUserIds.includes(userId)) {
+    room.state.confirmedLineupUserIds.push(userId);
+  }
   room.state.lineups[userId] = lineup;
-  broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
 
-  const allConfirmed = Object.keys(room.state.participants).every(
-    (uid) => room.state.lineups[uid]?.isConfirmed
-  );
+  const activeUids = Object.keys(room.state.participants).filter((uid) => Boolean(uid && uid.trim()));
+  const allConfirmed =
+    activeUids.length > 0 && activeUids.every((uid) => room.state.confirmedLineupUserIds.includes(uid));
 
   if (allConfirmed) {
     startTournamentSimulation(room);
+  } else {
+    broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
   }
 }
 
 function startTournamentSimulation(room: AuctionPartyRoom) {
-  const uids = Object.keys(room.state.participants);
+  const uids = Object.keys(room.state.participants).filter((id) => Boolean(id && id.trim()));
   const fixtures = generateLeagueFixtures(uids);
-  const { matches, standings, championUserId } = simulateEntireTournament(
+  const { matches } = simulateEntireTournament(
     fixtures,
     room.state.lineups,
     room.state.participants
   );
 
   room.state.simulationMatches = matches;
-  room.state.standings = standings;
-  room.state.championUserId = championUserId;
+  // Sıfır spoiler: Başlangıçta oynanmamış maçlar puan tablosuna eklenmez
+  room.state.standings = calculateStandings(uids, room.state.participants, []);
+  room.state.championUserId = null;
   room.state.currentSimMatchIndex = 0;
   room.state.currentSimMinute = 0;
+  room.state.simReadyUserIds = [];
   room.state.status = "simulation";
   room.state.secondsLeft = 30;
 
@@ -243,7 +256,43 @@ function startTournamentSimulation(room: AuctionPartyRoom) {
   startSimTimer(room);
 }
 
-function handleNextSimMatch(room: AuctionPartyRoom) {
+function updateStandingsAfterMatch(room: AuctionPartyRoom) {
+  const uids = Object.keys(room.state.participants).filter((id) => Boolean(id && id.trim()));
+  const completedMatches = room.state.simulationMatches.slice(0, room.state.currentSimMatchIndex + 1);
+  room.state.standings = calculateStandings(uids, room.state.participants, completedMatches);
+
+  if (room.state.currentSimMatchIndex >= room.state.simulationMatches.length - 1) {
+    room.state.championUserId = room.state.standings[0]?.userId || null;
+  }
+}
+
+function handleSimReady(room: AuctionPartyRoom, userId: string) {
+  if (room.state.status !== "simulation" || room.state.currentSimMinute < 90) return;
+  if (!room.state.simReadyUserIds) {
+    room.state.simReadyUserIds = [];
+  }
+  if (!room.state.simReadyUserIds.includes(userId)) {
+    room.state.simReadyUserIds.push(userId);
+  }
+
+  const activeUids = Object.keys(room.state.participants).filter((id) => Boolean(id && id.trim()));
+  if (activeUids.length > 0 && room.state.simReadyUserIds.length >= activeUids.length) {
+    handleNextSimMatch(room);
+  } else {
+    broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
+  }
+}
+
+function handleNextSimMatch(room: AuctionPartyRoom, userId?: string) {
+  if (room.state.status !== "simulation" || room.state.currentSimMinute < 90) return;
+
+  const activeUids = Object.keys(room.state.participants).filter((id) => Boolean(id && id.trim()));
+  const isHost = !userId || userId === room.state.hostUserId;
+  const isAllReady = (room.state.simReadyUserIds?.length || 0) >= activeUids.length;
+
+  if (!isHost && !isAllReady) return;
+
+  room.state.simReadyUserIds = [];
   const nextIdx = room.state.currentSimMatchIndex + 1;
   if (nextIdx < room.state.simulationMatches.length) {
     room.state.currentSimMatchIndex = nextIdx;
@@ -291,18 +340,24 @@ function startSimTimer(room: AuctionPartyRoom) {
     }
 
     if (room.state.currentSimMinute < 90) {
-      room.state.currentSimMinute += 6;
+      room.state.currentSimMinute = Math.min(90, room.state.currentSimMinute + 6);
       broadcast(room, {
         type: "AUCTION_SIM_TICK",
         currentMinute: room.state.currentSimMinute,
         currentMatchIndex: room.state.currentSimMatchIndex,
       });
+
+      if (room.state.currentSimMinute === 90) {
+        if (room.timer) clearInterval(room.timer);
+        updateStandingsAfterMatch(room);
+        broadcast(room, {
+          type: "AUCTION_SIM_MATCH_END",
+          currentMatchIndex: room.state.currentSimMatchIndex,
+        });
+        broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
+      }
     } else {
       if (room.timer) clearInterval(room.timer);
-      broadcast(room, {
-        type: "AUCTION_SIM_MATCH_END",
-        currentMatchIndex: room.state.currentSimMatchIndex,
-      });
     }
   }, 1800); // Her ~1.8 saniyede bir pozisyon (~27-30 sn toplam maç süresi)
 }
@@ -323,6 +378,8 @@ function autoConfirmLineups(room: AuctionPartyRoom) {
       room.state.lineups[uid] = calculateLineupPowers(uid, defaultFormation, slots);
     }
   }
+  const activeUids = Object.keys(room.state.participants).filter((id) => Boolean(id && id.trim()));
+  room.state.confirmedLineupUserIds = activeUids;
 }
 
 function handleReturnToLobby(room: AuctionPartyRoom) {

@@ -139,9 +139,11 @@ export interface AuctionRoomState {
   passedUserIds: string[];
   secondsLeft: number;
   lineups: Record<string, TeamLineup>;
+  confirmedLineupUserIds: string[];
   simulationMatches: MatchSimulationResult[];
   currentSimMatchIndex: number;
   currentSimMinute: number;
+  simReadyUserIds: string[];
   standings: StandingRow[];
   championUserId: string | null;
   lastSoldEvent?: AuctionSoldEvent | null;

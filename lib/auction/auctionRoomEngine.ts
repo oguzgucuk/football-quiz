@@ -52,9 +52,11 @@ export function createInitialAuctionState(
     passedUserIds: [],
     secondsLeft: 0,
     lineups: {},
+    confirmedLineupUserIds: [],
     simulationMatches: [],
     currentSimMatchIndex: 0,
     currentSimMinute: 0,
+    simReadyUserIds: [],
     standings: [],
     championUserId: null,
     lastSoldEvent: null,
@@ -208,7 +210,8 @@ function finishOrNextTurn(state: AuctionRoomState): AuctionRoomState {
       status: "tactics",
       currentCard: null,
       currentHighestBid: null,
-      secondsLeft: 90, // Diziliş için 90 saniye
+      confirmedLineupUserIds: [],
+      secondsLeft: 60, // Diziliş için kullanıcının belirttiği 60 saniye
     };
   }
 

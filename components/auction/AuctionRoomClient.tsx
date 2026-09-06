@@ -46,6 +46,7 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
     passBid,
     confirmLineup,
     nextSimMatch,
+    readyForNextSimMatch,
     returnToLobby,
     leaveRoom,
   } = useAuctionRoom({ roomId, userId: currentUserId, username });
@@ -140,6 +141,10 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
             userId={currentUserId}
             squad={myParticipant?.squad || []}
             secondsLeft={state.secondsLeft}
+            confirmedUserIds={state.confirmedLineupUserIds || []}
+            totalParticipantCount={
+              Object.keys(state.participants).filter((id) => Boolean(id && id.trim())).length
+            }
             onConfirmLineup={confirmLineup}
           />
         )}
@@ -149,6 +154,7 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
             state={state}
             currentUserId={currentUserId}
             onNextMatch={nextSimMatch}
+            onReadyForNextMatch={readyForNextSimMatch}
             onReturnToLobby={returnToLobby}
           />
         )}

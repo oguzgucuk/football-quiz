@@ -7,15 +7,17 @@
  * - Canlı Lig Puan Durumu ve Şampiyonluk Podyumu
  */
 
-import React from "react";
+import React, { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { AuctionRoomState } from "@/lib/auction/auctionTypes";
-import { Trophy, Timer, Shield, Flame, ChevronRight, Award, RotateCcw, Home } from "lucide-react";
+import { calculateStandings } from "@/lib/auction/auctionTournament";
+import { Trophy, Timer, Shield, Flame, ChevronRight, Award, RotateCcw, Home, CheckCircle2 } from "lucide-react";
 
 interface AuctionSimulationStageProps {
   state: AuctionRoomState;
   currentUserId: string;
   onNextMatch: () => void;
+  onReadyForNextMatch: () => void;
   onReturnToLobby: () => void;
 }
 
@@ -23,6 +25,7 @@ export function AuctionSimulationStage({
   state,
   currentUserId,
   onNextMatch,
+  onReadyForNextMatch,
   onReturnToLobby,
 }: AuctionSimulationStageProps) {
   const router = useRouter();
@@ -45,6 +48,31 @@ export function AuctionSimulationStage({
 
   const isMatchOver = state.currentSimMinute >= 90;
   const isHost = state.hostUserId === currentUserId;
+
+  const simReadyUserIds = state.simReadyUserIds || [];
+  const isMyReady = simReadyUserIds.includes(currentUserId);
+  const activeUserIds = useMemo(
+    () => Object.keys(state.participants).filter((id) => Boolean(id && id.trim())),
+    [state.participants]
+  );
+  const totalPlayers = Math.max(1, activeUserIds.length);
+  const readyCount = simReadyUserIds.length;
+
+  // Sıfır spoiler puan durumu: Sadece tamamlanmış maçlar dahil edilir
+  const currentStandings = useMemo(() => {
+    if (isAllMatchesFinished) return state.standings;
+    const completedCount = isMatchOver ? matchIndex + 1 : matchIndex;
+    const completedMatches = state.simulationMatches.slice(0, completedCount);
+    return calculateStandings(activeUserIds, state.participants, completedMatches);
+  }, [
+    isAllMatchesFinished,
+    state.standings,
+    isMatchOver,
+    matchIndex,
+    state.simulationMatches,
+    activeUserIds,
+    state.participants,
+  ]);
 
   return (
     <div className="w-full max-w-5xl mx-auto flex flex-col gap-6 p-4 sm:p-6 select-none animate-fadeIn">
@@ -148,15 +176,53 @@ export function AuctionSimulationStage({
               )}
             </div>
 
-            {/* Maç Bitti Butonu */}
+            {/* Maç Bitti Kontrolleri: Hazır Sistemi ve Lobi Sahibi Geçiş Butonu */}
             {isMatchOver && (
-              <div className="flex justify-center mt-4">
-                <button
-                  onClick={onNextMatch}
-                  className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider transition-all cursor-pointer shadow-lg flex items-center gap-2"
-                >
-                  Sonraki Maça Geç <ChevronRight className="w-4 h-4" />
-                </button>
+              <div className="flex flex-col items-center gap-3 mt-5 pt-4 border-t border-white/10">
+                <span className="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  Maç Tamamlandı
+                </span>
+
+                <div className="flex flex-wrap items-center justify-center gap-3 w-full">
+                  {/* Hazır Butonu: Tıklandığında grileşir */}
+                  <button
+                    onClick={onReadyForNextMatch}
+                    disabled={isMyReady}
+                    className={`px-5 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+                      isMyReady
+                        ? "bg-zinc-800 text-zinc-400 border border-white/10 cursor-not-allowed shadow-none"
+                        : "bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 text-white cursor-pointer shadow-lg active:scale-98"
+                    }`}
+                  >
+                    <CheckCircle2 className={`w-4 h-4 ${isMyReady ? "text-emerald-400" : ""}`} />
+                    <span>{isMyReady ? "Hazırsınız ✓" : "Sonraki Maça Hazırım 👍"}</span>
+                  </button>
+
+                  {/* Lobi Sahibi Geçiş Butonu */}
+                  {isHost && (
+                    <button
+                      onClick={onNextMatch}
+                      className="px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs uppercase tracking-wider transition-all cursor-pointer shadow-lg flex items-center justify-center gap-2 active:scale-98"
+                    >
+                      <span>Sonraki Maça Geç (Lobi Sahibi)</span>
+                      <ChevronRight className="w-4 h-4 stroke-[3]" />
+                    </button>
+                  )}
+                </div>
+
+                {/* X / Y Kişi Hazır Sayacı */}
+                <div className="flex items-center gap-2 text-xs font-mono font-bold text-zinc-400">
+                  <span className="text-emerald-400 font-extrabold text-sm">{readyCount}</span>
+                  <span>/</span>
+                  <span className="text-white font-extrabold text-sm">{totalPlayers}</span>
+                  <span className="text-zinc-300 font-sans font-medium">Kişi Hazır</span>
+                  {readyCount >= totalPlayers && (
+                    <span className="text-emerald-400 font-sans text-[11px] font-bold animate-pulse">
+                      (Herkes hazır, başlanıyor...)
+                    </span>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -166,7 +232,7 @@ export function AuctionSimulationStage({
             <span className="text-xs font-black uppercase tracking-widest text-zinc-400 block mb-3">
               Lig Puan Durumu
             </span>
-            <StandingsTable standings={state.standings} currentUserId={currentUserId} />
+            <StandingsTable standings={currentStandings} currentUserId={currentUserId} />
           </div>
         </>
       )}

@@ -25,6 +25,8 @@ interface AuctionPitchBuilderProps {
   userId: string;
   squad: AuctionPlayerCard[];
   secondsLeft: number;
+  confirmedUserIds?: string[];
+  totalParticipantCount?: number;
   onConfirmLineup: (lineup: TeamLineup) => void;
 }
 
@@ -32,6 +34,8 @@ export function AuctionPitchBuilder({
   userId,
   squad,
   secondsLeft,
+  confirmedUserIds = [],
+  totalParticipantCount = 1,
   onConfirmLineup,
 }: AuctionPitchBuilderProps) {
   const [formation, setFormation] = useState<FormationName>("4-3-3");
@@ -235,19 +239,37 @@ export function AuctionPitchBuilder({
             }}
           />
 
-          {/* Kadroyu Onayla Butonu */}
-          <button
-            onClick={() => onConfirmLineup(lineup)}
-            disabled={!lineup.isConfirmed}
-            className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2 ${
-              lineup.isConfirmed
-                ? "bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 text-white cursor-pointer active:scale-98"
-                : "bg-zinc-800 text-zinc-500 cursor-not-allowed border border-white/5"
-            }`}
-          >
-            <CheckCircle2 className="w-4 h-4" />
-            Kadroyu Onayla ➔
-          </button>
+          {/* Kadroyu Onayla Butonu & Canlı Sayaç */}
+          <div className="flex flex-col gap-1.5 w-full">
+            <button
+              onClick={() => onConfirmLineup(lineup)}
+              disabled={!lineup.isConfirmed || confirmedUserIds.includes(userId)}
+              className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2 ${
+                confirmedUserIds.includes(userId)
+                  ? "bg-zinc-800/90 text-emerald-400 border border-emerald-500/40 cursor-not-allowed shadow-none"
+                  : lineup.isConfirmed
+                  ? "bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 text-white cursor-pointer active:scale-98"
+                  : "bg-zinc-800 text-zinc-500 cursor-not-allowed border border-white/5"
+              }`}
+            >
+              <CheckCircle2
+                className={`w-4 h-4 ${confirmedUserIds.includes(userId) ? "text-emerald-400" : ""}`}
+              />
+              {confirmedUserIds.includes(userId)
+                ? "Kadronuz Onaylandı ✓"
+                : lineup.isConfirmed
+                ? "Kadroyu Onayla ➔"
+                : "11 Oyuncuyu Sahaya Yerleştirin"}
+            </button>
+
+            {/* x/x kişi bastı sayacı */}
+            <div className="flex items-center justify-center gap-1.5 text-center font-mono text-[11px] font-bold text-zinc-400 py-1">
+              <span className="text-emerald-400 font-extrabold">{confirmedUserIds.length}</span>
+              <span>/</span>
+              <span className="text-white font-extrabold">{Math.max(1, totalParticipantCount)}</span>
+              <span className="text-zinc-400 font-sans font-medium">Kişi Onayladı</span>
+            </div>
+          </div>
         </div>
 
         {/* SAĞ KOLON: FUTBOL SAHASI (Çizimdeki Büyük Saha) */}

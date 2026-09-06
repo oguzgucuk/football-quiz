@@ -23,7 +23,7 @@ import {
 } from "../lib/auction/auctionRoomEngine";
 import { createInitialSlotsForFormation } from "../lib/auction/formationTemplates";
 import { calculateLineupPowers, calculateSlotRating } from "../lib/auction/positionSuitability";
-import { generateLeagueFixtures, simulateEntireTournament } from "../lib/auction/auctionTournament";
+import { generateLeagueFixtures, simulateEntireTournament, calculateStandings } from "../lib/auction/auctionTournament";
 
 export default class AuctionPartyServer implements Party.Server {
   state: AuctionRoomState;
@@ -81,8 +81,11 @@ export default class AuctionPartyServer implements Party.Server {
         case "AUCTION_CONFIRM_LINEUP":
           if (msg.lineup) this.handleConfirmLineup(msg.userId, msg.lineup);
           break;
+        case "AUCTION_SIM_READY":
+          this.handleSimReady(msg.userId);
+          break;
         case "AUCTION_NEXT_SIM_MATCH":
-          this.handleNextSimMatch();
+          this.handleNextSimMatch(msg.userId);
           break;
         case "AUCTION_RETURN_TO_LOBBY":
           this.handleReturnToLobby();
@@ -209,31 +212,41 @@ export default class AuctionPartyServer implements Party.Server {
   }
 
   private handleConfirmLineup(userId: string, lineup: TeamLineup) {
+    if (!this.state.confirmedLineupUserIds) {
+      this.state.confirmedLineupUserIds = [];
+    }
+    if (!this.state.confirmedLineupUserIds.includes(userId)) {
+      this.state.confirmedLineupUserIds.push(userId);
+    }
     this.state.lineups[userId] = lineup;
-    this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
 
-    const allConfirmed = Object.keys(this.state.participants).every(
-      (uid) => this.state.lineups[uid]?.isConfirmed
-    );
+    const activeUids = Object.keys(this.state.participants).filter((uid) => Boolean(uid && uid.trim()));
+    const allConfirmed =
+      activeUids.length > 0 && activeUids.every((uid) => this.state.confirmedLineupUserIds.includes(uid));
+
     if (allConfirmed) {
       this.startTournamentSimulation();
+    } else {
+      this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
     }
   }
 
   private startTournamentSimulation() {
-    const uids = Object.keys(this.state.participants);
+    const uids = Object.keys(this.state.participants).filter((id) => Boolean(id && id.trim()));
     const fixtures = generateLeagueFixtures(uids);
-    const { matches, standings, championUserId } = simulateEntireTournament(
+    const { matches } = simulateEntireTournament(
       fixtures,
       this.state.lineups,
       this.state.participants
     );
 
     this.state.simulationMatches = matches;
-    this.state.standings = standings;
-    this.state.championUserId = championUserId;
+    // Sıfır spoiler: Başlangıçta oynanmamış maçlar puan tablosuna eklenmez
+    this.state.standings = calculateStandings(uids, this.state.participants, []);
+    this.state.championUserId = null;
     this.state.currentSimMatchIndex = 0;
     this.state.currentSimMinute = 0;
+    this.state.simReadyUserIds = [];
     this.state.status = "simulation";
     this.state.secondsLeft = 30;
 
@@ -241,7 +254,45 @@ export default class AuctionPartyServer implements Party.Server {
     this.startSimTimer();
   }
 
-  private handleNextSimMatch() {
+  private updateStandingsAfterMatch() {
+    const uids = Object.keys(this.state.participants).filter((id) => Boolean(id && id.trim()));
+    const completedMatches = this.state.simulationMatches.slice(0, this.state.currentSimMatchIndex + 1);
+    this.state.standings = calculateStandings(uids, this.state.participants, completedMatches);
+
+    // Eğer son maç bittiyse şampiyonu belirle
+    if (this.state.currentSimMatchIndex >= this.state.simulationMatches.length - 1) {
+      this.state.championUserId = this.state.standings[0]?.userId || null;
+    }
+  }
+
+  private handleSimReady(userId: string) {
+    if (this.state.status !== "simulation" || this.state.currentSimMinute < 90) return;
+    if (!this.state.simReadyUserIds) {
+      this.state.simReadyUserIds = [];
+    }
+    if (!this.state.simReadyUserIds.includes(userId)) {
+      this.state.simReadyUserIds.push(userId);
+    }
+
+    const activeUids = Object.keys(this.state.participants).filter((id) => Boolean(id && id.trim()));
+    if (activeUids.length > 0 && this.state.simReadyUserIds.length >= activeUids.length) {
+      this.handleNextSimMatch();
+    } else {
+      this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
+    }
+  }
+
+  private handleNextSimMatch(userId?: string) {
+    if (this.state.status !== "simulation" || this.state.currentSimMinute < 90) return;
+
+    const activeUids = Object.keys(this.state.participants).filter((id) => Boolean(id && id.trim()));
+    const isHost = !userId || userId === this.state.hostUserId;
+    const isAllReady = (this.state.simReadyUserIds?.length || 0) >= activeUids.length;
+
+    // Sadece oyun kurucusu VEYA herkes hazır olduğunda sonraki maça geçilebilir
+    if (!isHost && !isAllReady) return;
+
+    this.state.simReadyUserIds = [];
     const nextIdx = this.state.currentSimMatchIndex + 1;
     if (nextIdx < this.state.simulationMatches.length) {
       this.state.currentSimMatchIndex = nextIdx;
@@ -289,18 +340,24 @@ export default class AuctionPartyServer implements Party.Server {
       }
 
       if (this.state.currentSimMinute < 90) {
-        this.state.currentSimMinute += 6;
+        this.state.currentSimMinute = Math.min(90, this.state.currentSimMinute + 6);
         this.broadcast({
           type: "AUCTION_SIM_TICK",
           currentMinute: this.state.currentSimMinute,
           currentMatchIndex: this.state.currentSimMatchIndex,
         });
+
+        if (this.state.currentSimMinute === 90) {
+          if (this.timerInterval) clearInterval(this.timerInterval);
+          this.updateStandingsAfterMatch();
+          this.broadcast({
+            type: "AUCTION_SIM_MATCH_END",
+            currentMatchIndex: this.state.currentSimMatchIndex,
+          });
+          this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
+        }
       } else {
         if (this.timerInterval) clearInterval(this.timerInterval);
-        this.broadcast({
-          type: "AUCTION_SIM_MATCH_END",
-          currentMatchIndex: this.state.currentSimMatchIndex,
-        });
       }
     }, 1800);
   }
@@ -321,6 +378,8 @@ export default class AuctionPartyServer implements Party.Server {
         this.state.lineups[uid] = calculateLineupPowers(uid, defaultFormation, slots);
       }
     }
+    const activeUids = Object.keys(this.state.participants).filter((id) => Boolean(id && id.trim()));
+    this.state.confirmedLineupUserIds = activeUids;
   }
 
   private handleReturnToLobby() {
