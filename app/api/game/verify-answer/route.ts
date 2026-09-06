@@ -7,6 +7,7 @@
 import { NextResponse } from "next/server";
 import { verifyPlayerAnswerInServer } from "@/lib/realtime/verifyPlayerAnswerInServer";
 import { verifyNationAnswerInServer } from "@/lib/realtime/verifyNationAnswer";
+import { getNationById, findNationByIdOrAlias } from "@/lib/data/nations";
 import { Nation } from "@/types/game";
 import { z } from "zod";
 
@@ -16,9 +17,13 @@ const verifyAnswerInputSchema = z.object({
   nation: z
     .object({
       id: z.string(),
-      name: z.string(),
+      name: z.string().optional(),
+      englishName: z.string().optional(),
+      aliases: z.array(z.string()).optional(),
+      flagCode: z.string().optional(),
       flagUrl: z.string().optional(),
     })
+    .passthrough()
     .optional(),
   submittedName: z.string().trim().min(2, "Oyuncu adı en az 2 karakter olmalıdır"),
 });
@@ -40,7 +45,12 @@ export async function POST(req: Request) {
     let result: { isCorrect: boolean; playerName?: string };
 
     if (nation) {
-      result = await verifyNationAnswerInServer(submittedName, nation as Nation, team1Id);
+      const canonicalNation =
+        getNationById(nation.id) ||
+        findNationByIdOrAlias(nation.id || nation.name || "") ||
+        (nation as Nation);
+
+      result = await verifyNationAnswerInServer(submittedName, canonicalNation, team1Id);
     } else if (team2Id) {
       result = await verifyPlayerAnswerInServer(submittedName, team1Id, team2Id);
     } else {

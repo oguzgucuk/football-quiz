@@ -10,6 +10,7 @@
 
 import { prisma } from "../db/client";
 import { matchPlayerAnswer, CandidatePlayer } from "../validation/matchPlayerAnswer";
+import { getNationById, findNationByIdOrAlias } from "../data/nations";
 import { Nation } from "@/types/game";
 
 interface CachedNationPlayers {
@@ -28,7 +29,13 @@ export async function getNationTeamPlayersForRound(
   nation: Nation,
   teamId: string
 ): Promise<CandidatePlayer[]> {
-  const cacheKey = getNationCacheKey(nation.id, teamId);
+  const fullNation =
+    getNationById(nation.id) ||
+    findNationByIdOrAlias(nation.id || nation.name || "") ||
+    nation;
+
+  const nationKey = (fullNation.id || nation.id || "unknown").toLowerCase();
+  const cacheKey = getNationCacheKey(nationKey, teamId);
   const now = Date.now();
   const cached = nationPlayersCache.get(cacheKey);
 
@@ -37,11 +44,18 @@ export async function getNationTeamPlayersForRound(
   }
 
   // Veritabanındaki nationality değerleri (ör. "Brazil", "Brezilya", "Brasil")
-  const nationalityQueries = [
+  const rawQueries = [
+    fullNation.englishName,
+    fullNation.name,
     nation.englishName,
     nation.name,
-    ...nation.aliases,
+    ...(fullNation.aliases || []),
+    ...(nation.aliases || []),
   ];
+
+  const nationalityQueries = Array.from(
+    new Set(rawQueries.filter((q): q is string => typeof q === "string" && q.trim().length > 0))
+  );
 
   const dbPlayers = await prisma.player.findMany({
     where: {
