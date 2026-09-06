@@ -8,7 +8,7 @@
  */
 
 import { Team, Nation } from "@/types/game";
-import { RoomState } from "./roomState";
+import { RoomState, FoulEventInfo, RoomPlayer } from "./roomState";
 import { CompletedRoundData } from "../db/matches";
 import { POPULAR_NATIONS } from "../data/nations";
 
@@ -78,6 +78,7 @@ export function assignPlayerToRoom(
       userId: player.userId,
       username: player.username,
       score: 0,
+      fouls: 0,
       isReady: true,
     };
     return { slot: "player1", state: next, isRoomFull: false };
@@ -88,6 +89,7 @@ export function assignPlayerToRoom(
       userId: player.userId,
       username: player.username,
       score: 0,
+      fouls: 0,
       isReady: true,
     };
     next.status = "in_round";
@@ -220,6 +222,88 @@ export function registerNationPick(
 }
 
 /**
+ * Seçim süresi dolduğunda seçim yapmamış oyuncuları tespit eder ve faul yazar.
+ * 3 faule ulaşan oyuncunun faulleri sıfırlanır ve rakibine +1 puan verilir.
+ * Eğer ceza puanı ile rakip targetScore'a (3) ulaşırsa maç tamamlanır.
+ */
+export function checkSelectionTimeoutsAndApplyFouls(
+  state: RoomState
+): {
+  state: RoomState;
+  foulsApplied: FoulEventInfo[];
+  isMatchFinished: boolean;
+} {
+  const next = { ...state };
+  if (!next.player1 || !next.player2) {
+    return { state: next, foulsApplied: [], isMatchFinished: false };
+  }
+
+  next.player1 = { ...next.player1, fouls: next.player1.fouls || 0, score: next.player1.score || 0 };
+  next.player2 = { ...next.player2, fouls: next.player2.fouls || 0, score: next.player2.score || 0 };
+
+  const foulsApplied: FoulEventInfo[] = [];
+  const targetScore = next.targetScore || 3;
+
+  const applyFoul = (offender: RoomPlayer, victim: RoomPlayer) => {
+    offender.fouls += 1;
+    let penaltyAwarded = false;
+    let message = `${offender.username} seçim yapmadığı için 1 Faul aldı (${offender.fouls}/3).`;
+
+    if (offender.fouls >= 3) {
+      offender.fouls = 0;
+      victim.score += 1;
+      penaltyAwarded = true;
+      message = `⚠️ ${offender.username} 3 faule ulaştı! Ceza puanı: ${victim.username} +1 puan kazandı!`;
+    }
+
+    const event: FoulEventInfo = {
+      userId: offender.userId,
+      username: offender.username,
+      totalFouls: offender.fouls,
+      penaltyAwarded,
+      message,
+    };
+    foulsApplied.push(event);
+  };
+
+  if (next.gameMode === "country_vs_team") {
+    // 1. Millet seçicisi seçmedi mi?
+    if (!next.nation && next.currentNationPickerUserId) {
+      const isP1 = next.player1.userId === next.currentNationPickerUserId;
+      const offender = isP1 ? next.player1 : next.player2;
+      const victim = isP1 ? next.player2 : next.player1;
+      applyFoul(offender, victim);
+    }
+    // 2. Kulüp seçicisi seçmedi mi?
+    if (!next.team1 && next.currentTeamPickerUserId) {
+      const isP1 = next.player1.userId === next.currentTeamPickerUserId;
+      const offender = isP1 ? next.player1 : next.player2;
+      const victim = isP1 ? next.player2 : next.player1;
+      applyFoul(offender, victim);
+    }
+  } else {
+    // Takım vs Takım: Seçim yapmayan oyuncu(lar)
+    if (!next.team1) {
+      applyFoul(next.player1, next.player2);
+    }
+    if (!next.team2) {
+      applyFoul(next.player2, next.player1);
+    }
+  }
+
+  if (foulsApplied.length > 0) {
+    next.lastFoulEvent = foulsApplied[foulsApplied.length - 1];
+  }
+
+  const isMatchFinished = next.player1.score >= targetScore || next.player2.score >= targetScore;
+  if (isMatchFinished) {
+    next.status = "match_finished";
+  }
+
+  return { state: next, foulsApplied, isMatchFinished };
+}
+
+/**
  * Takım seçimi süresi bittiğinde veya her iki oyuncu da seçtiğinde
  * eksik takımları kullanılmamış varsayılanlardan tamamlar, kullanılanları kilitler
  * ve cevaplama aşamasını başlatır.
@@ -312,6 +396,7 @@ export function recordRoundTimeout(
 ): { state: RoomState; completedRound: CompletedRoundData } {
   const next = { ...state };
   next.roundStatus = "round_finished";
+  next.lastRoundWasDraw = true;
 
   const completedRound: CompletedRoundData = {
     roundNumber: next.currentRound,
@@ -351,6 +436,7 @@ export function evaluateAnswerSubmission(
 
   const next = { ...state };
   next.roundStatus = "round_finished";
+  next.lastRoundWasDraw = false;
 
   if (next.player1?.userId === senderUserId) {
     next.player1.score += 1;
@@ -402,6 +488,7 @@ export function evaluatePassVote(
 
   if (bothPassed) {
     next.roundStatus = "round_finished";
+    next.lastRoundWasDraw = true;
     const completedRound: CompletedRoundData = {
       roundNumber: next.currentRound,
       entity1Id: next.gameMode === "country_vs_team" ? (next.nation?.id || "nation") : (next.team1?.id || ""),
@@ -418,19 +505,32 @@ export function evaluatePassVote(
 
 /**
  * Tur bitiminde bir sonraki tura geçer veya maçı sonlandırır.
+ * Kural:
+ * 1. İlk 3 puana (targetScore = 3) ulaşan oyuncu maçı kazanır.
+ * 2. Eğer tur berabere bittiyse (süre doldu veya karşılıklı pas), tur numarası artmaz ve tur yeniden başlar.
  */
 export function prepareNextRound(
   state: RoomState,
   maxRounds = DEFAULT_MAX_ROUNDS
-): { isMatchFinished: boolean; state: RoomState } {
+): { isMatchFinished: boolean; state: RoomState; isReplay: boolean } {
   const next = { ...state };
+  const targetScore = next.targetScore || 3;
+  const p1Score = next.player1?.score || 0;
+  const p2Score = next.player2?.score || 0;
 
-  if (next.currentRound >= (next.maxRounds || maxRounds)) {
+  // 1. Kazanma kontrolü: İlk 3 puana ulaşan maçı kazanır
+  if (p1Score >= targetScore || p2Score >= targetScore) {
     next.status = "match_finished";
-    return { isMatchFinished: true, state: next };
+    return { isMatchFinished: true, state: next, isReplay: false };
   }
 
-  next.currentRound += 1;
+  // 2. Beraberlik/Pas kontrolü: Tur berabere bittiyse tur tekrarlanır
+  const isReplay = Boolean(next.lastRoundWasDraw);
+  next.isReplayRound = isReplay;
+  if (!isReplay) {
+    next.currentRound += 1;
+  }
+
   next.roundStatus = "picking_teams";
   next.team1 = null;
   next.team2 = null;
@@ -439,6 +539,8 @@ export function prepareNextRound(
   next.usedNationIds = [...(state.usedNationIds || [])];
   next.passVotes = [];
   next.roundStartTime = null;
+  next.lastRoundWasDraw = false;
+  next.lastFoulEvent = null;
 
   if (next.player1) {
     next.player1.selectedTeamId = null;
@@ -457,5 +559,5 @@ export function prepareNextRound(
     next.currentTeamPickerUserId = prevNationPicker;
   }
 
-  return { isMatchFinished: false, state: next };
+  return { isMatchFinished: false, state: next, isReplay };
 }

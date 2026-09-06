@@ -8,6 +8,7 @@ export interface RoomPlayer {
   userId: string;
   username: string;
   score: number;
+  fouls: number;
   isReady: boolean;
   selectedTeamId?: string | null;
   selectedNationId?: string | null;
@@ -28,6 +29,14 @@ export interface ForfeitInfo {
   reason: string;
 }
 
+export interface FoulEventInfo {
+  userId: string;
+  username: string;
+  totalFouls: number;
+  penaltyAwarded: boolean;
+  message: string;
+}
+
 export interface RoomState {
   roomId: string;
   gameMode?: GameMode;
@@ -35,6 +44,7 @@ export interface RoomState {
   roundStatus: RoundStatus;
   currentRound: number;
   maxRounds: number;
+  targetScore: number;
   player1: RoomPlayer | null;
   player2: RoomPlayer | null;
   team1: Team | null;
@@ -50,6 +60,9 @@ export interface RoomState {
   roundDuration: number;
   disconnectGrace?: DisconnectGraceInfo | null;
   forfeitInfo?: ForfeitInfo | null;
+  lastFoulEvent?: FoulEventInfo | null;
+  lastRoundWasDraw?: boolean;
+  isReplayRound?: boolean;
 }
 
 export function createInitialRoomState(roomId: string): RoomState {
@@ -62,6 +75,7 @@ export function createInitialRoomState(roomId: string): RoomState {
     roundStatus: "picking_teams",
     currentRound: 1,
     maxRounds: 5,
+    targetScore: 3,
     player1: null,
     player2: null,
     team1: null,
@@ -77,5 +91,8 @@ export function createInitialRoomState(roomId: string): RoomState {
     roundDuration: 15,
     disconnectGrace: null,
     forfeitInfo: null,
+    lastFoulEvent: null,
+    lastRoundWasDraw: false,
+    isReplayRound: false,
   };
 }

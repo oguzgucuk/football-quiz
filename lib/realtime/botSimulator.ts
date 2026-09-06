@@ -58,6 +58,7 @@ export function createBotPlayer(availableTeams: Team[]): { player: RoomPlayer; t
     userId: botUserId,
     username: randomName,
     score: 0,
+    fouls: 0,
     isReady: true,
     selectedTeamId: botTeam.id,
   };

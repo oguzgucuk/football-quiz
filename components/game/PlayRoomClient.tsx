@@ -112,6 +112,8 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
       <MatchHeader
         currentRound={roomState.currentRound}
         maxRounds={roomState.maxRounds}
+        targetScore={roomState.targetScore || 3}
+        isReplayRound={roomState.isReplayRound}
         player1={roomState.player1}
         player2={roomState.player2}
         currentUserId={currentUserId}
@@ -119,6 +121,26 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
         roundDuration={roomState.roundDuration || 15}
         roundStatus={roomState.roundStatus}
       />
+
+      {/* Faul Bildirimi (Seçim zaman aşımı) */}
+      {roomState.lastFoulEvent && (
+        <div className="w-full max-w-4xl mx-auto px-4 pt-3">
+          <div className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold animate-fadeIn shadow-xs shadow-amber-500/10">
+            <span className="text-base">⚠️</span>
+            <span>{roomState.lastFoulEvent.message}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Beraberlik Sonrası Tur Tekrarı Bildirimi */}
+      {roomState.isReplayRound && roomState.roundStatus === "picking_teams" && (
+        <div className="w-full max-w-4xl mx-auto px-4 pt-2">
+          <div className="flex items-center gap-2 p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-semibold animate-fadeIn">
+            <span>🔁</span>
+            <span>Önceki tur berabere bittiği için bu tur yeniden başlatıldı. İlk 3 puanı alan maçı kazanır!</span>
+          </div>
+        </div>
+      )}
 
       {/* Rakip Bağlantı Kopması (Grace Period) Bildirimi */}
       {roomState.disconnectGrace && (

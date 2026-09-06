@@ -27,6 +27,7 @@ import {
   evaluatePassVote,
   prepareNextRound,
   registerTeamPick,
+  checkSelectionTimeoutsAndApplyFouls,
 } from "../lib/realtime/roomEngine";
 import { createBotPlayer, pickBotTeam, isBotPlayer } from "../lib/realtime/botSimulator";
 import { handleMatchPlayerDisconnect } from "../lib/realtime/disconnectManager";
@@ -149,6 +150,30 @@ export default class GameRoomServer implements Party.Server {
     }, 1000);
   }
 
+  handlePickTimeout() {
+    this.clearServerTimer();
+
+    // Süre dolduğunda seçim yapmayan tarafa faul yaz (3 faul = rakibe +1 puan)
+    const { state: foulState, foulsApplied, isMatchFinished } = checkSelectionTimeoutsAndApplyFouls(this.state);
+    this.state = foulState;
+
+    if (foulsApplied.length > 0) {
+      this.broadcast({
+        type: "FOUL_APPLIED",
+        foulsApplied,
+        state: this.state,
+      });
+    }
+
+    if (isMatchFinished) {
+      this.broadcastState();
+      this.persistMatchResult();
+      return;
+    }
+
+    this.transitionToAnsweringPhase();
+  }
+
   transitionToAnsweringPhase() {
     this.clearServerTimer();
     const { state, duration } = prepareAnsweringPhase(this.state, DEFAULT_POPULAR_TEAMS);
@@ -163,6 +188,7 @@ export default class GameRoomServer implements Party.Server {
   handleRoundTimeout() {
     if (this.state.roundStatus !== "answering") return;
 
+    this.state.lastRoundWasDraw = true;
     const { state, completedRound } = recordRoundTimeout(this.state);
     this.state = state;
     this.completedRounds.push(completedRound);
@@ -172,6 +198,7 @@ export default class GameRoomServer implements Party.Server {
       winnerUserId: null,
       correctAnswer: "Süre Doldu!",
       isDraw: true,
+      isReplay: true,
       state: this.state,
     });
 
@@ -244,7 +271,7 @@ export default class GameRoomServer implements Party.Server {
         this.broadcastState();
         const pickDuration = this.state.roundDuration || DEFAULT_ROUND_DURATION;
         this.startServerTimer(pickDuration, () => {
-          this.transitionToAnsweringPhase();
+          this.handlePickTimeout();
         });
       }
     }, 3000);
@@ -273,6 +300,7 @@ export default class GameRoomServer implements Party.Server {
               userId,
               username,
               score: this.state.player1?.score || 0,
+              fouls: this.state.player1?.fouls || 0,
               isReady: true,
               isDisconnected: false,
               disconnectedAt: null,
@@ -282,6 +310,7 @@ export default class GameRoomServer implements Party.Server {
               userId,
               username,
               score: this.state.player2?.score || 0,
+              fouls: this.state.player2?.fouls || 0,
               isReady: true,
               isDisconnected: false,
               disconnectedAt: null,
@@ -291,7 +320,7 @@ export default class GameRoomServer implements Party.Server {
             this.state.passVotes = [];
             const pickDuration = this.state.roundDuration || DEFAULT_ROUND_DURATION;
             this.startServerTimer(pickDuration, () => {
-              this.transitionToAnsweringPhase();
+              this.handlePickTimeout();
             });
           }
           this.broadcastState();
@@ -338,7 +367,7 @@ export default class GameRoomServer implements Party.Server {
 
           const pickDuration = this.state.roundDuration || DEFAULT_ROUND_DURATION;
           this.startServerTimer(pickDuration, () => {
-            this.transitionToAnsweringPhase();
+            this.handlePickTimeout();
           });
           break;
         }
@@ -376,6 +405,7 @@ export default class GameRoomServer implements Party.Server {
           if (allVoted) {
             this.clearServerTimer();
             this.state.roundStatus = "round_finished";
+            this.state.lastRoundWasDraw = true;
             if (passResult.completedRound) {
               this.completedRounds.push(passResult.completedRound);
             }
@@ -385,6 +415,7 @@ export default class GameRoomServer implements Party.Server {
               winnerUserId: null,
               correctAnswer: "Tur Karşılıklı Pas Geçildi ⏩",
               isDraw: true,
+              isReplay: true,
               state: this.state,
             });
 
@@ -431,6 +462,7 @@ export default class GameRoomServer implements Party.Server {
               if (!outcome.accepted) return;
 
               this.state = outcome.state;
+              this.state.lastRoundWasDraw = false;
               if (outcome.completedRound) {
                 this.completedRounds.push(outcome.completedRound);
               }
@@ -439,6 +471,7 @@ export default class GameRoomServer implements Party.Server {
                 type: "ROUND_RESULT",
                 winnerUserId: senderId,
                 correctAnswer: verifyData.player.fullName,
+                isDraw: false,
                 state: this.state,
               });
 

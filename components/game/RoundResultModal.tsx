@@ -105,6 +105,13 @@ export function RoundResultModal({
             : `${winnerUsername} Kazandı!`}
         </h3>
 
+        {/* Beraberlikte Tur Tekrarı Bildirimi */}
+        {isDraw && (
+          <div className="mb-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-semibold">
+            🔁 İki taraf da bilemediği için tur yeniden başlayacak (İlk 3 Puanı Alan Kazanır)
+          </div>
+        )}
+
         {/* Doğru Cevap Alanı (Biri bildiyse) */}
         {!isDraw && correctAnswer && (
           <div className="my-2 p-3.5 rounded-2xl bg-black/40 border border-emerald-500/30 w-full">

@@ -133,8 +133,9 @@ async function runNationTeamTests() {
     state = ansPhase.state;
     assert(state.roundStatus === "answering", `Tur ${round}: Cevaplama aşamasına geçildi`);
 
-    // Cevap ver ve turu bitir
-    const evalRes = evaluateAnswerSubmission(state, "p1_user", { isCorrect: true, playerName: "Marcelo" });
+    // Cevap ver ve turu bitir (Tur 1: p1, Tur 2: p2, Tur 3: p1, Tur 4: p2, Tur 5: p1 -> 3-2 biter)
+    const answeringUser = round % 2 === 1 ? "p1_user" : "p2_user";
+    const evalRes = evaluateAnswerSubmission(state, answeringUser, { isCorrect: true, playerName: "Marcelo" });
     state = evalRes.state;
     assert(state.roundStatus === "round_finished", `Tur ${round}: Tur başarıyla sonlandı`);
 

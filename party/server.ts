@@ -32,6 +32,7 @@ import {
   prepareNextRound,
   registerTeamPick,
   registerNationPick,
+  checkSelectionTimeoutsAndApplyFouls,
 } from "../lib/realtime/roomEngine";
 import { createBotPlayer, pickBotTeam, pickBotNation, isBotPlayer } from "../lib/realtime/botSimulator";
 import { handleMatchPlayerDisconnect } from "../lib/realtime/disconnectManager";
@@ -147,6 +148,69 @@ function startServerTimer(room: Room, durationSeconds: number, onComplete: () =>
   }, 1000);
 }
 
+function finalizeRoomMatch(room: Room) {
+  clearRoomTimer(room);
+  room.state.status = "match_finished";
+  broadcastRoomState(room);
+
+  const p1Id = room.state.player1?.userId;
+  const p2Id = room.state.player2?.userId;
+
+  if (p1Id && p2Id) {
+    const isCasual = room.id.includes("_casual_");
+    const isCustom = room.id.startsWith("oda_");
+    const isNationTeam = room.state.gameMode === "country_vs_team" || room.id.includes("_country_vs_team_") || room.id.includes("_millet_");
+    const mode = isNationTeam ? "country_vs_team" : isCustom ? "custom" : isCasual ? "casual" : "ranked";
+    const isRanked = isNationTeam ? false : (!isCasual && !isCustom && !isBotPlayer(p1Id) && !isBotPlayer(p2Id));
+
+    finalizeMatchAndPersistElo({
+      matchId: room.id,
+      player1Id: p1Id,
+      player2Id: p2Id,
+      player1Score: room.state.player1?.score || 0,
+      player2Score: room.state.player2?.score || 0,
+      mode,
+      ranked: isRanked,
+      rounds: room.completedRounds,
+    })
+      .then((result) => {
+        console.log(`🏆 [Party/Server] Maç ${room.id} DB'ye işlendi:`, result);
+        broadcastToRoom(room, {
+          type: "MATCH_PERSISTED",
+          result,
+          state: room.state,
+        });
+      })
+      .catch((err) => {
+        console.error("[Party/Server] finalizeMatchAndPersistElo Hatası:", err);
+      });
+  }
+}
+
+function handlePickTimeout(room: Room) {
+  clearRoomTimer(room);
+
+  // Süre dolduğunda seçim yapmayan tarafa faul yaz (3 faul = rakibe +1 puan)
+  const { state: foulState, foulsApplied, isMatchFinished } = checkSelectionTimeoutsAndApplyFouls(room.state);
+  room.state = foulState;
+
+  if (foulsApplied.length > 0) {
+    broadcastToRoom(room, {
+      type: "FOUL_APPLIED",
+      foulsApplied,
+      state: room.state,
+    });
+  }
+
+  // Ceza puanıyla 3 puana ulaşıldıysa maç biter
+  if (isMatchFinished) {
+    finalizeRoomMatch(room);
+    return;
+  }
+
+  transitionToAnsweringPhase(room);
+}
+
 function transitionToAnsweringPhase(room: Room) {
   clearRoomTimer(room);
   const { state, duration } = prepareAnsweringPhase(room.state, DEFAULT_POPULAR_TEAMS);
@@ -161,6 +225,7 @@ function transitionToAnsweringPhase(room: Room) {
 function handleRoundTimeout(room: Room) {
   if (room.state.roundStatus !== "answering") return;
 
+  room.state.lastRoundWasDraw = true;
   const { state, completedRound } = recordRoundTimeout(room.state);
   room.state = state;
   room.completedRounds.push(completedRound);
@@ -170,6 +235,7 @@ function handleRoundTimeout(room: Room) {
     winnerUserId: null,
     correctAnswer: "Süre Doldu!",
     isDraw: true,
+    isReplay: true,
     state: room.state,
   });
 
@@ -182,39 +248,7 @@ function scheduleNextRound(room: Room) {
     room.state = state;
 
     if (isMatchFinished) {
-      broadcastRoomState(room);
-      const p1Id = room.state.player1?.userId;
-      const p2Id = room.state.player2?.userId;
-
-      if (p1Id && p2Id) {
-        const isCasual = room.id.includes("_casual_");
-        const isCustom = room.id.startsWith("oda_");
-        const isNationTeam = room.state.gameMode === "country_vs_team" || room.id.includes("_country_vs_team_") || room.id.includes("_millet_");
-        const mode = isNationTeam ? "country_vs_team" : isCustom ? "custom" : isCasual ? "casual" : "ranked";
-        const isRanked = isNationTeam ? false : (!isCasual && !isCustom && !isBotPlayer(p1Id) && !isBotPlayer(p2Id));
-
-        finalizeMatchAndPersistElo({
-          matchId: room.id,
-          player1Id: p1Id,
-          player2Id: p2Id,
-          player1Score: room.state.player1?.score || 0,
-          player2Score: room.state.player2?.score || 0,
-          mode,
-          ranked: isRanked,
-          rounds: room.completedRounds,
-        })
-          .then((result) => {
-            console.log(`🏆 [Party/Server] Maç ${room.id} DB'ye işlendi:`, result);
-            broadcastToRoom(room, {
-              type: "MATCH_PERSISTED",
-              result,
-              state: room.state,
-            });
-          })
-          .catch((err) => {
-            console.error("[Party/Server] finalizeMatchAndPersistElo Hatası:", err);
-          });
-      }
+      finalizeRoomMatch(room);
     } else {
       if (room.state.player2 && isBotPlayer(room.state.player2.userId)) {
         const botUserId = room.state.player2.userId;
@@ -235,7 +269,7 @@ function scheduleNextRound(room: Room) {
       broadcastRoomState(room);
       const pickDuration = room.state.roundDuration || DEFAULT_ROUND_DURATION;
       startServerTimer(room, pickDuration, () => {
-        transitionToAnsweringPhase(room);
+        handlePickTimeout(room);
       });
     }
   }, 3000);
@@ -308,6 +342,7 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
               userId,
               username,
               score: room.state.player1?.score || 0,
+              fouls: room.state.player1?.fouls || 0,
               isReady: true,
               isDisconnected: false,
               disconnectedAt: null,
@@ -317,6 +352,7 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
               userId,
               username,
               score: room.state.player2?.score || 0,
+              fouls: room.state.player2?.fouls || 0,
               isReady: true,
               isDisconnected: false,
               disconnectedAt: null,
@@ -339,7 +375,7 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
 
             const pickDuration = room.state.roundDuration || DEFAULT_ROUND_DURATION;
             startServerTimer(room, pickDuration, () => {
-              transitionToAnsweringPhase(room);
+              handlePickTimeout(room);
             });
             break;
           }
@@ -411,7 +447,7 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
 
           const pickDuration = room.state.roundDuration || DEFAULT_ROUND_DURATION;
           startServerTimer(room, pickDuration, () => {
-            transitionToAnsweringPhase(room);
+            handlePickTimeout(room);
           });
           break;
         }
@@ -467,6 +503,7 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
           if (allVoted) {
             clearRoomTimer(room);
             room.state.roundStatus = "round_finished";
+            room.state.lastRoundWasDraw = true;
             if (passResult.completedRound) {
               room.completedRounds.push(passResult.completedRound);
             }
@@ -476,6 +513,7 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
               winnerUserId: null,
               correctAnswer: "Tur Karşılıklı Pas Geçildi",
               isDraw: true,
+              isReplay: true,
               state: room.state,
             });
 
@@ -517,6 +555,7 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
               if (!outcome.accepted) return;
 
               room.state = outcome.state;
+              room.state.lastRoundWasDraw = false;
               if (outcome.completedRound) {
                 room.completedRounds.push(outcome.completedRound);
               }
@@ -525,6 +564,7 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
                 type: "ROUND_RESULT",
                 winnerUserId: senderId,
                 correctAnswer: result.playerName,
+                isDraw: false,
                 state: room.state,
               });
 

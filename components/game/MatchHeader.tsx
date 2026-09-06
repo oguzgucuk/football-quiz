@@ -7,7 +7,9 @@ import { Badge } from "@/components/ui/Badge";
 
 interface MatchHeaderProps {
   currentRound: number;
-  maxRounds: number;
+  maxRounds?: number;
+  targetScore?: number;
+  isReplayRound?: boolean;
   player1: RoomPlayer | null;
   player2: RoomPlayer | null;
   currentUserId?: string;
@@ -18,7 +20,8 @@ interface MatchHeaderProps {
 
 export function MatchHeader({
   currentRound,
-  maxRounds,
+  targetScore = 3,
+  isReplayRound = false,
   player1,
   player2,
   currentUserId,
@@ -51,9 +54,33 @@ export function MatchHeader({
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-1 text-xs text-zinc-400">
-              <Trophy className="w-3.5 h-3.5 text-amber-400" />
-              <span className="font-semibold text-zinc-200">{player1?.score ?? 0}</span> puan
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1 text-xs text-zinc-400">
+                <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                <span className="font-semibold text-zinc-200">{player1?.score ?? 0}</span> puan
+              </div>
+              {/* Faul Göstergesi (3 Kart) */}
+              <div
+                className="flex items-center gap-1"
+                title={`${player1?.fouls ?? 0}/3 Faul (Zamanında seçim yapılmazsa faul verilir; 3 faul = rakibe +1 puan)`}
+              >
+                <span className="text-[9px] text-zinc-500 font-bold uppercase">Faul:</span>
+                {[1, 2, 3].map((f) => {
+                  const isFouled = (player1?.fouls ?? 0) >= f;
+                  return (
+                    <span
+                      key={f}
+                      className={`inline-block w-2.5 h-3.5 rounded-xs transition-all ${
+                        isFouled
+                          ? f === 3
+                            ? "bg-rose-500 shadow-xs shadow-rose-500/50"
+                            : "bg-amber-400 shadow-xs shadow-amber-400/50 animate-pulse"
+                          : "bg-white/10 border border-white/15"
+                      }`}
+                    />
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
@@ -61,12 +88,15 @@ export function MatchHeader({
         {/* Orta: Tur Bilgisi & Skor & H2H */}
         <div className="flex flex-col items-center gap-1">
           <div className="flex items-center gap-1.5">
-            <Badge variant="brand" className="text-[10px] sm:text-[11px] font-black">
-              TUR {currentRound} / {maxRounds}
+            <Badge variant={isReplayRound ? "warning" : "brand"} className="text-[10px] sm:text-[11px] font-black">
+              {isReplayRound ? `TUR ${currentRound} (TEKRAR)` : `TUR ${currentRound}`}
             </Badge>
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold tracking-wide uppercase bg-emerald-950/80 text-emerald-400 border border-emerald-500/30">
-              <Timer className="size-3 text-emerald-400" />
-              <span>{roundDuration}s Modu</span>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wide uppercase bg-emerald-950/80 text-emerald-400 border border-emerald-500/30">
+              <span>Hedef: {targetScore} Puan</span>
+            </span>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wide uppercase bg-white/5 text-zinc-300 border border-white/10">
+              <Timer className="size-3 text-zinc-400" />
+              <span>{roundDuration}s</span>
             </span>
           </div>
 
@@ -79,7 +109,7 @@ export function MatchHeader({
           {roundStatus === "picking_teams" ? (
             <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-amber-300 bg-amber-950/70 border border-amber-500/30 px-2.5 py-0.5 rounded-full animate-pulse">
               <Swords className="size-3 text-amber-400" />
-              <span>Takımını Seç ({roundDuration}s)</span>
+              <span>Takımını Seç ({roundDuration}s - Seçmezsen Faul)</span>
             </span>
           ) : roundStatus === "answering" ? (
             <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-300 bg-emerald-950/70 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
@@ -106,9 +136,33 @@ export function MatchHeader({
                 {player2?.username || "Rakip Bekleniyor..."}
               </span>
             </div>
-            <div className="flex items-center justify-end gap-1 text-xs text-zinc-400">
-              <span className="font-semibold text-zinc-200">{player2?.score ?? 0}</span> puan
-              <Trophy className="w-3.5 h-3.5 text-amber-400" />
+            <div className="flex items-center justify-end gap-3">
+              {/* Faul Göstergesi (3 Kart) */}
+              <div
+                className="flex items-center gap-1"
+                title={`${player2?.fouls ?? 0}/3 Faul (Zamanında seçim yapılmazsa faul verilir; 3 faul = rakibe +1 puan)`}
+              >
+                {[3, 2, 1].map((f) => {
+                  const isFouled = (player2?.fouls ?? 0) >= f;
+                  return (
+                    <span
+                      key={f}
+                      className={`inline-block w-2.5 h-3.5 rounded-xs transition-all ${
+                        isFouled
+                          ? f === 3
+                            ? "bg-rose-500 shadow-xs shadow-rose-500/50"
+                            : "bg-amber-400 shadow-xs shadow-amber-400/50 animate-pulse"
+                          : "bg-white/10 border border-white/15"
+                      }`}
+                    />
+                  );
+                })}
+                <span className="text-[9px] text-zinc-500 font-bold uppercase">:Faul</span>
+              </div>
+              <div className="flex items-center gap-1 text-xs text-zinc-400">
+                <span className="font-semibold text-zinc-200">{player2?.score ?? 0}</span> puan
+                <Trophy className="w-3.5 h-3.5 text-amber-400" />
+              </div>
             </div>
           </div>
           <div

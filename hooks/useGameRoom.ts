@@ -221,6 +221,7 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
             userId: "bot_ai",
             username: "Yapay Zeka 🤖",
             score: 0,
+            fouls: 0,
             isReady: true,
           },
           status: "in_round",
