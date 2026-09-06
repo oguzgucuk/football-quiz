@@ -211,6 +211,28 @@ function handlePickTimeout(room: Room) {
     return;
   }
 
+  // 3 faule ulaşıp ceza puanı verildiyse tur biter, yeni tura geçilir (Sonsuz loop engellendi!)
+  const penaltyAwardedEvent = foulsApplied.find((f) => f.penaltyAwarded);
+  if (penaltyAwardedEvent) {
+    const isP1Victim = penaltyAwardedEvent.userId !== room.state.player1?.userId;
+    const winnerUserId = isP1Victim ? room.state.player1?.userId : room.state.player2?.userId;
+
+    room.state.roundStatus = "round_finished";
+    room.state.lastRoundWasDraw = false;
+
+    broadcastToRoom(room, {
+      type: "ROUND_RESULT",
+      winnerUserId,
+      correctAnswer: penaltyAwardedEvent.message,
+      isDraw: false,
+      isReplay: false,
+      state: room.state,
+    });
+
+    scheduleNextRound(room);
+    return;
+  }
+
   // Otomatik takım seçimi KALDIRILDI!
   // Seçim yapmayan taraf faul aldı; cevaplama aşamasına geçilmez.
   // Seçimlerin tamamlanabilmesi için sayaç yeniden başlatılır.
@@ -475,6 +497,14 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
           if (!effectiveUserId || !nation) break;
 
           const pickResult = registerNationPick(room.state, effectiveUserId, nation);
+          if (pickResult.rejected) {
+            ws.send(JSON.stringify({
+              type: "PICK_REJECTED",
+              reason: "Bu millet bu maç oturumunda daha önce kullanıldı! Lütfen farklı bir millet seç.",
+            }));
+            break;
+          }
+
           room.state = pickResult.state;
 
           if (pickResult.bothPicked && room.state.roundStatus === "picking_teams") {
@@ -493,6 +523,17 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
           if (!effectiveUserId || !team) break;
 
           const pickResult = registerTeamPick(room.state, effectiveUserId, team);
+          if (pickResult.rejected) {
+            const reasonMsg = pickResult.reason === "OPPONENT_CHOSE_SAME"
+              ? "Bu takımı rakibin seçti! Lütfen farklı bir takım seç."
+              : "Bu takım bu maç oturumunda daha önce kullanıldı! Lütfen farklı bir takım seç.";
+            ws.send(JSON.stringify({
+              type: "PICK_REJECTED",
+              reason: reasonMsg,
+            }));
+            break;
+          }
+
           room.state = pickResult.state;
 
           if (pickResult.bothPicked && room.state.roundStatus === "picking_teams") {
@@ -500,6 +541,34 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
             return;
           }
 
+          broadcastRoomState(room);
+          break;
+        }
+
+        case "TEAM_UNPICKED": {
+          if (room.state.roundStatus !== "picking_teams") break;
+          const clientMeta = room.clients.get(ws);
+          const effectiveUserId = data?.userId || clientMeta?.userId;
+          if (room.state.player1 && room.state.player1.userId === effectiveUserId) {
+            room.state.team1 = null;
+            room.state.player1.selectedTeamId = null;
+          } else if (room.state.player2 && room.state.player2.userId === effectiveUserId) {
+            room.state.team2 = null;
+            room.state.player2.selectedTeamId = null;
+          }
+          broadcastRoomState(room);
+          break;
+        }
+
+        case "NATION_UNPICKED": {
+          if (room.state.roundStatus !== "picking_teams") break;
+          const clientMeta = room.clients.get(ws);
+          const effectiveUserId = data?.userId || clientMeta?.userId;
+          if (room.state.currentNationPickerUserId === effectiveUserId) {
+            room.state.nation = null;
+            if (room.state.player1 && room.state.player1.userId === effectiveUserId) room.state.player1.selectedNationId = null;
+            if (room.state.player2 && room.state.player2.userId === effectiveUserId) room.state.player2.selectedNationId = null;
+          }
           broadcastRoomState(room);
           break;
         }

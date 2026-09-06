@@ -198,6 +198,28 @@ export default class GameRoomServer implements Party.Server {
       return;
     }
 
+    // 3 faule ulaşıp ceza puanı verildiyse tur biter, yeni tura geçilir (Sonsuz loop engellendi!)
+    const penaltyAwardedEvent = foulsApplied.find((f) => f.penaltyAwarded);
+    if (penaltyAwardedEvent) {
+      const isP1Victim = penaltyAwardedEvent.userId !== this.state.player1?.userId;
+      const winnerUserId = isP1Victim ? this.state.player1?.userId : this.state.player2?.userId;
+
+      this.state.roundStatus = "round_finished";
+      this.state.lastRoundWasDraw = false;
+
+      this.broadcast({
+        type: "ROUND_RESULT",
+        winnerUserId,
+        correctAnswer: penaltyAwardedEvent.message,
+        isDraw: false,
+        isReplay: false,
+        state: this.state,
+      });
+
+      this.scheduleNextRound();
+      return;
+    }
+
     this.broadcastState();
     const pickDuration = this.state.roundDuration || DEFAULT_ROUND_DURATION;
     this.startServerTimer(pickDuration, () => {
@@ -340,6 +362,12 @@ export default class GameRoomServer implements Party.Server {
         case "TEAM_PICKED":
           this.handleTeamPicked(sender, data);
           break;
+        case "TEAM_UNPICKED":
+          this.handleTeamUnpicked(sender, data);
+          break;
+        case "NATION_UNPICKED":
+          this.handleNationUnpicked(sender, data);
+          break;
         case "PASS_VOTE":
           this.handlePassVote(sender, data);
           break;
@@ -471,6 +499,14 @@ export default class GameRoomServer implements Party.Server {
     if (!effectiveUserId || !data.nation) return;
 
     const pickResult = registerNationPick(this.state, effectiveUserId, data.nation);
+    if (pickResult.rejected) {
+      sender.send(JSON.stringify({
+        type: "PICK_REJECTED",
+        reason: "Bu millet bu maç oturumunda daha önce kullanıldı! Lütfen farklı bir millet seç.",
+      }));
+      return;
+    }
+
     this.state = pickResult.state;
 
     if (pickResult.bothPicked && this.state.roundStatus === "picking_teams") {
@@ -486,11 +522,52 @@ export default class GameRoomServer implements Party.Server {
     if (!effectiveUserId || !data.team) return;
 
     const pickResult = registerTeamPick(this.state, effectiveUserId, data.team);
+    if (pickResult.rejected) {
+      const reasonMsg = pickResult.reason === "OPPONENT_CHOSE_SAME"
+        ? "Bu takımı rakibin seçti! Lütfen farklı bir takım seç."
+        : "Bu takım bu maç oturumunda daha önce kullanıldı! Lütfen farklı bir takım seç.";
+      sender.send(JSON.stringify({
+        type: "PICK_REJECTED",
+        reason: reasonMsg,
+      }));
+      return;
+    }
+
     this.state = pickResult.state;
 
     if (pickResult.bothPicked && this.state.roundStatus === "picking_teams") {
       this.transitionToAnsweringPhase();
       return;
+    }
+    this.broadcastState();
+  }
+
+  private handleTeamUnpicked(sender: Party.Connection, data: { userId?: string }) {
+    if (this.state.roundStatus !== "picking_teams") return;
+    const clientMeta = this.connectionMeta.get(sender.id);
+    const effectiveUserId = data?.userId || clientMeta?.userId;
+    if (!effectiveUserId) return;
+
+    if (this.state.player1?.userId === effectiveUserId) {
+      this.state.team1 = null;
+      this.state.player1.selectedTeamId = null;
+    } else if (this.state.player2?.userId === effectiveUserId) {
+      this.state.team2 = null;
+      this.state.player2.selectedTeamId = null;
+    }
+    this.broadcastState();
+  }
+
+  private handleNationUnpicked(sender: Party.Connection, data: { userId?: string }) {
+    if (this.state.roundStatus !== "picking_teams") return;
+    const clientMeta = this.connectionMeta.get(sender.id);
+    const effectiveUserId = data?.userId || clientMeta?.userId;
+    if (!effectiveUserId) return;
+
+    if (this.state.currentNationPickerUserId === effectiveUserId) {
+      this.state.nation = null;
+      if (this.state.player1?.userId === effectiveUserId) this.state.player1.selectedNationId = null;
+      if (this.state.player2?.userId === effectiveUserId) this.state.player2.selectedNationId = null;
     }
     this.broadcastState();
   }

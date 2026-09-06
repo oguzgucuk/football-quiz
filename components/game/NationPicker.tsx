@@ -152,9 +152,21 @@ export function NationPicker({
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-bold">
-            <Lock className="w-3.5 h-3.5" />
-            <span>Kilitlendi</span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                onSelectNation(null as unknown as Nation);
+                setInputValue("");
+              }}
+              className="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-bold text-zinc-300 hover:text-white border border-white/10 transition-colors cursor-pointer"
+            >
+              Farklı Millet Seç ↺
+            </button>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-bold">
+              <Lock className="w-3.5 h-3.5" />
+              <span>Kilitlendi</span>
+            </div>
           </div>
         </div>
       ) : (

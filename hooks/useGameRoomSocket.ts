@@ -202,14 +202,25 @@ export function useGameRoomSocket({
               }
               break;
 
+            case "PICK_REJECTED":
+              setMySelectedTeam(null);
+              setMySelectedNation?.(null);
+              alert(data.reason || "Seçiminiz reddedildi! Lütfen farklı bir seçim yapın.");
+              break;
+
             case "ROOM_STATE_SYNC":
               setRoomState(data.state);
               if (data.state.status === "match_finished") {
                 clearStoredSessionToken(roomId);
               }
-              if (data.state.roundStatus === "picking_teams" && !data.state.team1 && !data.state.team2 && !data.state.nation) {
-                setMySelectedTeam(null);
-                setMySelectedNation?.(null);
+              if (data.state.roundStatus === "picking_teams") {
+                const me = data.state.player1?.userId === userId ? data.state.player1 : data.state.player2?.userId === userId ? data.state.player2 : null;
+                if (!me?.selectedTeamId) {
+                  setMySelectedTeam(null);
+                }
+                if (!me?.selectedNationId) {
+                  setMySelectedNation?.(null);
+                }
               }
               break;
 
@@ -229,6 +240,8 @@ export function useGameRoomSocket({
 
             case "ROUND_RESULT":
               setIsSubmitting(false);
+              setMySelectedTeam(null);
+              setMySelectedNation?.(null);
               setLastRoundWinner({
                 username: data.winnerUserId === userId ? username : data.winnerUserId ? "Rakip" : null,
                 correctAnswer: data.correctAnswer || "Tur Tamamlandı",

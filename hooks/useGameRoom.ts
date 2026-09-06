@@ -71,25 +71,39 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
 
   // 3. Kullanıcı Takım / Millet Seçimi
   const handleSelectTeam = useCallback(
-    (team: Team) => {
+    (team: Team | null) => {
       setMySelectedTeam(team);
-      sendSocketMessage({
-        type: "TEAM_PICKED",
-        userId,
-        team,
-      });
+      if (team) {
+        sendSocketMessage({
+          type: "TEAM_PICKED",
+          userId,
+          team,
+        });
+      } else {
+        sendSocketMessage({
+          type: "TEAM_UNPICKED",
+          userId,
+        });
+      }
     },
     [userId, sendSocketMessage]
   );
 
   const handleSelectNation = useCallback(
-    (nation: Nation) => {
+    (nation: Nation | null) => {
       setMySelectedNation(nation);
-      sendSocketMessage({
-        type: "NATION_PICKED",
-        userId,
-        nation,
-      });
+      if (nation) {
+        sendSocketMessage({
+          type: "NATION_PICKED",
+          userId,
+          nation,
+        });
+      } else {
+        sendSocketMessage({
+          type: "NATION_UNPICKED",
+          userId,
+        });
+      }
     },
     [userId, sendSocketMessage]
   );

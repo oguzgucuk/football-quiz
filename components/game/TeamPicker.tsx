@@ -145,8 +145,18 @@ export function TeamPicker({
           <span className="text-xs text-zinc-400 mt-1">
             {selectedTeam.league} • {selectedTeam.country}
           </span>
-          <span className="text-[11px] text-zinc-500 mt-4 animate-pulse">
-            Süre bitince rakibin takımıyla karşılıklı açılacak...
+          <button
+            type="button"
+            onClick={() => {
+              onSelectTeam(null as unknown as Team);
+              setInputValue("");
+            }}
+            className="mt-4 px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-bold text-zinc-300 hover:text-white border border-white/10 transition-colors cursor-pointer"
+          >
+            Farklı Takım Seç ↺
+          </button>
+          <span className="text-[11px] text-zinc-500 mt-2 animate-pulse">
+            Süre bitince veya rakip seçince karşılıklı açılacak...
           </span>
         </div>
       ) : (
