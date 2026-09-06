@@ -15,6 +15,7 @@ interface PlayStageProps {
   onStartRanked: () => void;
   onStartCasual: (gameMode?: GameMode) => void;
   onOpenCustomRoom: (gameMode?: GameMode) => void;
+  onOpenAuctionRoom?: () => void;
   onGoToPlayers: () => void;
   onOpenAuthModal?: (tab: "login" | "register") => void;
 }
@@ -23,6 +24,7 @@ export function PlayStage({
   onStartRanked,
   onStartCasual,
   onOpenCustomRoom,
+  onOpenAuctionRoom,
   onGoToPlayers,
   onOpenAuthModal,
 }: PlayStageProps) {
@@ -47,6 +49,11 @@ export function PlayStage({
       return;
     }
 
+    if (selectedModeId === "auction") {
+      onOpenAuctionRoom?.();
+      return;
+    }
+
     if (selectedModeId === "common_player") {
       if (selectedSubMode === "ranked") {
         onStartRanked();
@@ -65,7 +72,7 @@ export function PlayStage({
   };
 
   const getButtonLabel = () => {
-    if (selectedModeId === "auction") return "YAKINDA GELECEK";
+    if (selectedModeId === "auction") return "OYUN KUR";
     if (selectedModeId === "training") {
       return selectedTrainingSubMode === "players" ? "OYUNCULARI GÖRÜNTÜLE" : "YAKINDA GELECEK";
     }
@@ -127,7 +134,6 @@ export function PlayStage({
             onSelect={() => setSelectedModeId("training")}
             selectedSubMode={selectedTrainingSubMode}
             onSelectSubMode={setSelectedTrainingSubMode}
-            onGoToPlayers={onGoToPlayers}
             onOpenGuide={() => setActiveGuideKey("training")}
           />
         </div>
@@ -135,7 +141,7 @@ export function PlayStage({
 
       {/* Onay Butonu */}
       <div className="relative z-10 flex justify-center pt-4 pb-2 shrink-0">
-        {selectedModeId !== "auction" &&
+        {selectedModeId === "auction" ||
         (selectedModeId !== "training" || selectedTrainingSubMode === "players") ? (
           <button
             onClick={handleConfirm}

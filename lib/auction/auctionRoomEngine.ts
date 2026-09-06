@@ -1,0 +1,226 @@
+/**
+ * Müzayede Odası Saf Durum ve Mantık Motoru.
+ * Teklif akışı, zorunlu 1$ açılış, iflas koruması ve tur geçişleri.
+ */
+
+import {
+  AuctionRoomState,
+  AuctionLobbySettings,
+  AuctionParticipant,
+  AuctionPlayerCard,
+  AuctionBid,
+} from "./auctionTypes";
+
+export const DEFAULT_LOBBY_SETTINGS: AuctionLobbySettings = {
+  playerCount: 3,
+  startingBudget: 30, // 20 - 100 ($)
+  ratingMin: 70,
+  ratingMax: 99,
+};
+
+export function createInitialAuctionState(
+  roomId: string,
+  hostUserId: string,
+  hostUsername: string
+): AuctionRoomState {
+  return {
+    roomId,
+    status: "lobby",
+    settings: { ...DEFAULT_LOBBY_SETTINGS },
+    participants: {
+      [hostUserId]: {
+        userId: hostUserId,
+        username: hostUsername,
+        budget: DEFAULT_LOBBY_SETTINGS.startingBudget,
+        squad: [],
+        isReady: true,
+        isHost: true,
+      },
+    },
+    turnOrder: [hostUserId],
+    hostUserId,
+    pool: [],
+    currentCardIndex: 0,
+    currentCard: null,
+    currentTurnUserId: hostUserId,
+    currentHighestBid: null,
+    passedUserIds: [],
+    secondsLeft: 0,
+    lineups: {},
+    simulationMatches: [],
+    currentSimMatchIndex: 0,
+    currentSimMinute: 0,
+    standings: [],
+    championUserId: null,
+  };
+}
+
+export function startAuctionStage(
+  state: AuctionRoomState,
+  pool: AuctionPlayerCard[]
+): AuctionRoomState {
+  const userIds = Object.keys(state.participants);
+  const startingBudget = state.settings.startingBudget;
+
+  const updatedParticipants: Record<string, AuctionParticipant> = {};
+  for (const uid of userIds) {
+    updatedParticipants[uid] = {
+      ...state.participants[uid],
+      budget: startingBudget,
+      squad: [],
+      isReady: false,
+    };
+  }
+
+  const firstTurnUserId = userIds[0];
+  const firstCard = pool[0] || null;
+
+  // Zorunlu 1$ Açılış Teklifi
+  const initialBid: AuctionBid | null = firstCard
+    ? {
+        bidderUserId: firstTurnUserId,
+        bidderUsername: state.participants[firstTurnUserId]?.username || "Oyuncu 1",
+        amount: 1,
+        timestamp: Date.now(),
+      }
+    : null;
+
+  return {
+    ...state,
+    status: "auction",
+    pool,
+    currentCardIndex: 0,
+    currentCard: firstCard,
+    currentTurnUserId: firstTurnUserId,
+    currentHighestBid: initialBid,
+    passedUserIds: [],
+    secondsLeft: 8,
+    turnOrder: userIds,
+    participants: updatedParticipants,
+  };
+}
+
+export function applyBid(
+  state: AuctionRoomState,
+  bidderUserId: string,
+  amount: number
+): { success: boolean; error?: string; state: AuctionRoomState } {
+  const p = state.participants[bidderUserId];
+  if (!p) return { success: false, error: "Oyuncu bulunamadı", state };
+  if (p.squad.length >= 11) return { success: false, error: "Kadronuz tamamlandı!", state };
+
+  const currentAmt = state.currentHighestBid?.amount || 0;
+  if (amount <= currentAmt) {
+    return { success: false, error: "Teklif mevcut tekliften yüksek olmalıdır", state };
+  }
+
+  // İflas Güvenliği: Kalan her boş oyuncu için en az 1$ saklanmalı
+  const neededPlayers = 11 - p.squad.length;
+  const reserveNeeded = Math.max(0, neededPlayers - 1);
+  const maxAllowedBid = p.budget - reserveNeeded;
+
+  if (amount > maxAllowedBid) {
+    return {
+      success: false,
+      error: `Yetersiz bütçe! Kalan ${neededPlayers - 1} transfer için en az $${reserveNeeded} saklamalısınız. (Max: $${maxAllowedBid})`,
+      state,
+    };
+  }
+
+  const newBid: AuctionBid = {
+    bidderUserId,
+    bidderUsername: p.username,
+    amount,
+    timestamp: Date.now(),
+  };
+
+  const nextPassed = state.passedUserIds.filter((id) => id !== bidderUserId);
+
+  return {
+    success: true,
+    state: {
+      ...state,
+      currentHighestBid: newBid,
+      passedUserIds: nextPassed,
+      secondsLeft: Math.max(5, state.secondsLeft), // Sayaç en az 5 saniyeye yenilenir
+    },
+  };
+}
+
+export function applyPass(state: AuctionRoomState, userId: string): AuctionRoomState {
+  if (state.passedUserIds.includes(userId)) return state;
+  return {
+    ...state,
+    passedUserIds: [...state.passedUserIds, userId],
+  };
+}
+
+export function advanceAuctionCard(state: AuctionRoomState): AuctionRoomState {
+  if (!state.currentHighestBid || !state.currentCard) {
+    return finishOrNextTurn(state);
+  }
+
+  const winnerId = state.currentHighestBid.bidderUserId;
+  const cost = state.currentHighestBid.amount;
+  const winner = state.participants[winnerId];
+
+  const updatedParticipants = { ...state.participants };
+  if (winner) {
+    updatedParticipants[winnerId] = {
+      ...winner,
+      budget: Math.max(0, winner.budget - cost),
+      squad: [...winner.squad, state.currentCard],
+    };
+  }
+
+  return finishOrNextTurn({
+    ...state,
+    participants: updatedParticipants,
+  });
+}
+
+function finishOrNextTurn(state: AuctionRoomState): AuctionRoomState {
+  // Herkes 11 oyuncuya ulaştı mı kontrolü
+  const activeBidders = Object.values(state.participants).filter((p) => p.squad.length < 11);
+  const nextCardIndex = state.currentCardIndex + 1;
+
+  if (activeBidders.length === 0 || nextCardIndex >= state.pool.length) {
+    return {
+      ...state,
+      status: "tactics",
+      currentCard: null,
+      currentHighestBid: null,
+      secondsLeft: 90, // Diziliş için 90 saniye
+    };
+  }
+
+  // Sıradaki zorunlu 1$ açılış yapacak oyuncu
+  const currentTurnIdx = state.turnOrder.indexOf(state.currentTurnUserId);
+  const nextTurnIdx = (currentTurnIdx + 1) % state.turnOrder.length;
+  let nextTurnUserId = state.turnOrder[nextTurnIdx];
+
+  if (state.participants[nextTurnUserId]?.squad.length >= 11) {
+    const fallback = activeBidders[0];
+    if (fallback) nextTurnUserId = fallback.userId;
+  }
+
+  const nextCard = state.pool[nextCardIndex] || null;
+  const mandatoryBid: AuctionBid | null = nextCard
+    ? {
+        bidderUserId: nextTurnUserId,
+        bidderUsername: state.participants[nextTurnUserId]?.username || "Oyuncu",
+        amount: 1,
+        timestamp: Date.now(),
+      }
+    : null;
+
+  return {
+    ...state,
+    currentCardIndex: nextCardIndex,
+    currentCard: nextCard,
+    currentTurnUserId: nextTurnUserId,
+    currentHighestBid: mandatoryBid,
+    passedUserIds: [],
+    secondsLeft: 8,
+  };
+}

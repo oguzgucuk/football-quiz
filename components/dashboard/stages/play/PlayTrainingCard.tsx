@@ -37,7 +37,6 @@ interface PlayTrainingCardProps {
   onSelect: () => void;
   selectedSubMode: TrainingSubMode;
   onSelectSubMode: (subMode: TrainingSubMode) => void;
-  onGoToPlayers: () => void;
   onOpenGuide: () => void;
 }
 
@@ -46,7 +45,6 @@ export function PlayTrainingCard({
   onSelect,
   selectedSubMode,
   onSelectSubMode,
-  onGoToPlayers,
   onOpenGuide,
 }: PlayTrainingCardProps) {
   return (
@@ -142,8 +140,6 @@ export function PlayTrainingCard({
                 e.stopPropagation();
                 onSelect();
                 onSelectSubMode(sub.id);
-                // Eğer doğrudan oyunculara tıklanırsa hemen oraya yönlendir
-                onGoToPlayers();
               }}
               className={`w-full h-[46px] flex items-center justify-between px-3.5 rounded-xl border text-left transition-colors duration-200 cursor-pointer ${
                 isSubActive

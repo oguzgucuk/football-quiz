@@ -17,6 +17,7 @@ import { useFriends } from "@/hooks/useFriends";
 import { useMatchmaking } from "@/hooks/useMatchmaking";
 import { MatchmakingModal } from "@/components/game/MatchmakingModal";
 import { CreateCustomRoomModal } from "@/components/game/CreateCustomRoomModal";
+import { CreateAuctionRoomModal } from "@/components/auction/CreateAuctionRoomModal";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { StadiumBackground } from "@/components/ui/StadiumBackground";
 import { GameMode } from "@/types/game";
@@ -72,6 +73,8 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
 
   const [matchmakingMode, setMatchmakingMode] = useState<"ranked" | "casual">("ranked");
   const [matchmakingGameMode, setMatchmakingGameMode] = useState<GameMode>("team_vs_team");
+
+  const [isAuctionRoomOpen, setIsAuctionRoomOpen] = useState(false);
 
   const handleOpenRankedModal = () => {
     if (!user) {
@@ -150,6 +153,7 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
               onStartRanked={handleOpenRankedModal}
               onStartCasual={handleOpenCasualModal}
               onOpenCustomRoom={handleOpenCustomRoom}
+              onOpenAuctionRoom={() => setIsAuctionRoomOpen(true)}
               onGoToPlayers={() => setActiveTab("players")}
               onOpenAuthModal={handleOpenAuthModal}
             />
@@ -215,6 +219,12 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
         isOpen={isCustomRoomOpen}
         onClose={() => setIsCustomRoomOpen(false)}
         gameMode={matchmakingGameMode}
+      />
+
+      {/* Müzayede Lobi Kurma Modalı */}
+      <CreateAuctionRoomModal
+        isOpen={isAuctionRoomOpen}
+        onClose={() => setIsAuctionRoomOpen(false)}
       />
 
       {/* Dashboard Üzeri Giriş / Kayıt Ol Penceresi (Auth Modal) */}

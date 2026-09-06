@@ -37,6 +37,7 @@ import {
 import { createBotPlayer, pickBotTeam, pickBotNation, isBotPlayer } from "../lib/realtime/botSimulator";
 import { handleMatchPlayerDisconnect } from "../lib/realtime/disconnectManager";
 import { handleLocalMatchmakingSocket, getMatchmakingQueueCount } from "./localMatchmaking";
+import { isAuctionRoomId, handleAuctionSocketConnection } from "../lib/auction/auctionPartyHandler";
 
 const PORT = parseInt(process.env.PORT || "1999", 10);
 const ROUNDS_PER_MATCH = DEFAULT_MAX_ROUNDS;
@@ -295,6 +296,11 @@ server.on("upgrade", (request, socket, head) => {
 wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) => {
   if (roomId === "matchmaking" || request.url?.includes("/parties/matchmaking")) {
     handleLocalMatchmakingSocket(ws);
+    return;
+  }
+
+  if (isAuctionRoomId(roomId)) {
+    handleAuctionSocketConnection(ws, roomId);
     return;
   }
 

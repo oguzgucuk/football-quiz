@@ -71,14 +71,11 @@ export function PlayAuctionModeCard({
         </h3>
       </div>
 
-      <div className="w-full py-8 flex flex-col items-center justify-center text-center rounded-2xl border border-white/10 bg-black/35 backdrop-blur-xs">
-        <div className="flex size-8 items-center justify-center rounded-full bg-white/10 border border-white/15 shadow-2xs mb-2">
-          <Lock className="size-4 text-zinc-400" />
-        </div>
-        <span className="text-xs font-black uppercase tracking-wider text-white">
-          Geliştirme Aşamasında
+      <div className="w-full py-4 px-3 flex flex-col items-center justify-center text-center rounded-2xl border border-emerald-500/30 bg-emerald-950/30 backdrop-blur-xs">
+        <span className="text-xs font-black uppercase tracking-wider text-emerald-400">
+          Açık Artırma & Lig
         </span>
-        <span className="text-[11px] text-zinc-400 font-medium mt-0.5">4-8 Kişilik Canlı Pazar</span>
+        <span className="text-[11px] text-zinc-400 font-medium mt-0.5">2-6 Kişilik Özel Lobi</span>
       </div>
     </div>
   );
