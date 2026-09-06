@@ -60,7 +60,25 @@ export function handleAuctionSocketConnection(ws: WebSocket, roomId: string) {
 
   ws.on("close", () => {
     if (!room) return;
+    const clientMeta = room.clients.get(ws);
     room.clients.delete(ws);
+
+    if (clientMeta?.userId && room.state.status === "lobby") {
+      const remainingSockets = Array.from(room.clients.values()).filter(
+        (c) => c.userId === clientMeta.userId
+      );
+      if (remainingSockets.length === 0) {
+        delete room.state.participants[clientMeta.userId];
+        room.state.turnOrder = Object.keys(room.state.participants).filter((id) => Boolean(id && id.trim()));
+        if (room.state.hostUserId === clientMeta.userId) {
+          room.state.hostUserId = room.state.turnOrder[0] || "";
+          if (room.state.hostUserId && room.state.participants[room.state.hostUserId]) {
+            room.state.participants[room.state.hostUserId].isHost = true;
+          }
+        }
+        broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
+      }
+    }
   });
 }
 
@@ -118,7 +136,11 @@ async function processAuctionMessage(
 }
 
 function handleJoin(room: AuctionPartyRoom, ws: WebSocket, userId: string, username: string) {
+  if (!userId || !userId.trim()) return;
+
   room.clients.set(ws, { userId, username });
+
+  delete room.state.participants[""];
 
   if (!room.state.hostUserId) {
     room.state.hostUserId = userId;
@@ -135,12 +157,16 @@ function handleJoin(room: AuctionPartyRoom, ws: WebSocket, userId: string, usern
     };
   }
 
-  room.state.turnOrder = Object.keys(room.state.participants);
+  room.state.turnOrder = Object.keys(room.state.participants).filter((id) => Boolean(id && id.trim()));
   broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
 }
 
 async function handleStartGame(room: AuctionPartyRoom) {
-  const pCount = Math.max(2, Object.keys(room.state.participants).length);
+  delete room.state.participants[""];
+  const validParticipants = Object.values(room.state.participants).filter(
+    (p) => Boolean(p.userId && p.userId.trim())
+  );
+  const pCount = Math.max(2, validParticipants.length);
   const pool = await generateAuctionPool({
     playerCount: pCount,
     ratingMin: room.state.settings.ratingMin,

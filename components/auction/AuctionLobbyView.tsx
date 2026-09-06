@@ -26,7 +26,9 @@ export function AuctionLobbyView({
   onStartGame,
 }: AuctionLobbyViewProps) {
   const isHost = state.hostUserId === currentUserId;
-  const participantsList = Object.values(state.participants);
+  const participantsList = Object.values(state.participants).filter(
+    (p) => Boolean(p.userId && p.userId.trim())
+  );
   const totalSlots = 6;
   const slots = Array.from({ length: totalSlots }, (_, i) => participantsList[i] || null);
   const canStart = isHost && participantsList.length >= 2;

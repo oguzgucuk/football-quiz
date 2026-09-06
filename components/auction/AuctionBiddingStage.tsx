@@ -200,7 +200,9 @@ export function AuctionBiddingStage({
           </span>
 
           <div className="flex flex-col gap-2.5">
-            {Object.values(state.participants).map((p) => {
+            {Object.values(state.participants)
+              .filter((p) => Boolean(p.userId && p.userId.trim()))
+              .map((p) => {
               const isTurn = state.currentTurnUserId === p.userId;
               const holdsHighest = currentBidderId === p.userId;
               const didPass = state.passedUserIds.includes(p.userId);

@@ -20,29 +20,34 @@ export const DEFAULT_LOBBY_SETTINGS: AuctionLobbySettings = {
 
 export function createInitialAuctionState(
   roomId: string,
-  hostUserId: string,
-  hostUsername: string
+  hostUserId: string = "",
+  hostUsername: string = ""
 ): AuctionRoomState {
+  const hasValidHost = Boolean(hostUserId && hostUserId.trim().length > 0);
+  const participants: Record<string, AuctionParticipant> = {};
+
+  if (hasValidHost) {
+    participants[hostUserId] = {
+      userId: hostUserId,
+      username: hostUsername || "Oyuncu",
+      budget: DEFAULT_LOBBY_SETTINGS.startingBudget,
+      squad: [],
+      isReady: true,
+      isHost: true,
+    };
+  }
+
   return {
     roomId,
     status: "lobby",
     settings: { ...DEFAULT_LOBBY_SETTINGS },
-    participants: {
-      [hostUserId]: {
-        userId: hostUserId,
-        username: hostUsername,
-        budget: DEFAULT_LOBBY_SETTINGS.startingBudget,
-        squad: [],
-        isReady: true,
-        isHost: true,
-      },
-    },
-    turnOrder: [hostUserId],
-    hostUserId,
+    participants,
+    turnOrder: hasValidHost ? [hostUserId] : [],
+    hostUserId: hasValidHost ? hostUserId : "",
     pool: [],
     currentCardIndex: 0,
     currentCard: null,
-    currentTurnUserId: hostUserId,
+    currentTurnUserId: hasValidHost ? hostUserId : "",
     currentHighestBid: null,
     passedUserIds: [],
     secondsLeft: 0,
@@ -59,7 +64,7 @@ export function startAuctionStage(
   state: AuctionRoomState,
   pool: AuctionPlayerCard[]
 ): AuctionRoomState {
-  const userIds = Object.keys(state.participants);
+  const userIds = Object.keys(state.participants).filter((id) => Boolean(id && id.trim().length > 0));
   const startingBudget = state.settings.startingBudget;
 
   const updatedParticipants: Record<string, AuctionParticipant> = {};
@@ -72,14 +77,14 @@ export function startAuctionStage(
     };
   }
 
-  const firstTurnUserId = userIds[0];
+  const firstTurnUserId = userIds[0] || "";
   const firstCard = pool[0] || null;
 
   // Zorunlu 1$ Açılış Teklifi
-  const initialBid: AuctionBid | null = firstCard
+  const initialBid: AuctionBid | null = (firstCard && firstTurnUserId)
     ? {
         bidderUserId: firstTurnUserId,
-        bidderUsername: state.participants[firstTurnUserId]?.username || "Oyuncu 1",
+        bidderUsername: updatedParticipants[firstTurnUserId]?.username || "Oyuncu 1",
         amount: 1,
         timestamp: Date.now(),
       }
@@ -181,7 +186,9 @@ export function advanceAuctionCard(state: AuctionRoomState): AuctionRoomState {
 
 function finishOrNextTurn(state: AuctionRoomState): AuctionRoomState {
   // Herkes 11 oyuncuya ulaştı mı kontrolü
-  const activeBidders = Object.values(state.participants).filter((p) => p.squad.length < 11);
+  const activeBidders = Object.values(state.participants).filter(
+    (p) => Boolean(p.userId && p.userId.trim()) && p.squad.length < 11
+  );
   const nextCardIndex = state.currentCardIndex + 1;
 
   if (activeBidders.length === 0 || nextCardIndex >= state.pool.length) {
@@ -194,18 +201,27 @@ function finishOrNextTurn(state: AuctionRoomState): AuctionRoomState {
     };
   }
 
-  // Sıradaki zorunlu 1$ açılış yapacak oyuncu
-  const currentTurnIdx = state.turnOrder.indexOf(state.currentTurnUserId);
-  const nextTurnIdx = (currentTurnIdx + 1) % state.turnOrder.length;
-  let nextTurnUserId = state.turnOrder[nextTurnIdx];
+  // Sıradaki zorunlu 1$ açılış yapacak oyuncu:
+  const validTurnOrder = state.turnOrder.filter((id) => Boolean(id && id.trim()));
+  const total = validTurnOrder.length;
+  const currentIdx = validTurnOrder.indexOf(state.currentTurnUserId);
+  const startSearch = currentIdx >= 0 ? (currentIdx + 1) % total : 0;
 
-  if (state.participants[nextTurnUserId]?.squad.length >= 11) {
-    const fallback = activeBidders[0];
-    if (fallback) nextTurnUserId = fallback.userId;
+  let nextTurnUserId = "";
+  for (let i = 0; i < total; i++) {
+    const candId = validTurnOrder[(startSearch + i) % total];
+    if (candId && state.participants[candId] && state.participants[candId].squad.length < 11) {
+      nextTurnUserId = candId;
+      break;
+    }
+  }
+
+  if (!nextTurnUserId && activeBidders.length > 0) {
+    nextTurnUserId = activeBidders[0].userId;
   }
 
   const nextCard = state.pool[nextCardIndex] || null;
-  const mandatoryBid: AuctionBid | null = nextCard
+  const mandatoryBid: AuctionBid | null = (nextCard && nextTurnUserId)
     ? {
         bidderUserId: nextTurnUserId,
         bidderUsername: state.participants[nextTurnUserId]?.username || "Oyuncu",
