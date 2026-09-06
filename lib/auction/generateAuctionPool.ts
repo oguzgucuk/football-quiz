@@ -13,6 +13,27 @@ export interface PoolFilterOptions {
   ratingMax: number;
 }
 
+const CANDIDATE_SELECT = {
+  id: true,
+  fullName: true,
+  overallPrime: true,
+  positions: true,
+  position: true,
+  nationality: true,
+  teamsHistory: {
+    take: 1,
+    orderBy: { seasonEnd: "desc" as const },
+    select: {
+      team: {
+        select: {
+          name: true,
+          logoUrl: true,
+        },
+      },
+    },
+  },
+};
+
 export async function generateAuctionPool(options: PoolFilterOptions): Promise<AuctionPlayerCard[]> {
   const { playerCount, ratingMin, ratingMax } = options;
   const targetTotal = Math.max(22, playerCount * 11);
@@ -24,7 +45,7 @@ export async function generateAuctionPool(options: PoolFilterOptions): Promise<A
   const targetFWD = playerCount * 2;
 
   // DB'den reyting aralığındaki tüm adayları tek sorguda çek
-  const candidates = await prisma.player.findMany({
+  let candidates = await prisma.player.findMany({
     where: {
       overallPrime: {
         gte: ratingMin,
@@ -34,35 +55,51 @@ export async function generateAuctionPool(options: PoolFilterOptions): Promise<A
         isEmpty: false,
       },
     },
-    select: {
-      id: true,
-      fullName: true,
-      overallPrime: true,
-      positions: true,
-      position: true,
-      nationality: true,
-      teamsHistory: {
-        take: 1,
-        orderBy: { seasonEnd: "desc" },
-        select: {
-          team: {
-            select: {
-              name: true,
-              logoUrl: true,
-            },
-          },
-        },
-      },
-    },
+    select: CANDIDATE_SELECT,
   });
+
+  // Emniyet Koruması: Eğer seçilen dar/yüksek aralıkta (örn. 98-99) yeterli oyuncu yoksa
+  // havuzun eksiksiz kurulabilmesi için en yüksek reytingli mevcut yıldızlarla tamamla
+  if (candidates.length < targetTotal * 2) {
+    const existingIds = new Set(candidates.map((c) => c.id));
+    const extraNeeded = targetTotal * 3;
+    const fallbackCandidates = await prisma.player.findMany({
+      where: {
+        id: { notIn: Array.from(existingIds) },
+        overallPrime: { not: null },
+        positions: { isEmpty: false },
+      },
+      orderBy: { overallPrime: "desc" },
+      take: extraNeeded,
+      select: CANDIDATE_SELECT,
+    });
+    candidates = [...candidates, ...fallbackCandidates];
+  }
 
   const shuffledCandidates = shuffleArray(candidates);
 
   const selectedList: typeof candidates = [];
   const selectedIds = new Set<string>();
 
-  // 1. Kaleciler
+  // 1. Kaleciler (Havuzda yoksa DB'deki en iyi kalecilerden çek)
   pickByPosition(shuffledCandidates, selectedList, selectedIds, targetGK, ["GK"]);
+  const foundGKs = selectedList.filter((p) => p.positions.includes("GK")).length;
+  if (foundGKs < targetGK) {
+    const extraGKs = await prisma.player.findMany({
+      where: {
+        positions: { has: "GK" },
+        id: { notIn: Array.from(selectedIds) },
+      },
+      orderBy: { overallPrime: "desc" },
+      take: targetGK - foundGKs,
+      select: CANDIDATE_SELECT,
+    });
+    for (const gk of extraGKs) {
+      selectedList.push(gk);
+      selectedIds.add(gk.id);
+    }
+  }
+
   // 2. Defanslar
   pickByPosition(shuffledCandidates, selectedList, selectedIds, targetDEF, ["CB", "LB", "RB", "LWB", "RWB"]);
   // 3. Orta Sahalar
@@ -70,7 +107,7 @@ export async function generateAuctionPool(options: PoolFilterOptions): Promise<A
   // 4. Forvetler
   pickByPosition(shuffledCandidates, selectedList, selectedIds, targetFWD, ["ST", "CF", "LW", "RW"]);
 
-  // 5. Kalan eksikleri rastgele adaylardan tamamla
+  // 5. Kalan eksikleri adaylardan tamamla
   for (const c of shuffledCandidates) {
     if (selectedList.length >= targetTotal) break;
     if (!selectedIds.has(c.id)) {

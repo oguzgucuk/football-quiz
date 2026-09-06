@@ -21,8 +21,8 @@ export function AuctionLobbySettingsCards({
   isHost,
   onUpdateSettings,
 }: AuctionLobbySettingsCardsProps) {
-  const minPercent = Math.min(100, Math.max(0, ((settings.ratingMin - 67) / 32) * 100));
-  const maxPercent = Math.min(100, Math.max(0, ((settings.ratingMax - 67) / 32) * 100));
+  const minPercent = Math.min(100, Math.max(0, ((settings.ratingMin - 67) / 29) * 100));
+  const maxPercent = Math.min(100, Math.max(0, ((settings.ratingMax - 67) / 29) * 100));
   const rangeWidth = Math.max(0, maxPercent - minPercent);
 
   return (
@@ -105,12 +105,12 @@ export function AuctionLobbySettingsCards({
             <input
               type="range"
               min="67"
-              max="99"
+              max="96"
               step="1"
               disabled={!isHost}
               value={settings.ratingMin}
               onChange={(e) => {
-                const val = Math.min(Number(e.target.value), settings.ratingMax - 1);
+                const val = Math.min(Number(e.target.value), settings.ratingMax - 2);
                 onUpdateSettings({ ratingMin: val });
               }}
               className={`absolute w-full h-2 appearance-none bg-transparent pointer-events-none ${
@@ -122,12 +122,12 @@ export function AuctionLobbySettingsCards({
             <input
               type="range"
               min="67"
-              max="99"
+              max="96"
               step="1"
               disabled={!isHost}
               value={settings.ratingMax}
               onChange={(e) => {
-                const val = Math.max(Number(e.target.value), settings.ratingMin + 1);
+                const val = Math.max(Number(e.target.value), settings.ratingMin + 2);
                 onUpdateSettings({ ratingMax: val });
               }}
               className="absolute w-full h-2 appearance-none bg-transparent pointer-events-none z-20 [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:size-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-emerald-400 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:cursor-grab [&::-webkit-slider-thumb]:active:cursor-grabbing [&::-webkit-slider-thumb]:hover:scale-125 [&::-webkit-slider-thumb]:transition-transform [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:size-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-emerald-400 [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:cursor-grab"
@@ -140,10 +140,10 @@ export function AuctionLobbySettingsCards({
             {isHost && (
               <div className="flex gap-1.5 font-sans">
                 {[
-                  { label: "Tümü", min: 67, max: 99 },
+                  { label: "Tümü", min: 67, max: 96 },
                   { label: "70-85", min: 70, max: 85 },
-                  { label: "80-99", min: 80, max: 99 },
-                  { label: "Elit", min: 85, max: 99 },
+                  { label: "80-96", min: 80, max: 96 },
+                  { label: "Elit", min: 85, max: 96 },
                 ].map((preset) => (
                   <button
                     key={preset.label}
@@ -161,6 +161,10 @@ export function AuctionLobbySettingsCards({
             )}
             <span>Maks: {settings.ratingMax}</span>
           </div>
+
+          <span className="text-[10px] text-zinc-500 italic">
+            * En yüksek prime futbolcu 96 OVR&apos;dir (Ronaldo, Messi). Yetersiz dar aralıklarda havuz otomatik olarak en iyi yıldızlarla güvenceye alınır.
+          </span>
         </div>
       </div>
     </div>
