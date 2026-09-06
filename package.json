@@ -4,7 +4,8 @@
   "private": true,
   "packageManager": "pnpm@11.22.0",
   "scripts": {
-    "dev": "next dev -H 0.0.0.0 -p 5000",
+    "dev": "concurrently -n \"next,party\" -c \"cyan,magenta\" \"next dev -H 0.0.0.0 -p 5000\" \"tsx party/server.ts\"",
+    "dev:next": "next dev -H 0.0.0.0 -p 5000",
     "party": "tsx party/server.ts",
     "build": "prisma generate && tsx scripts/guard-logo-urls.ts && tsx scripts/generate-static-player-index.ts && next build",
     "guard:logos": "tsx scripts/guard-logo-urls.ts",
@@ -43,6 +44,7 @@
     "@types/react-dom": "^19",
     "@types/sharp": "^0.32.0",
     "@types/ws": "^8.18.1",
+    "concurrently": "^10.0.5",
     "eslint": "^9",
     "eslint-config-next": "16.3.3",
     "partykit": "^0.0.115",
