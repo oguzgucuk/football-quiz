@@ -108,13 +108,34 @@ export function assignPlayerToRoom(
 
 /**
  * Oyuncu için takım seçimi kaydeder.
+ * Oturum boyunca daha önce seçilmiş takımların tekrar seçilmesini engeller.
  */
 export function registerTeamPick(
   state: RoomState,
   userId: string,
   team: Team
-): { state: RoomState; bothPicked: boolean } {
+): { state: RoomState; bothPicked: boolean; rejected?: boolean; reason?: string } {
   const next = { ...state };
+  if (!team || !team.id) {
+    return {
+      state: next,
+      bothPicked: false,
+      rejected: true,
+      reason: "INVALID_TEAM",
+    };
+  }
+  next.usedTeamIds = next.usedTeamIds || [];
+  next.usedNationIds = next.usedNationIds || [];
+
+  // 1. Oturum boyu kontrol: Daha önce bu maç oturumunda seçildiyse reddet
+  if (next.usedTeamIds.includes(team.id)) {
+    return {
+      state: next,
+      bothPicked: Boolean(next.gameMode === "country_vs_team" ? (next.nation && next.team1) : (next.team1 && next.team2)),
+      rejected: true,
+      reason: "ALREADY_USED",
+    };
+  }
 
   if (next.gameMode === "country_vs_team") {
     if (next.currentTeamPickerUserId === userId) {
@@ -126,10 +147,27 @@ export function registerTeamPick(
     return { state: next, bothPicked };
   }
 
+  // 2. Takım vs Takım modunda kontrol: Aynı turda diğer oyuncu aynı takımı seçtiyse reddet
   if (next.player1?.userId === userId) {
+    if (next.team2 && next.team2.id === team.id) {
+      return {
+        state: next,
+        bothPicked: Boolean(next.team1 && next.team2),
+        rejected: true,
+        reason: "OPPONENT_CHOSE_SAME",
+      };
+    }
     next.team1 = team;
     next.player1.selectedTeamId = team.id;
   } else if (next.player2?.userId === userId) {
+    if (next.team1 && next.team1.id === team.id) {
+      return {
+        state: next,
+        bothPicked: Boolean(next.team1 && next.team2),
+        rejected: true,
+        reason: "OPPONENT_CHOSE_SAME",
+      };
+    }
     next.team2 = team;
     next.player2.selectedTeamId = team.id;
   }
@@ -140,13 +178,34 @@ export function registerTeamPick(
 
 /**
  * Oyuncu için millet seçimi kaydeder (Millet-Takım modu).
+ * Oturum boyunca daha önce seçilmiş milletlerin tekrar seçilmesini engeller.
  */
 export function registerNationPick(
   state: RoomState,
   userId: string,
   nation: Nation
-): { state: RoomState; bothPicked: boolean } {
+): { state: RoomState; bothPicked: boolean; rejected?: boolean; reason?: string } {
   const next = { ...state };
+  if (!nation || !nation.id) {
+    return {
+      state: next,
+      bothPicked: false,
+      rejected: true,
+      reason: "INVALID_NATION",
+    };
+  }
+  next.usedTeamIds = next.usedTeamIds || [];
+  next.usedNationIds = next.usedNationIds || [];
+
+  // Oturum boyu kontrol: Daha önce bu maç oturumunda seçildiyse reddet
+  if (next.usedNationIds.includes(nation.id)) {
+    return {
+      state: next,
+      bothPicked: Boolean(next.nation && next.team1),
+      rejected: true,
+      reason: "ALREADY_USED",
+    };
+  }
 
   if (next.gameMode === "country_vs_team") {
     if (next.currentNationPickerUserId === userId) {
@@ -162,17 +221,22 @@ export function registerNationPick(
 
 /**
  * Takım seçimi süresi bittiğinde veya her iki oyuncu da seçtiğinde
- * eksik takımları varsayılanlardan tamamlar ve cevaplama aşamasını başlatır.
+ * eksik takımları kullanılmamış varsayılanlardan tamamlar, kullanılanları kilitler
+ * ve cevaplama aşamasını başlatır.
  */
 export function prepareAnsweringPhase(
   state: RoomState,
   availableTeams: Team[] = DEFAULT_POPULAR_TEAMS
 ): { state: RoomState; duration: number } {
   const next = { ...state };
+  next.usedTeamIds = [...(next.usedTeamIds || [])];
+  next.usedNationIds = [...(next.usedNationIds || [])];
 
   if (next.gameMode === "country_vs_team") {
     if (!next.nation) {
-      const randomNation = POPULAR_NATIONS[Math.floor(Math.random() * Math.min(8, POPULAR_NATIONS.length))];
+      const unusedNations = POPULAR_NATIONS.filter((n) => !next.usedNationIds.includes(n.id));
+      const pool = unusedNations.length > 0 ? unusedNations : POPULAR_NATIONS;
+      const randomNation = pool[Math.floor(Math.random() * Math.min(8, pool.length))];
       next.nation = randomNation;
       if (next.player1 && next.player1.userId === next.currentNationPickerUserId) {
         next.player1.selectedNationId = randomNation.id;
@@ -182,13 +246,23 @@ export function prepareAnsweringPhase(
     }
 
     if (!next.team1) {
-      const randomTeam = availableTeams[Math.floor(Math.random() * availableTeams.length)];
+      const unusedTeams = availableTeams.filter((t) => !next.usedTeamIds.includes(t.id));
+      const pool = unusedTeams.length > 0 ? unusedTeams : availableTeams;
+      const randomTeam = pool[Math.floor(Math.random() * pool.length)];
       next.team1 = randomTeam;
       if (next.player1 && next.player1.userId === next.currentTeamPickerUserId) {
         next.player1.selectedTeamId = randomTeam.id;
       } else if (next.player2 && next.player2.userId === next.currentTeamPickerUserId) {
         next.player2.selectedTeamId = randomTeam.id;
       }
+    }
+
+    // Cevaplama aşamasına girildiği için bu turda seçilenleri kilit listesine ekle
+    if (next.team1 && !next.usedTeamIds.includes(next.team1.id)) {
+      next.usedTeamIds.push(next.team1.id);
+    }
+    if (next.nation && !next.usedNationIds.includes(next.nation.id)) {
+      next.usedNationIds.push(next.nation.id);
     }
 
     next.roundStatus = "answering";
@@ -199,15 +273,27 @@ export function prepareAnsweringPhase(
     return { state: next, duration };
   }
 
+  // Takım vs Takım Modu
+  const unusedTeams = availableTeams.filter((t) => !next.usedTeamIds.includes(t.id));
+  const fallbackTeams = unusedTeams.length >= 2 ? unusedTeams : availableTeams;
+
   if (!next.team1) {
-    next.team1 = availableTeams[0];
+    next.team1 = fallbackTeams[0];
     if (next.player1) next.player1.selectedTeamId = next.team1.id;
   }
 
   if (!next.team2) {
-    const available = availableTeams.filter((t) => t.id !== next.team1?.id);
-    next.team2 = available[0] || availableTeams[1];
+    const available = fallbackTeams.filter((t) => t.id !== next.team1?.id);
+    next.team2 = available[0] || availableTeams.find((t) => t.id !== next.team1?.id) || availableTeams[1];
     if (next.player2) next.player2.selectedTeamId = next.team2.id;
+  }
+
+  // Cevaplama aşamasına girildiği için bu turda seçilen takımları kilit listesine ekle
+  if (next.team1 && !next.usedTeamIds.includes(next.team1.id)) {
+    next.usedTeamIds.push(next.team1.id);
+  }
+  if (next.team2 && !next.usedTeamIds.includes(next.team2.id)) {
+    next.usedTeamIds.push(next.team2.id);
   }
 
   next.roundStatus = "answering";
@@ -349,6 +435,8 @@ export function prepareNextRound(
   next.team1 = null;
   next.team2 = null;
   next.nation = null;
+  next.usedTeamIds = [...(state.usedTeamIds || [])];
+  next.usedNationIds = [...(state.usedNationIds || [])];
   next.passVotes = [];
   next.roundStartTime = null;
 

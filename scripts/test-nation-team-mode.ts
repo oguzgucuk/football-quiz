@@ -117,9 +117,9 @@ async function runNationTeamTests() {
       `Tur ${round}: Roller doğru atandı (Millet: ${expectedNationPicker}, Kulüp: ${expectedTeamPicker})`
     );
 
-    // Takım ve Millet seç
-    const nation = POPULAR_NATIONS[0]; // Brezilya
-    const team = DEFAULT_POPULAR_TEAMS[0]; // Real Madrid
+    // Takım ve Millet seç (Her tur farklı bir millet ve kulüp)
+    const nation = POPULAR_NATIONS[round - 1] || POPULAR_NATIONS[0];
+    const team = DEFAULT_POPULAR_TEAMS[round - 1] || DEFAULT_POPULAR_TEAMS[0];
 
     const pickNatRes = registerNationPick(state, state.currentNationPickerUserId!, nation);
     state = pickNatRes.state;

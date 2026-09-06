@@ -234,7 +234,7 @@ export default class GameRoomServer implements Party.Server {
         this.persistMatchResult();
       } else {
         if (isBotPlayer(this.state.player2?.userId)) {
-          const botTeam = pickBotTeam(DEFAULT_POPULAR_TEAMS);
+          const botTeam = pickBotTeam(DEFAULT_POPULAR_TEAMS, this.state.usedTeamIds);
           if (this.state.player2) {
             this.state.player2.selectedTeamId = botTeam.id;
           }

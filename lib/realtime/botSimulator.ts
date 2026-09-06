@@ -21,19 +21,30 @@ export function isBotPlayer(userId?: string | null): boolean {
   return userId.startsWith(BOT_USER_PREFIX);
 }
 
-export function pickBotTeam(availableTeams: Team[]): Team {
-  if (!availableTeams.length) {
+export function pickBotTeam(availableTeams: Team[], excludedTeamIds?: string[]): Team {
+  const filtered = excludedTeamIds && excludedTeamIds.length > 0
+    ? availableTeams.filter((t) => !excludedTeamIds.includes(t.id))
+    : availableTeams;
+  const pool = filtered.length > 0 ? filtered : availableTeams;
+  if (!pool.length) {
     throw new Error("Bot takım seçimi için kullanılabilir takım listesi boş olamaz.");
   }
-  const randomIndex = Math.floor(Math.random() * availableTeams.length);
-  return availableTeams[randomIndex];
+  const randomIndex = Math.floor(Math.random() * pool.length);
+  return pool[randomIndex];
 }
 
-export function pickBotNation(availableNations: Nation[] = POPULAR_NATIONS): Nation {
-  if (!availableNations.length) {
+export function pickBotNation(
+  availableNations: Nation[] = POPULAR_NATIONS,
+  excludedNationIds?: string[]
+): Nation {
+  const filtered = excludedNationIds && excludedNationIds.length > 0
+    ? availableNations.filter((n) => !excludedNationIds.includes(n.id))
+    : availableNations;
+  const pool = filtered.length > 0 ? filtered : availableNations;
+  if (!pool.length) {
     throw new Error("Bot millet seçimi için liste boş olamaz.");
   }
-  const topSlice = availableNations.slice(0, 10);
+  const topSlice = pool.slice(0, 10);
   const randomIndex = Math.floor(Math.random() * topSlice.length);
   return topSlice[randomIndex];
 }

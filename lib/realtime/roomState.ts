@@ -43,6 +43,8 @@ export interface RoomState {
   currentNationPickerUserId?: string | null;
   currentTeamPickerUserId?: string | null;
   initialNationPickerUserId?: string | null;
+  usedTeamIds: string[];
+  usedNationIds: string[];
   roundStartTime: number | null;
   passVotes: string[];
   roundDuration: number;
@@ -65,6 +67,8 @@ export function createInitialRoomState(roomId: string): RoomState {
     team1: null,
     team2: null,
     nation: null,
+    usedTeamIds: [],
+    usedNationIds: [],
     currentNationPickerUserId: null,
     currentTeamPickerUserId: null,
     initialNationPickerUserId: null,

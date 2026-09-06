@@ -220,16 +220,15 @@ function scheduleNextRound(room: Room) {
         const botUserId = room.state.player2.userId;
         if (room.state.gameMode === "country_vs_team") {
           if (room.state.currentNationPickerUserId === botUserId) {
-            const botNation = pickBotNation();
+            const botNation = pickBotNation(undefined, room.state.usedNationIds);
             registerNationPick(room.state, botUserId, botNation);
           } else if (room.state.currentTeamPickerUserId === botUserId) {
-            const botTeam = pickBotTeam(DEFAULT_POPULAR_TEAMS);
+            const botTeam = pickBotTeam(DEFAULT_POPULAR_TEAMS, room.state.usedTeamIds);
             registerTeamPick(room.state, botUserId, botTeam);
           }
         } else {
-          const botTeam = pickBotTeam(DEFAULT_POPULAR_TEAMS);
-          room.state.player2.selectedTeamId = botTeam.id;
-          room.state.team2 = botTeam;
+          const botTeam = pickBotTeam(DEFAULT_POPULAR_TEAMS, room.state.usedTeamIds);
+          registerTeamPick(room.state, botUserId, botTeam);
         }
       }
 

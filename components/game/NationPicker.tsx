@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import Fuse from "fuse.js";
-import { CheckCircle2, Search, Lock, Globe } from "lucide-react";
+import { CheckCircle2, Search, Lock, Globe, AlertCircle } from "lucide-react";
 import { Nation } from "@/types/game";
 import { POPULAR_NATIONS } from "@/lib/data/nations";
 import { NationFlag } from "@/components/ui/NationFlag";
@@ -13,6 +13,7 @@ interface NationPickerProps {
   selectedNation: Nation | null;
   onSelectNation: (nation: Nation) => void;
   disabled?: boolean;
+  usedNationIds?: string[];
 }
 
 export function NationPicker({
@@ -20,10 +21,12 @@ export function NationPicker({
   selectedNation,
   onSelectNation,
   disabled = false,
+  usedNationIds = [],
 }: NationPickerProps) {
   const [inputValue, setInputValue] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const fuse = useMemo(() => {
@@ -84,6 +87,12 @@ export function NationPicker({
   }, [selectedNation]);
 
   const handlePick = (nation: Nation) => {
+    if (usedNationIds.includes(nation.id)) {
+      setErrorMessage(`"${nation.name}" bu maç oturumunda daha önce seçildi!`);
+      setTimeout(() => setErrorMessage(null), 3500);
+      return;
+    }
+    setErrorMessage(null);
     onSelectNation(nation);
     setInputValue(nation.name);
     setIsDropdownOpen(false);
@@ -176,25 +185,40 @@ export function NationPicker({
             </div>
           </div>
 
+          {errorMessage && (
+            <div className="mt-2 text-xs font-semibold text-rose-300 bg-rose-950/70 border border-rose-500/40 py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 animate-fadeIn shadow-lg">
+              <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
           {/* Hızlı Seçim Hapları (En Popüler 8 Ülke) */}
           {!inputValue && (
             <div className="flex flex-wrap items-center justify-center gap-1.5 mt-3">
-              {nations.slice(0, 8).map((nation) => (
-                <button
-                  key={nation.id}
-                  type="button"
-                  onClick={() => handlePick(nation)}
-                  className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-emerald-950/50 hover:border-emerald-500/40 border border-white/10 text-xs text-zinc-300 hover:text-emerald-300 font-bold transition-all cursor-pointer flex items-center gap-2 group"
-                >
-                  <NationFlag
-                    flagCode={nation.flagCode}
-                    name={nation.name}
-                    size="xs"
-                    className="group-hover:scale-105 transition-transform"
-                  />
-                  <span>{nation.name}</span>
-                </button>
-              ))}
+              {nations.slice(0, 8).map((nation) => {
+                const isUsed = usedNationIds.includes(nation.id);
+                return (
+                  <button
+                    key={nation.id}
+                    type="button"
+                    onClick={() => handlePick(nation)}
+                    className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-2 group ${
+                      isUsed
+                        ? "bg-white/2 border-white/5 text-zinc-500 opacity-40 cursor-not-allowed line-through"
+                        : "bg-white/5 hover:bg-emerald-950/50 hover:border-emerald-500/40 border-white/10 text-zinc-300 hover:text-emerald-300 cursor-pointer"
+                    }`}
+                  >
+                    <NationFlag
+                      flagCode={nation.flagCode}
+                      name={nation.name}
+                      size="xs"
+                      className={isUsed ? "grayscale opacity-50" : "group-hover:scale-105 transition-transform"}
+                    />
+                    <span>{nation.name}</span>
+                    {isUsed && <Lock className="w-2.5 h-2.5 text-zinc-500 ml-0.5" />}
+                  </button>
+                );
+              })}
             </div>
           )}
 
@@ -203,15 +227,19 @@ export function NationPicker({
             <ul className="absolute z-50 w-full mt-2 py-1.5 bg-[#0c1612]/98 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden animate-fadeIn">
               {suggestions.map((nation, index) => {
                 const isSelected = index === selectedIndex;
+                const isUsed = usedNationIds.includes(nation.id);
+
                 return (
                   <li
                     key={nation.id}
                     onClick={() => handlePick(nation)}
                     onMouseEnter={() => setSelectedIndex(index)}
-                    className={`px-4 py-3 cursor-pointer transition-all duration-150 flex items-center justify-between border-b border-white/5 last:border-0 ${
-                      isSelected
-                        ? "bg-emerald-500/20 text-white border-l-4 border-l-emerald-400 pl-3"
-                        : "hover:bg-white/5 text-zinc-300 hover:text-white"
+                    className={`px-4 py-3 transition-all duration-150 flex items-center justify-between border-b border-white/5 last:border-0 ${
+                      isUsed
+                        ? "opacity-45 bg-zinc-900/40 cursor-not-allowed"
+                        : isSelected
+                        ? "bg-emerald-500/20 text-white border-l-4 border-l-emerald-400 pl-3 cursor-pointer"
+                        : "hover:bg-white/5 text-zinc-300 hover:text-white cursor-pointer"
                     }`}
                   >
                     <div className="flex items-center gap-3">
@@ -219,15 +247,27 @@ export function NationPicker({
                         flagCode={nation.flagCode}
                         name={nation.name}
                         size="sm"
+                        className={isUsed ? "grayscale opacity-50" : ""}
                       />
-                      <span className={`text-sm font-bold ${isSelected ? "text-emerald-300" : "text-zinc-100"}`}>
+                      <span
+                        className={`text-sm font-bold ${
+                          isUsed ? "text-zinc-400 line-through" : isSelected ? "text-emerald-300" : "text-zinc-100"
+                        }`}
+                      >
                         {nation.name}
                       </span>
                     </div>
 
-                    <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-md bg-white/10 text-zinc-400">
-                      {isSelected ? "Seç (Enter)" : "Seç"}
-                    </span>
+                    {isUsed ? (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300/90 border border-amber-500/20 flex items-center gap-1">
+                        <Lock className="w-2.5 h-2.5" />
+                        <span>Kullanıldı</span>
+                      </span>
+                    ) : (
+                      <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-md bg-white/10 text-zinc-400">
+                        {isSelected ? "Seç (Enter)" : "Seç"}
+                      </span>
+                    )}
                   </li>
                 );
               })}

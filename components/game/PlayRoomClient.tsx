@@ -200,12 +200,14 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
                     <NationPicker
                       selectedNation={mySelectedNation}
                       onSelectNation={handleSelectNation}
+                      usedNationIds={roomState.usedNationIds || []}
                     />
                   ) : (
                     <TeamPicker
                       teams={allTeams}
                       selectedTeam={mySelectedTeam}
                       onSelectTeam={handleSelectTeam}
+                      usedTeamIds={roomState.usedTeamIds || []}
                     />
                   )
                 ) : (
@@ -213,6 +215,7 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
                     teams={allTeams}
                     selectedTeam={mySelectedTeam}
                     onSelectTeam={handleSelectTeam}
+                    usedTeamIds={roomState.usedTeamIds || []}
                   />
                 )}
               </div>
