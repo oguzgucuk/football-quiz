@@ -415,22 +415,24 @@ export default class GameRoomServer implements Party.Server {
         isDisconnected: false,
         disconnectedAt: null,
       };
-      this.state.status = "in_round";
-      this.state.roundStatus = "picking_teams";
-      this.state.currentRound = 1;
-      this.state.passVotes = [];
+      if (this.state.status === "waiting_for_players") {
+        this.state.status = "in_round";
+        this.state.roundStatus = "picking_teams";
+        this.state.currentRound = 1;
+        this.state.passVotes = [];
 
-      if (this.state.gameMode === "country_vs_team" && !this.state.initialNationPickerUserId) {
-        const startWithP1 = Math.random() < 0.5;
-        this.state.initialNationPickerUserId = startWithP1 ? this.state.player1.userId : this.state.player2.userId;
-        this.state.currentNationPickerUserId = this.state.initialNationPickerUserId;
-        this.state.currentTeamPickerUserId = startWithP1 ? this.state.player2.userId : this.state.player1.userId;
+        if (this.state.gameMode === "country_vs_team" && !this.state.initialNationPickerUserId) {
+          const startWithP1 = Math.random() < 0.5;
+          this.state.initialNationPickerUserId = startWithP1 ? this.state.player1!.userId : this.state.player2.userId;
+          this.state.currentNationPickerUserId = this.state.initialNationPickerUserId;
+          this.state.currentTeamPickerUserId = startWithP1 ? this.state.player2.userId : this.state.player1!.userId;
+        }
+
+        const pickDuration = this.state.roundDuration || DEFAULT_ROUND_DURATION;
+        this.startServerTimer(pickDuration, () => {
+          this.handlePickTimeout();
+        });
       }
-
-      const pickDuration = this.state.roundDuration || DEFAULT_ROUND_DURATION;
-      this.startServerTimer(pickDuration, () => {
-        this.handlePickTimeout();
-      });
     }
     this.broadcastState();
   }

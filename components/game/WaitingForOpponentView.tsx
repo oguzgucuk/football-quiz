@@ -7,7 +7,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { RotateCcw, Home, Copy, Check, Bot } from "lucide-react";
+import { Loader2, Home, Copy, Check, Bot } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 interface WaitingForOpponentViewProps {
@@ -28,7 +28,7 @@ export function WaitingForOpponentView({ onAddBot }: WaitingForOpponentViewProps
   return (
     <div className="w-full max-w-md flex flex-col items-center text-center p-8 rounded-3xl bg-[#0c1612]/95 border border-white/15 shadow-[0_0_50px_rgba(0,0,0,0.8)] backdrop-blur-2xl animate-fadeIn">
       <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-4 animate-pulse">
-        <RotateCcw className="w-8 h-8 animate-spin" style={{ animationDuration: "6s" }} />
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
       </div>
 
       <h2 className="text-2xl font-black text-white tracking-tight">Rakip Bekleniyor...</h2>

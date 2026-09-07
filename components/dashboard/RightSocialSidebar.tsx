@@ -77,7 +77,7 @@ export function RightSocialSidebar({
       {/* 1. Koyu Bulanık Arka Plan Katmanı (Drawer açıkken tıklanırsa kapatır) */}
       <div
         onClick={onClose}
-        className={`fixed inset-0 bg-black/60 backdrop-blur-xs z-40 transition-opacity duration-300 ${
+        className={`fixed inset-0 bg-black/70 backdrop-blur-xs z-40 transition-opacity duration-300 ${
           isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`}
         aria-hidden="true"
@@ -85,7 +85,7 @@ export function RightSocialSidebar({
 
       {/* 2. Kayan Sağ Sidebar (Drawer) */}
       <aside
-        className={`fixed top-0 right-0 h-full w-80 sm:w-88 max-w-[85vw] bg-[#0a120e]/95 backdrop-blur-xl border-l border-white/10 flex flex-col select-none z-50 shadow-2xl text-white transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 right-0 h-full w-80 sm:w-88 max-w-[85vw] bg-[#0c1612]/95 backdrop-blur-2xl border-l border-white/10 flex flex-col select-none z-50 shadow-[0_0_50px_rgba(0,0,0,0.8)] text-white transition-transform duration-300 ease-in-out ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
         suppressHydrationWarning
@@ -133,10 +133,12 @@ export function RightSocialSidebar({
             />
 
             {/* Alt Durum Çubuğu */}
-            <div className="p-2.5 border-t border-white/10 bg-black/40 backdrop-blur-xs text-[11px] text-zinc-400 flex items-center justify-between font-mono">
-              <span>Sunucu: TR-Istanbul</span>
-              <span className="text-emerald-400 font-bold flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <div className="p-3 border-t border-white/10 bg-black/40 backdrop-blur-xs text-[11px] text-zinc-400 flex items-center justify-between font-mono">
+              <span className="flex items-center gap-1.5">
+                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Sunucu: TR-Istanbul</span>
+              </span>
+              <span className="text-emerald-400 font-bold">
                 Aktif
               </span>
             </div>

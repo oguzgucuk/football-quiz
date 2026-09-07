@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ProfileGuestView } from "./profile/ProfileGuestView";
 import { ProfileHeaderCard } from "./profile/ProfileHeaderCard";
@@ -63,7 +64,7 @@ export function ProfileStage({ onGoToPlay, onOpenAuthModal }: ProfileStageProps)
     return (
       <div className="relative flex flex-1 flex-col items-center justify-center bg-transparent text-white select-none font-sans p-8 lg:p-12 h-full">
         <div className="flex flex-col items-center gap-3">
-          <div className="size-10 rounded-2xl border-2 border-emerald-500 border-t-transparent animate-spin" />
+          <Loader2 className="size-8 animate-spin text-emerald-400" />
           <p className="text-xs font-bold text-zinc-400">Profil yükleniyor...</p>
         </div>
       </div>

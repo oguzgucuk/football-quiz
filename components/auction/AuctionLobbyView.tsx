@@ -10,7 +10,7 @@
 
 import React, { useState } from "react";
 import { AuctionRoomState, AuctionLobbySettings } from "@/lib/auction/auctionTypes";
-import { Users, Crown, Shield, Coins, Sparkles, Copy, Check, Share2, RotateCcw, ChevronRight } from "lucide-react";
+import { Users, Crown, Shield, Coins, Sparkles, Copy, Check, Share2, Loader2, ChevronRight } from "lucide-react";
 
 import { AuctionLobbySettingsCards } from "./AuctionLobbySettingsCards";
 
@@ -182,7 +182,7 @@ export function AuctionLobbyView({
           >
             {isStarting ? (
               <>
-                <RotateCcw className="w-5 h-5 animate-spin text-emerald-400" />
+                <Loader2 className="w-5 h-5 animate-spin text-emerald-400" />
                 <span>Oyun Kuruluyor...</span>
               </>
             ) : (

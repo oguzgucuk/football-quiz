@@ -66,3 +66,19 @@ export interface PlayerSearchItem {
   position?: string | null;
   popularityScore?: number;
 }
+
+export interface MatchEloResult {
+  matchId: string;
+  isDraw: boolean;
+  p1EloChange: number;
+  p2EloChange: number;
+  p1NewElo: number;
+  p2NewElo: number;
+}
+
+export interface RoundWinnerState {
+  username: string | null;
+  correctAnswer: string | null;
+  isDraw: boolean;
+}
+

@@ -8,27 +8,14 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { RoomState } from "@/lib/realtime/roomState";
 import { getWebSocketUrl } from "@/lib/realtime/getWebSocketUrl";
-import { Team, Nation } from "@/types/game";
+import { Team, Nation, MatchEloResult, RoundWinnerState } from "@/types/game";
 import {
   getStoredSessionToken,
   saveStoredSessionToken,
   clearStoredSessionToken,
 } from "@/hooks/useRoomSession";
 
-export interface MatchEloResult {
-  matchId: string;
-  isDraw: boolean;
-  p1EloChange: number;
-  p2EloChange: number;
-  p1NewElo: number;
-  p2NewElo: number;
-}
-
-export interface RoundWinnerState {
-  username: string | null;
-  correctAnswer: string | null;
-  isDraw: boolean;
-}
+export type { MatchEloResult, RoundWinnerState };
 
 interface UseGameRoomSocketProps {
   roomId: string;
@@ -128,6 +115,9 @@ export function useGameRoomSocket({
 
             case "REJOIN_SUCCESS":
               console.log("✅ [GameRoomSocket] REJOIN başarılı, maç durumu senkronize edildi.");
+              if (data.sessionToken) {
+                saveStoredSessionToken(roomId, data.sessionToken);
+              }
               setRoomState(data.state);
               break;
 
@@ -171,10 +161,7 @@ export function useGameRoomSocket({
               break;
 
             case "PLAYER_RECONNECTED":
-              setRoomState((prev) => ({
-                ...prev,
-                disconnectGrace: null,
-              }));
+              setRoomState((prev) => ({ ...prev, disconnectGrace: null }));
               break;
 
             case "PLAYER_FORFEIT":
@@ -208,8 +195,13 @@ export function useGameRoomSocket({
               alert(data.reason || "Seçiminiz reddedildi! Lütfen farklı bir seçim yapın.");
               break;
 
-            case "ROOM_STATE_SYNC":
-              setRoomState(data.state);
+            case "ROOM_STATE_SYNC": {
+              setRoomState((prev) => {
+                if (prev.roundStatus !== data.state.roundStatus || prev.currentRound !== data.state.currentRound) {
+                  setServerSecondsLeft(null);
+                }
+                return data.state;
+              });
               if (data.state.status === "match_finished") {
                 clearStoredSessionToken(roomId);
               }
@@ -223,8 +215,12 @@ export function useGameRoomSocket({
                 }
               }
               break;
+            }
 
             case "FOUL_APPLIED":
+              setMySelectedTeam(null);
+              setMySelectedNation?.(null);
+              setServerSecondsLeft(null);
               if (data.state) {
                 setRoomState(data.state);
               }
@@ -242,6 +238,7 @@ export function useGameRoomSocket({
               setIsSubmitting(false);
               setMySelectedTeam(null);
               setMySelectedNation?.(null);
+              setServerSecondsLeft(null);
               setLastRoundWinner({
                 username: data.winnerUserId === userId ? username : data.winnerUserId ? "Rakip" : null,
                 correctAnswer: data.correctAnswer || "Tur Tamamlandı",
@@ -268,14 +265,8 @@ export function useGameRoomSocket({
         }
       };
 
-      ws.onclose = () => {
-        setIsConnectedToSocket(false);
-      };
-
-      ws.onerror = () => {
-        setIsConnectedToSocket(false);
-      };
-
+      ws.onclose = () => setIsConnectedToSocket(false);
+      ws.onerror = () => setIsConnectedToSocket(false);
       wsRef.current = ws;
     } catch {
       setIsConnectedToSocket(false);

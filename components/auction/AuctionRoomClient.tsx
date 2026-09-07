@@ -14,7 +14,7 @@ import { AuctionBiddingStage } from "./AuctionBiddingStage";
 import { AuctionPitchBuilder } from "./AuctionPitchBuilder";
 import { AuctionSimulationStage } from "./AuctionSimulationStage";
 import { StadiumBackground } from "@/components/ui/StadiumBackground";
-import { RotateCcw, ArrowLeft, AlertTriangle, AlertCircle } from "lucide-react";
+import { Loader2, ArrowLeft, AlertTriangle, AlertCircle } from "lucide-react";
 import Link from "next/link";
 
 interface AuctionRoomClientProps {
@@ -64,7 +64,7 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
     return (
       <div className="flex flex-col min-h-screen bg-[#0d1611] text-zinc-100 items-center justify-center p-4">
         <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 animate-pulse">
-          <RotateCcw className="w-6 h-6 animate-spin" />
+          <Loader2 className="w-6 h-6 animate-spin" />
         </div>
       </div>
     );

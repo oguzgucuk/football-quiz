@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Swords, RotateCcw, Bot, Check, Minus, X, Zap, Trophy } from "lucide-react";
+import { Swords, Loader2, Bot, Check, Minus, X, Zap, Trophy } from "lucide-react";
 
 export interface RecentMatchItem {
   matchId: string;
@@ -75,7 +75,7 @@ export function ProfileMatchHistory({
       <div className="max-h-[420px] overflow-y-auto pr-1.5 space-y-2.5 custom-scrollbar">
         {isHistoryLoading ? (
           <div className="flex flex-col items-center justify-center py-12 gap-3 text-zinc-400">
-            <RotateCcw className="size-6 animate-spin text-emerald-400" />
+            <Loader2 className="size-6 animate-spin text-emerald-400" />
             <span className="text-xs font-semibold text-zinc-400">Maç geçmişi yükleniyor...</span>
           </div>
         ) : matchHistory.length === 0 ? (
@@ -88,7 +88,7 @@ export function ProfileMatchHistory({
             {onGoToPlay && (
               <button
                 onClick={onGoToPlay}
-                className="mt-4 px-4 py-2 rounded-xl bg-[#15803d] hover:bg-[#16a34a] text-white font-bold text-xs transition-colors shadow-xs cursor-pointer"
+                className="mt-4 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 border border-emerald-400/30 text-white font-black text-xs uppercase tracking-wider transition-all shadow-md shadow-emerald-950/50 cursor-pointer active:scale-95"
               >
                 Hemen Maça Başla
               </button>

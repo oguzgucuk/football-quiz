@@ -20,8 +20,9 @@ export function RoundTimer({
   label,
   variant = "answering",
 }: RoundTimerProps) {
-  const [timeLeft, setTimeLeft] = useState(durationSeconds);
+  const [timeLeft, setTimeLeft] = useState(serverSecondsLeft ?? durationSeconds);
   const onExpiredRef = useRef(onTimeExpired);
+  const hasFiredExpiredRef = useRef(false);
 
   useEffect(() => {
     onExpiredRef.current = onTimeExpired;
@@ -32,6 +33,9 @@ export function RoundTimer({
     if (serverSecondsLeft !== undefined && serverSecondsLeft !== null) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setTimeLeft(serverSecondsLeft);
+      if (serverSecondsLeft > 0) {
+        hasFiredExpiredRef.current = false;
+      }
     }
   }, [serverSecondsLeft]);
 
@@ -40,6 +44,7 @@ export function RoundTimer({
     if (serverSecondsLeft === undefined || serverSecondsLeft === null) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setTimeLeft(durationSeconds);
+      hasFiredExpiredRef.current = false;
     }
   }, [durationSeconds, serverSecondsLeft]);
 
@@ -48,7 +53,10 @@ export function RoundTimer({
     if (isPaused) return;
 
     if (timeLeft <= 0) {
-      onExpiredRef.current?.();
+      if (!hasFiredExpiredRef.current) {
+        hasFiredExpiredRef.current = true;
+        onExpiredRef.current?.();
+      }
       return;
     }
 

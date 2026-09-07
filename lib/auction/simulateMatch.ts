@@ -28,10 +28,12 @@ export function simulateMatch(
   for (let i = 0; i < totalPositions; i++) {
     const minute = minutes[i] || (i + 1) * 6;
 
-    // 1. Pozisyonu Kimin Oynayacağını Belirle (Orta Saha Gücü Olasılığı)
+    // 1. Pozisyonu Kimin Oynayacağını Belirle (Orta Saha Hakimiyeti)
     const midA = Math.max(10, homeLineup.rawMidPower);
     const midB = Math.max(10, awayLineup.rawMidPower);
-    const probHomeAttacks = midA / (midA + midB);
+    const midDiff = midA - midB;
+    // Eşit orta sahalar için %50, her +1 orta saha farkı %0.7 topa sahip olma üstünlüğü getirir (Aralık: %15 - %85)
+    const probHomeAttacks = Math.min(0.85, Math.max(0.15, 0.5 + midDiff * 0.007));
 
     const isHomeAttacking = Math.random() < probHomeAttacks;
     const attackingLineup = isHomeAttacking ? homeLineup : awayLineup;
@@ -39,12 +41,15 @@ export function simulateMatch(
     const attackingUsername = isHomeAttacking ? homeUsername : awayUsername;
     const defendingUsername = isHomeAttacking ? awayUsername : homeUsername;
 
-    // 2. Atağın Gole Dönüşme Şansı (Efektif Atak vs Efektif Defans)
+    // 2. Atağın Gole Dönüşme Şansı (Efektif Atak vs Efektif Defans Güç Farkı)
     const atkPower = Math.max(10, attackingLineup.effectiveAtkPower);
     const defPower = Math.max(10, defendingLineup.effectiveDefPower);
+    const powerDiff = atkPower - defPower;
 
-    // Gerçekçi futbol skoru için dengeli katsayı
-    const goalProbability = (atkPower / (atkPower + defPower * 1.55)) * 0.42;
+    // Temel gol şansı %20 (dengeli maçlar için), her +1 güç farkı %0.7 ekler
+    // Zayıf atak güçlü defansa karşı: min %4 (kale duvarı)
+    // Ezici atak zayıf defansa karşı: max %55 (4-0, 5-1, 6-0 gibi net hezimetler; 10+ aşırı uçlar önlenir)
+    const goalProbability = Math.min(0.55, Math.max(0.04, 0.20 + powerDiff * 0.007));
     const isGoal = Math.random() < goalProbability;
 
     if (isGoal) {
@@ -60,10 +65,12 @@ export function simulateMatch(
         description: `GOOOOL! ${scorer} (${attackingUsername}) mükemmel bir bitiricilikle topu ağlara yolladı!`,
       });
     } else {
-      // Tehlikeli pozisyon veya kaleci kurtarışı
-      const isGoalkeeperSave = Math.random() < 0.55;
-      const gkPlayer = defendingLineup.slots.find((s) => s.targetPosition === "GK")?.placedPlayer;
-      const gkName = gkPlayer?.fullName || "Kaleci";
+      // Kalecinin gücüne bağlı kurtarış ihtimali
+      const gkSlot = defendingLineup.slots.find((s) => s.targetPosition === "GK");
+      const gkRating = gkSlot?.effectiveRating || 40;
+      const saveThreshold = Math.min(0.70, Math.max(0.35, 0.35 + (gkRating - 40) * 0.006));
+      const isGoalkeeperSave = Math.random() < saveThreshold;
+      const gkName = gkSlot?.placedPlayer?.fullName || "Kaleci";
 
       if (isGoalkeeperSave) {
         events.push({

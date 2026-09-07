@@ -6,11 +6,16 @@
  * (takım seçme, cevap gönderme, süre bitimi ve pas oylaması) yönetir.
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { RoomState, createInitialRoomState } from "@/lib/realtime/roomState";
 import { Team, Nation } from "@/types/game";
 import { useGameRoomData } from "./useGameRoomData";
 import { useGameRoomSocket, MatchEloResult, RoundWinnerState } from "./useGameRoomSocket";
+import {
+  getStoredRoomState,
+  saveStoredRoomState,
+  clearStoredRoomState,
+} from "./useRoomSession";
 
 const POPULAR_CLUB_NAMES = [
   "Real Madrid",
@@ -42,7 +47,21 @@ interface UseGameRoomProps {
 }
 
 export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
-  const [roomState, setRoomState] = useState<RoomState>(() => createInitialRoomState(roomId));
+  const [roomState, setRoomState] = useState<RoomState>(() => {
+    const cached = getStoredRoomState<RoomState>(roomId);
+    if (cached && (cached.player1 || cached.player2)) {
+      return cached;
+    }
+    return createInitialRoomState(roomId);
+  });
+
+  useEffect(() => {
+    if (roomState.status === "match_finished") {
+      clearStoredRoomState(roomId);
+    } else if (roomState.player1 || roomState.player2) {
+      saveStoredRoomState(roomId, roomState);
+    }
+  }, [roomId, roomState]);
   const [mySelectedTeam, setMySelectedTeam] = useState<Team | null>(null);
   const [mySelectedNation, setMySelectedNation] = useState<Nation | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -158,16 +177,10 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
     [roomState.gameMode, roomState.nation, roomState.team1, roomState.team2, isSubmitting, userId, sendSocketMessage]
   );
 
-  // 5. Süre Dolduğunda (Server-Authoritative: Otomatik seçim kaldırıldı)
+  // 5. Süre Dolduğunda (Server-Authoritative: Sunucu sayacı yetkilidir, istemci süreyi kesmez)
   const handleTimeExpired = useCallback(() => {
-    if (isConnectedToSocket) {
-      if (roomState.roundStatus === "answering") {
-        sendSocketMessage({ type: "ROUND_TIMEOUT" });
-      } else if (roomState.roundStatus === "picking_teams") {
-        sendSocketMessage({ type: "PICK_TIMEOUT" });
-      }
-    }
-  }, [isConnectedToSocket, roomState.roundStatus, sendSocketMessage]);
+    // Round timer ve süre bitişi sunucu (Server-Authoritative) tarafından yönetilir.
+  }, []);
 
   // 6. Pas Geçme İsteği Gönder (Mutual Skip)
   const handleVotePass = useCallback(() => {

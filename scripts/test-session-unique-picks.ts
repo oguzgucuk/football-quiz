@@ -84,7 +84,7 @@ async function runTests() {
 
   // Tur 2: Yeni kulüpler seçilir (Arsenal & Chelsea)
   const p1Pick2 = registerTeamPick(state, "p1", mockTeams[2]);
-  const p2Pick2 = registerTeamPick(state, "p2", mockTeams[3]);
+  const p2Pick2 = registerTeamPick(p1Pick2.state, "p2", mockTeams[3]);
   assert(!p1Pick2.rejected && !p2Pick2.rejected, "Henüz seçilmemiş takımlar başarıyla seçilebilmeli");
   state = p2Pick2.state;
 

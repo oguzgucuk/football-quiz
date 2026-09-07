@@ -7,7 +7,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { Trophy, LogOut, Zap } from "lucide-react";
+import { Trophy, LogOut, Zap, Swords, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { RoomState } from "@/lib/realtime/roomState";
@@ -28,13 +28,20 @@ export function MatchFinishedView({
   username,
   matchEloResult,
 }: MatchFinishedViewProps) {
-  const p1Score = roomState.player1?.score ?? 0;
-  const p2Score = roomState.player2?.score ?? 0;
-  const isWinner = p1Score > p2Score;
-  const isDraw = p1Score === p2Score;
+  const isPlayer1 = roomState.player1?.userId === currentUserId;
+  const myPlayer = isPlayer1 ? roomState.player1 : roomState.player2;
+  const opponentPlayer = isPlayer1 ? roomState.player2 : roomState.player1;
+
+  const myScore = myPlayer?.score ?? 0;
+  const opponentScore = opponentPlayer?.score ?? 0;
+  const opponentUsername = opponentPlayer?.username || "Rakip";
+
+  const isWinner = myScore > opponentScore;
+  const isDraw = myScore === opponentScore;
   const isForfeit = Boolean(roomState.forfeitInfo);
   const isForfeitWinner = roomState.forfeitInfo?.winnerUserId === currentUserId;
   const isCasual = Boolean(roomState.roomId?.includes("_casual_"));
+  const isUserWinner = isForfeit ? isForfeitWinner : isWinner;
 
   const resultTitle = isForfeit
     ? isForfeitWinner
@@ -52,9 +59,12 @@ export function MatchFinishedView({
       : "Bağlantı koptuğu ve 10 saniye içinde dönülmediği için maç sonuçlandı."
     : isCasual
     ? "Hızlı Maç tamamlandı. Skorlar maç geçmişine kaydedildi."
-    : "5 tur sonunda nihai skor tablosu";
+    : isDraw
+    ? "Büyük mücadele berabere sonuçlandı!"
+    : isWinner
+    ? "Harika bir performans sergileyerek galibiyete ulaştın!"
+    : "Bu sefer olmadı, bir sonraki maçta telafi edebilirsin!";
 
-  const isPlayer1 = roomState.player1?.userId === currentUserId;
   const userEloChange = matchEloResult
     ? isPlayer1
       ? matchEloResult.p1EloChange
@@ -76,8 +86,22 @@ export function MatchFinishedView({
     <div className="flex flex-col min-h-screen bg-[#0d1611] text-zinc-100 items-center justify-center p-4 relative overflow-hidden">
       <StadiumBackground variant="dark" />
       <Card variant="glass" className="max-w-md w-full text-center p-8 flex flex-col items-center relative z-10 border-white/15 bg-[#0c1612]/95 backdrop-blur-2xl shadow-[0_0_60px_rgba(0,0,0,0.9)]">
-        <div className="w-20 h-20 rounded-3xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-6 shadow-xl shadow-amber-500/10">
-          <Trophy className="w-10 h-10" />
+        <div
+          className={`w-20 h-20 rounded-3xl flex items-center justify-center mb-6 shadow-xl ${
+            isUserWinner
+              ? "bg-amber-500/10 border border-amber-500/30 text-amber-400 shadow-amber-500/10"
+              : isDraw
+              ? "bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 shadow-cyan-500/10"
+              : "bg-rose-500/10 border border-rose-500/30 text-rose-400 shadow-rose-500/10"
+          }`}
+        >
+          {isUserWinner ? (
+            <Trophy className="w-10 h-10" />
+          ) : isDraw ? (
+            <Swords className="w-10 h-10" />
+          ) : (
+            <ShieldAlert className="w-10 h-10" />
+          )}
         </div>
 
         <h2 className="text-3xl font-black text-white tracking-tight mb-2">
@@ -88,14 +112,34 @@ export function MatchFinishedView({
         </p>
 
         <div className="flex items-center justify-center gap-6 my-4 p-4 rounded-2xl bg-black/40 border border-white/10 w-full">
-          <div className="text-center">
-            <span className="text-xs text-zinc-500 font-bold block">{username}</span>
-            <span className="text-3xl font-black text-emerald-400">{p1Score}</span>
+          <div className="text-center min-w-[90px]">
+            <span className="text-xs text-zinc-400 font-bold block truncate max-w-[130px]">{username}</span>
+            <span
+              className={`text-3xl font-black ${
+                myScore > opponentScore
+                  ? "text-emerald-400"
+                  : myScore < opponentScore
+                  ? "text-rose-400"
+                  : "text-amber-400"
+              }`}
+            >
+              {myScore}
+            </span>
           </div>
           <span className="text-xl font-bold text-zinc-600">-</span>
-          <div className="text-center">
-            <span className="text-xs text-zinc-500 font-bold block">Rakip</span>
-            <span className="text-3xl font-black text-cyan-400">{p2Score}</span>
+          <div className="text-center min-w-[90px]">
+            <span className="text-xs text-zinc-400 font-bold block truncate max-w-[130px]">{opponentUsername}</span>
+            <span
+              className={`text-3xl font-black ${
+                opponentScore > myScore
+                  ? "text-emerald-400"
+                  : opponentScore < myScore
+                  ? "text-rose-400"
+                  : "text-cyan-400"
+              }`}
+            >
+              {opponentScore}
+            </span>
           </div>
         </div>
 

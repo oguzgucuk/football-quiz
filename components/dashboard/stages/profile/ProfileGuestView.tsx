@@ -15,11 +15,11 @@ export function ProfileGuestView({ onOpenAuthModal }: ProfileGuestViewProps) {
 
       <div className="relative z-10 max-w-4xl mx-auto w-full space-y-8">
         {/* Ana Ziyaretçi Kartı */}
-        <div className="relative rounded-[32px] bg-[#0c1612]/85 backdrop-blur-xl border border-white/10 p-8 sm:p-10 shadow-[0_0_35px_rgba(34,197,94,0.15)] overflow-hidden text-center flex flex-col items-center">
-          <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent" />
+        <div className="relative rounded-[32px] bg-[#0c1612]/85 backdrop-blur-xl border border-white/10 p-8 sm:p-10 shadow-[0_0_35px_rgba(34,197,94,0.12)] overflow-hidden text-center flex flex-col items-center">
+          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent" />
 
           <div className="relative mb-5">
-            <div className="flex size-20 sm:size-24 items-center justify-center rounded-3xl bg-emerald-950/60 border border-emerald-500/30 text-emerald-400 shadow-lg">
+            <div className="flex size-20 sm:size-24 items-center justify-center rounded-3xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 shadow-lg shadow-emerald-500/10">
               <User className="size-10 sm:size-12" />
             </div>
             <span className="absolute -bottom-1 -right-1 size-7 rounded-full bg-amber-500 text-black flex items-center justify-center shadow-md font-bold">
@@ -43,7 +43,7 @@ export function ProfileGuestView({ onOpenAuthModal }: ProfileGuestViewProps) {
           <div className="flex flex-col sm:flex-row items-center gap-3 mt-7 w-full max-w-xs">
             <button
               onClick={() => onOpenAuthModal?.("login")}
-              className="w-full py-3 px-6 rounded-xl bg-gradient-to-b from-[#168841] to-[#126d34] border border-emerald-400/40 text-white text-xs font-black uppercase tracking-widest shadow-[0_0_20px_rgba(34,197,94,0.3)] transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+              className="w-full py-3 px-6 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 border border-emerald-400/40 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-emerald-950/50 transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
             >
               <LogIn className="size-4" />
               <span>Giriş Yap</span>
@@ -73,20 +73,20 @@ export function ProfileGuestView({ onOpenAuthModal }: ProfileGuestViewProps) {
             <Sparkles className="size-5 text-emerald-400" />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 filter blur-[0.3px]">
-            <div className="p-4 rounded-2xl bg-black/35 border border-white/10">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="p-4 rounded-2xl bg-black/40 border border-white/10">
               <div className="text-[11px] font-bold text-zinc-400 uppercase">ELO Derecesi</div>
               <div className="text-lg font-black text-emerald-400 mt-1 font-mono">1000 - 2400+ ELO</div>
               <div className="text-[11px] text-zinc-400 mt-1">Lojistik formülle dinamik derecelendirme</div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-black/35 border border-white/10">
+            <div className="p-4 rounded-2xl bg-black/40 border border-white/10">
               <div className="text-[11px] font-bold text-zinc-400 uppercase">Maç Geçmişi Arşivi</div>
               <div className="text-lg font-black text-white mt-1 font-mono">Son 30 Karşılaşma</div>
               <div className="text-[11px] text-zinc-400 mt-1">Skorlar, rakipler ve net puan değişimleri</div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-black/35 border border-white/10">
+            <div className="p-4 rounded-2xl bg-black/40 border border-white/10">
               <div className="text-[11px] font-bold text-zinc-400 uppercase">İkili Rekabet (H2H)</div>
               <div className="text-lg font-black text-white mt-1 font-mono">Rakip Karnesi</div>
               <div className="text-[11px] text-zinc-400 mt-1">Her rakibe karşı toplam galibiyet/mağlubiyet</div>

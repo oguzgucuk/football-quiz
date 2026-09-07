@@ -20,6 +20,8 @@ export const metadata: Metadata = {
     "Gerçek zamanlı 1v1 futbol bilgi yarışı. İki takım seçin, her iki kulüpte de forma giymiş ortak futbolcuyu en hızlı yazarak turları kazanın.",
 };
 
+import { Toaster } from "@/components/ui/sonner";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -31,6 +33,7 @@ export default function RootLayout({
         className={`${outfit.variable} ${geistMono.variable} min-h-full flex flex-col font-sans bg-[#0d1611] text-white selection:bg-emerald-500/30 selection:text-emerald-300`}
       >
         {children}
+        <Toaster />
       </body>
     </html>
   );

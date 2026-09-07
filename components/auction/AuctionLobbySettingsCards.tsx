@@ -10,6 +10,8 @@ import React from "react";
 import { AuctionLobbySettings } from "@/lib/auction/auctionTypes";
 import { Coins, Sparkles } from "lucide-react";
 
+import { Slider } from "@/components/ui/slider";
+
 interface AuctionLobbySettingsCardsProps {
   settings: AuctionLobbySettings;
   isHost: boolean;
@@ -40,15 +42,14 @@ export function AuctionLobbySettingsCards({
         </div>
 
         <div className="flex flex-col gap-2">
-          <input
-            type="range"
-            min="20"
-            max="100"
-            step="5"
+          <Slider
+            min={20}
+            max={100}
+            step={5}
             disabled={!isHost}
-            value={settings.startingBudget}
-            onChange={(e) => onUpdateSettings({ startingBudget: Number(e.target.value) })}
-            className={`w-full accent-emerald-500 ${isHost ? "cursor-pointer" : "opacity-60 cursor-not-allowed"}`}
+            value={[settings.startingBudget]}
+            onValueChange={(val) => onUpdateSettings({ startingBudget: val[0] })}
+            className={`w-full ${isHost ? "cursor-pointer" : "opacity-60 cursor-not-allowed"}`}
           />
           <div className="flex justify-between items-center text-[11px] text-zinc-500 font-mono">
             <span>Min: $20M</span>

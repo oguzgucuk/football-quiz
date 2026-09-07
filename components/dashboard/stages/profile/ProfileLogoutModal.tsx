@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { LogOut } from "lucide-react";
+import { LogOut, Loader2 } from "lucide-react";
 
 interface ProfileLogoutModalProps {
   isOpen: boolean;
@@ -22,14 +22,14 @@ export function ProfileLogoutModal({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200"
     >
       <div
-        className="relative w-full max-w-md rounded-3xl bg-[#0d1611]/95 border border-white/15 p-6 sm:p-7 shadow-2xl backdrop-blur-xl text-white animate-in zoom-in-95 duration-200"
+        className="relative w-full max-w-md rounded-3xl bg-[#0c1612]/95 border border-white/15 p-6 sm:p-7 shadow-[0_0_50px_rgba(0,0,0,0.8)] backdrop-blur-2xl text-white animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start gap-4">
-          <div className="size-12 rounded-2xl bg-rose-950/60 border border-rose-500/40 flex items-center justify-center text-rose-400 shrink-0 shadow-xs">
+          <div className="size-12 rounded-2xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0 shadow-lg shadow-rose-500/10">
             <LogOut className="size-6" />
           </div>
           <div className="flex-1 min-w-0">
@@ -55,11 +55,11 @@ export function ProfileLogoutModal({
             type="button"
             disabled={isLoggingOut}
             onClick={onConfirmLogout}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-extrabold text-xs transition-all cursor-pointer shadow-sm hover:shadow-rose-600/25 disabled:opacity-60"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 active:scale-95 text-white font-extrabold text-xs transition-all cursor-pointer shadow-lg shadow-rose-950/50 border border-rose-400/30 disabled:opacity-60"
           >
             {isLoggingOut ? (
               <>
-                <div className="size-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <Loader2 className="size-3.5 animate-spin" />
                 <span>Çıkış Yapılıyor...</span>
               </>
             ) : (

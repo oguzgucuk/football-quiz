@@ -52,6 +52,7 @@ interface Room {
 }
 
 const rooms = new Map<string, Room>();
+const emptyRoomCleanupTimers = new Map<string, NodeJS.Timeout>();
 
 const server = createServer((req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -324,6 +325,12 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
   if (isAuctionRoomId(roomId) || request.url?.includes("/parties/auction")) {
     handleAuctionSocketConnection(ws, roomId);
     return;
+  }
+
+  const cleanupTimer = emptyRoomCleanupTimers.get(roomId);
+  if (cleanupTimer) {
+    clearTimeout(cleanupTimer);
+    emptyRoomCleanupTimers.delete(roomId);
   }
 
   const room = getOrCreateRoom(roomId);
@@ -744,10 +751,23 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
       if (handled) return;
     }
 
-    if (room.clients.size === 0 && !getActiveGracePeriod(roomId)) {
-      clearRoomTimer(room);
-      clearRoomSessions(roomId);
-      rooms.delete(roomId);
+    if (room.clients.size === 0) {
+      if (!getActiveGracePeriod(roomId)) {
+        clearRoomTimer(room);
+      }
+      // F5 yenilemelerinde veya anlık kopmalarda odanın ve skorların silinmesini engelle (30 sn tolerans)
+      if (!emptyRoomCleanupTimers.has(roomId)) {
+        const timer = setTimeout(() => {
+          emptyRoomCleanupTimers.delete(roomId);
+          if (room.clients.size === 0 && !getActiveGracePeriod(roomId)) {
+            clearRoomTimer(room);
+            clearRoomSessions(roomId);
+            rooms.delete(roomId);
+            console.log(`🧹 [Party/Server] Boş kalan oda temizlendi: ${roomId}`);
+          }
+        }, 30000);
+        emptyRoomCleanupTimers.set(roomId, timer);
+      }
     }
   });
 });

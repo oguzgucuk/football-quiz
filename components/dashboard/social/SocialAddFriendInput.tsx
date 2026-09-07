@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { UserPlus } from "lucide-react";
+import { UserPlus, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 interface SocialAddFriendInputProps {
   onAddFriend: (username: string) => Promise<string>;
@@ -41,30 +42,34 @@ export function SocialAddFriendInput({ onAddFriend }: SocialAddFriendInputProps)
   };
 
   return (
-    <div className="px-3.5 py-2.5 border-b border-white/10 bg-white/5 backdrop-blur-xs">
+    <div className="px-3.5 py-2.5 border-b border-white/10 bg-black/20 backdrop-blur-xs">
       <form onSubmit={handleSubmit} className="flex items-center gap-1.5">
-        <input
+        <Input
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Kullanıcı adı yaz..."
           maxLength={20}
-          className="flex-1 bg-black/40 border border-white/15 focus:border-emerald-500 rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-zinc-500 focus:outline-none transition-colors"
+          className="h-9 text-xs"
         />
         <button
           type="submit"
           disabled={isSubmitting || !input.trim()}
-          className="px-3 py-1.5 rounded-xl bg-[#15803d] hover:bg-[#16a34a] text-white text-xs font-bold flex items-center gap-1 transition-all disabled:opacity-40 disabled:pointer-events-none shrink-0 cursor-pointer shadow-2xs"
+          className="h-9 px-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:pointer-events-none shrink-0 cursor-pointer shadow-md shadow-emerald-950/50 border border-emerald-400/30 active:scale-95"
           title="Arkadaş Ekle"
         >
-          <UserPlus className="w-3.5 h-3.5" />
+          {isSubmitting ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <UserPlus className="size-3.5" />
+          )}
           <span>Ekle</span>
         </button>
       </form>
 
       {actionFeedback && (
         <div
-          className={`mt-2 px-2 py-1.5 rounded-lg text-xs text-center border animate-in fade-in duration-200 ${
+          className={`mt-2 px-2.5 py-1.5 rounded-xl text-xs text-center border animate-in fade-in duration-200 ${
             actionFeedback.isError
               ? "bg-rose-950/60 border-rose-500/40 text-rose-300"
               : "bg-emerald-950/60 border-emerald-500/40 text-emerald-300"
