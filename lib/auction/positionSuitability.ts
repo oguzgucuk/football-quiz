@@ -131,3 +131,59 @@ function getMidfieldWeights(pos: PitchPosition): { atkWeight: number; defWeight:
   if (pos === "CDM") return { atkWeight: 0.3, defWeight: 0.7 };
   return { atkWeight: 0.5, defWeight: 0.5 }; // CM, LM, RM
 }
+
+export interface PlayerPositionDetail {
+  position: PitchPosition;
+  effectiveRating: number;
+  penalty: number;
+  category: "natural" | "nearby" | "distant" | "goalkeeper";
+}
+
+export interface PlayerPositionBreakdown {
+  natural: PlayerPositionDetail[];
+  nearby: PlayerPositionDetail[];
+  distant: PlayerPositionDetail[];
+  isGoalkeeper: boolean;
+}
+
+/**
+ * Oyuncunun oynayabildiği tüm mevkileri ve reyting cezalarını listeler.
+ */
+export function getPlayerPositionBreakdown(
+  player: AuctionPlayerCard | null
+): PlayerPositionBreakdown {
+  if (!player) {
+    return { natural: [], nearby: [], distant: [], isGoalkeeper: false };
+  }
+
+  const allPositions: PitchPosition[] = [
+    "GK",
+    "CB", "LB", "RB", "LWB", "RWB",
+    "CDM", "CM", "CAM", "LM", "RM",
+    "ST", "CF", "LW", "RW",
+  ];
+
+  const natural: PlayerPositionDetail[] = [];
+  const nearby: PlayerPositionDetail[] = [];
+  const distant: PlayerPositionDetail[] = [];
+
+  for (const pos of allPositions) {
+    const { effectiveRating, penalty } = calculateSlotRating(player, pos);
+    if (penalty === 0) {
+      natural.push({ position: pos, effectiveRating, penalty: 0, category: "natural" });
+    } else if (penalty === 5) {
+      nearby.push({ position: pos, effectiveRating, penalty: 5, category: "nearby" });
+    } else {
+      distant.push({
+        position: pos,
+        effectiveRating,
+        penalty,
+        category: pos === "GK" ? "goalkeeper" : "distant",
+      });
+    }
+  }
+
+  const isGoalkeeper = player.positions.some((p) => p.toUpperCase() === "GK");
+
+  return { natural, nearby, distant, isGoalkeeper };
+}

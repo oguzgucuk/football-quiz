@@ -4,11 +4,13 @@
  * Müzayede Saha Pozisyon Slotu Bileşeni.
  * - Sürükle ve bırak (Drag and Drop) hedef ve kaynak desteği
  * - Dinamik mevkii cezası ve efektif reyting gösterimi
- * - Tıklayarak yerleştirme veya kaldırma
+ * - Tıklayarak oynayabildiği pozisyonları görme modalı açma
+ * - Hızlı sahadan çıkarma (X) butonu
  */
 
-import React from "react";
+import React, { useRef } from "react";
 import { SquadSlot } from "@/lib/auction/auctionTypes";
+import { X, Sparkles } from "lucide-react";
 
 interface AuctionPitchSlotProps {
   slot: SquadSlot;
@@ -17,6 +19,7 @@ interface AuctionPitchSlotProps {
   isDragOver: boolean;
   isAnyDragging: boolean;
   onClick: () => void;
+  onRemove?: () => void;
   onDragStart: (e: React.DragEvent) => void;
   onDragEnd: () => void;
   onDragOver: (e: React.DragEvent) => void;
@@ -31,6 +34,7 @@ export function AuctionPitchSlot({
   isDragOver,
   isAnyDragging,
   onClick,
+  onRemove,
   onDragStart,
   onDragEnd,
   onDragOver,
@@ -38,10 +42,28 @@ export function AuctionPitchSlot({
   onDrop,
 }: AuctionPitchSlotProps) {
   const p = slot.placedPlayer;
+  const isDraggingRef = useRef(false);
+
+  const handleDragStartWrapper = (e: React.DragEvent) => {
+    isDraggingRef.current = true;
+    onDragStart(e);
+  };
+
+  const handleDragEndWrapper = () => {
+    setTimeout(() => {
+      isDraggingRef.current = false;
+    }, 150);
+    onDragEnd();
+  };
+
+  const handleClickWrapper = (e: React.MouseEvent) => {
+    if (isDraggingRef.current) return;
+    onClick();
+  };
 
   return (
     <div
-      onClick={onClick}
+      onClick={handleClickWrapper}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
@@ -54,20 +76,35 @@ export function AuctionPitchSlot({
       {/* Slot Dairesi (Tutup Sürüklenebilir veya Üzerine Bırakılabilir) */}
       <div
         draggable={Boolean(p)}
-        onDragStart={onDragStart}
-        onDragEnd={onDragEnd}
+        onDragStart={handleDragStartWrapper}
+        onDragEnd={handleDragEndWrapper}
         className={`relative flex size-12 sm:size-14 items-center justify-center rounded-2xl border-2 transition-all duration-200 shadow-xl ${
           isDragOver
             ? "scale-115 ring-4 ring-emerald-400 border-emerald-300 bg-emerald-900/90 shadow-[0_0_25px_rgba(16,185,129,0.9)] z-30"
             : p
             ? slot.penalty > 0
-              ? "bg-amber-950/90 border-amber-500 text-amber-200 group-hover:scale-105 cursor-grab active:cursor-grabbing"
-              : "bg-emerald-950/90 border-emerald-400 text-emerald-200 group-hover:scale-105 cursor-grab active:cursor-grabbing"
+              ? "bg-amber-950/90 border-amber-500 text-amber-200 group-hover:scale-105 cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-amber-400/50"
+              : "bg-emerald-950/90 border-emerald-400 text-emerald-200 group-hover:scale-105 cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-emerald-400/50"
             : isAnyDragging
             ? "bg-black/60 border-emerald-400/60 border-dashed text-emerald-300 animate-pulse scale-105"
             : "bg-black/50 border-white/30 text-zinc-400 hover:border-emerald-400/80 group-hover:scale-105"
         }`}
       >
+        {/* Hızlı Sahadan Çıkar (X) Butonu */}
+        {p && onRemove && (
+          <button
+            type="button"
+            title="Kadro dışına çıkar"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
+            className="absolute -top-1.5 -right-1.5 size-4 rounded-full bg-red-600/90 hover:bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-md cursor-pointer"
+          >
+            <X className="w-2.5 h-2.5" />
+          </button>
+        )}
+
         {p ? (
           <div className="flex flex-col items-center">
             <span className="font-mono font-black text-sm sm:text-base leading-none">
@@ -90,7 +127,7 @@ export function AuctionPitchSlot({
       <span
         className={`mt-1 px-2 py-0.5 rounded-md border text-[10px] sm:text-[11px] font-bold max-w-[90px] truncate text-center shadow-md transition-colors ${
           p
-            ? "bg-black/85 border-white/15 text-white"
+            ? "bg-black/85 border-white/15 text-white group-hover:border-emerald-400/60"
             : isDragOver
             ? "bg-emerald-950 border-emerald-400 text-emerald-300"
             : "bg-black/60 border-white/10 text-zinc-300"

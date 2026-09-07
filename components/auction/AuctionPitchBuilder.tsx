@@ -1,25 +1,25 @@
 "use client";
 
 /**
- * Müzayede Saha Dizilişi ve Taktik Tahtası (Drawing 3).
- * - Sol Üst: Diziliş seçimi (4-3-3, 4-2-3-1, 5-4-1, 3-5-2, 4-4-2)
- * - Sol Alt: "OYUNCULARIM" (Forvet, Orta Saha, Defans kategorize listesi)
- * - Sağ: Futbol sahası, slot yerleşimi, canlı ceza puanı ve hat güçleri
+ * Müzayede Saha Dizilişi ve Taktik Tahtası.
+ * - Sol: Diziliş seçimi (4-3-3, 4-2-3-1 vb.) ve "OYUNCULARIM" paneli
+ * - Sağ: Futbol sahası, 11 slot, sürükle-bırak pozisyon yer değiştirme (SWAP)
+ * - Oyuncu üstüne tıklayınca oynayabildiği mevkileri gösteren detay modalı
  */
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import {
   AuctionPlayerCard,
   FormationName,
   SquadSlot,
   TeamLineup,
-  PitchPosition,
 } from "@/lib/auction/auctionTypes";
 import { FORMATION_CONFIGS, createInitialSlotsForFormation } from "@/lib/auction/formationTemplates";
 import { calculateSlotRating, calculateLineupPowers } from "@/lib/auction/positionSuitability";
 import { AuctionPitchSlot } from "./AuctionPitchSlot";
 import { AuctionSquadList } from "./AuctionSquadList";
-import { Shield, Sparkles, CheckCircle2, AlertTriangle, ChevronRight } from "lucide-react";
+import { AuctionPlayerDetailModal } from "./AuctionPlayerDetailModal";
+import { CheckCircle2 } from "lucide-react";
 
 interface AuctionPitchBuilderProps {
   userId: string;
@@ -42,10 +42,15 @@ export function AuctionPitchBuilder({
   const [slots, setSlots] = useState<SquadSlot[]>(() => createInitialSlotsForFormation("4-3-3"));
   const [selectedPlayer, setSelectedPlayer] = useState<AuctionPlayerCard | null>(null);
 
+  // Detay Modalı (Pozisyon İnceleme)
+  const [inspectingPlayer, setInspectingPlayer] = useState<AuctionPlayerCard | null>(null);
+  const [inspectingSlot, setInspectingSlot] = useState<SquadSlot | null>(null);
+
   // Sürükle-Bırak Durumu
   const [draggedPlayerId, setDraggedPlayerId] = useState<string | null>(null);
   const [draggedFromSlotIndex, setDraggedFromSlotIndex] = useState<number | null>(null);
   const [dragOverSlotIndex, setDragOverSlotIndex] = useState<number | null>(null);
+  const lastDragTimeRef = useRef<number>(0);
 
   // Yerleştirilen oyuncuların ID kümesi
   const placedPlayerIds = useMemo(
@@ -90,27 +95,37 @@ export function AuctionPitchBuilder({
     const nextSlots = [...slots];
     const targetRating = calculateSlotRating(player, targetSlot.targetPosition);
 
-    if (sourceSlotIndex !== null && sourceSlotIndex !== targetSlotIndex) {
-      const sourceSlot = slots[sourceSlotIndex];
+    // Kaynak slot indexi: ya parametreden, ya da oyuncunun sahadaki mevcut yuvasından tespit edilir
+    const effectiveSourceIndex =
+      sourceSlotIndex !== null && sourceSlotIndex !== undefined
+        ? sourceSlotIndex
+        : slots.findIndex((s) => s.placedPlayer?.id === playerId);
+
+    if (effectiveSourceIndex !== -1 && effectiveSourceIndex !== targetSlotIndex) {
+      // 1. Sahadaki iki slot arasında yer değiştirme (SWAP)
+      const sourceSlot = slots[effectiveSourceIndex];
       const existingInTarget = targetSlot.placedPlayer;
 
       if (existingInTarget) {
+        // Hedefteki oyuncu kaynağın slotuna geçer (Karşılıklı yer değişimi)
         const sourceRating = calculateSlotRating(existingInTarget, sourceSlot.targetPosition);
-        nextSlots[sourceSlotIndex] = {
+        nextSlots[effectiveSourceIndex] = {
           ...sourceSlot,
           placedPlayer: existingInTarget,
           effectiveRating: sourceRating.effectiveRating,
           penalty: sourceRating.penalty,
         };
       } else {
-        nextSlots[sourceSlotIndex] = {
+        // Kaynak slot boşalır
+        nextSlots[effectiveSourceIndex] = {
           ...sourceSlot,
           placedPlayer: null,
           effectiveRating: 0,
           penalty: 0,
         };
       }
-    } else {
+    } else if (effectiveSourceIndex === -1) {
+      // 2. Yedekten sahaya yerleştirme
       for (let i = 0; i < nextSlots.length; i++) {
         if (i !== targetSlotIndex && nextSlots[i].placedPlayer?.id === playerId) {
           nextSlots[i] = { ...nextSlots[i], placedPlayer: null, effectiveRating: 0, penalty: 0 };
@@ -118,6 +133,7 @@ export function AuctionPitchBuilder({
       }
     }
 
+    // Hedef slota oyuncuyu yerleştir
     nextSlots[targetSlotIndex] = {
       ...targetSlot,
       placedPlayer: player,
@@ -130,16 +146,44 @@ export function AuctionPitchBuilder({
   };
 
   const handleSlotClick = (slotIndex: number) => {
+    // Sürükleme yeni bittiyse tıklama olayını engelle
+    if (Date.now() - lastDragTimeRef.current < 250) return;
+
+    const slot = slots[slotIndex];
     if (selectedPlayer) {
       handlePlayerDropOnSlot(selectedPlayer.id, slotIndex, null);
-    } else if (slots[slotIndex].placedPlayer) {
-      const nextSlots = [...slots];
-      nextSlots[slotIndex] = { ...slots[slotIndex], placedPlayer: null, effectiveRating: 0, penalty: 0 };
-      setSlots(nextSlots);
+    } else if (slot.placedPlayer) {
+      // Oyuncunun üstüne tıklanınca oynayabildiği pozisyonları gösteren modal açılır!
+      setInspectingPlayer(slot.placedPlayer);
+      setInspectingSlot(slot);
+    }
+  };
+
+  const handleRemovePlayerFromPitch = (playerId: string) => {
+    const nextSlots = slots.map((s) =>
+      s.placedPlayer?.id === playerId
+        ? { ...s, placedPlayer: null, effectiveRating: 0, penalty: 0 }
+        : s
+    );
+    setSlots(nextSlots);
+    if (inspectingPlayer?.id === playerId) {
+      setInspectingPlayer(null);
+      setInspectingSlot(null);
+    }
+  };
+
+  const handlePlacePlayerFromModal = (player: AuctionPlayerCard) => {
+    // İlk boş slota yerleştir veya seçili yap
+    const emptySlotIndex = slots.findIndex((s) => s.placedPlayer === null);
+    if (emptySlotIndex !== -1) {
+      handlePlayerDropOnSlot(player.id, emptySlotIndex, null);
+    } else {
+      setSelectedPlayer(player);
     }
   };
 
   const resetDragState = () => {
+    lastDragTimeRef.current = Date.now();
     setDraggedPlayerId(null);
     setDraggedFromSlotIndex(null);
     setDragOverSlotIndex(null);
@@ -148,6 +192,7 @@ export function AuctionPitchBuilder({
   const handleSlotDragStart = (e: React.DragEvent, slot: SquadSlot, index: number) => {
     if (!slot.placedPlayer) return;
     e.dataTransfer.setData("text/plain", slot.placedPlayer.id);
+    e.dataTransfer.setData("application/source-slot", String(index));
     e.dataTransfer.effectAllowed = "move";
     setDraggedPlayerId(slot.placedPlayer.id);
     setDraggedFromSlotIndex(index);
@@ -157,8 +202,10 @@ export function AuctionPitchBuilder({
     e.preventDefault();
     setDragOverSlotIndex(null);
     const pId = e.dataTransfer.getData("text/plain") || draggedPlayerId;
+    const sourceStr = e.dataTransfer.getData("application/source-slot");
+    const parsedSource = sourceStr ? parseInt(sourceStr, 10) : draggedFromSlotIndex;
     if (pId) {
-      handlePlayerDropOnSlot(pId, index, draggedFromSlotIndex);
+      handlePlayerDropOnSlot(pId, index, Number.isNaN(parsedSource) ? null : parsedSource);
     }
     resetDragState();
   };
@@ -193,11 +240,11 @@ export function AuctionPitchBuilder({
         </div>
       </div>
 
-      {/* ANA İKİLİ IZGARA (Çizim 3: Sol Menüler vs Sağ Saha) */}
+      {/* ANA İKİLİ IZGARA */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* SOL KOLON: DİZİLİŞLER & OYUNCULARIM */}
         <div className="lg:col-span-4 flex flex-col gap-4">
-          {/* 1. DİZİLİŞLER (Çizimdeki Üst Kutu) */}
+          {/* 1. DİZİLİŞLER */}
           <div className="p-4 rounded-2xl bg-black/50 border border-white/10 backdrop-blur-xl">
             <span className="text-[11px] font-extrabold uppercase tracking-widest text-zinc-400 block mb-2.5">
               Diziliş Seçimi
@@ -219,27 +266,28 @@ export function AuctionPitchBuilder({
             </div>
           </div>
 
-          {/* 2. OYUNCULARIM (Çizimdeki Alt Kutu) */}
+          {/* 2. OYUNCULARIM (Yedekler Paneli) */}
           <AuctionSquadList
             squad={squad}
             placedPlayerIds={placedPlayerIds}
             selectedPlayer={selectedPlayer}
             draggedPlayerId={draggedPlayerId}
             onSelectPlayer={setSelectedPlayer}
+            onInspectPlayer={(p) => {
+              setInspectingPlayer(p);
+              setInspectingSlot(slots.find((s) => s.placedPlayer?.id === p.id) || null);
+            }}
             onDragStart={(e, player) => {
               e.dataTransfer.setData("text/plain", player.id);
               e.dataTransfer.effectAllowed = "move";
               setDraggedPlayerId(player.id);
               setDraggedFromSlotIndex(null);
             }}
-            onDragEnd={() => {
-              setDraggedPlayerId(null);
-              setDraggedFromSlotIndex(null);
-              setDragOverSlotIndex(null);
-            }}
+            onDragEnd={resetDragState}
+            onDropOnBench={handleRemovePlayerFromPitch}
           />
 
-          {/* Kadroyu Onayla Butonu & Canlı Sayaç */}
+          {/* Kadroyu Onayla Butonu */}
           <div className="flex flex-col gap-1.5 w-full">
             <button
               onClick={() => onConfirmLineup(lineup)}
@@ -262,7 +310,6 @@ export function AuctionPitchBuilder({
                 : "11 Oyuncuyu Sahaya Yerleştirin"}
             </button>
 
-            {/* x/x kişi bastı sayacı */}
             <div className="flex items-center justify-center gap-1.5 text-center font-mono text-[11px] font-bold text-zinc-400 py-1">
               <span className="text-emerald-400 font-extrabold">{confirmedUserIds.length}</span>
               <span>/</span>
@@ -272,9 +319,8 @@ export function AuctionPitchBuilder({
           </div>
         </div>
 
-        {/* SAĞ KOLON: FUTBOL SAHASI (Çizimdeki Büyük Saha) */}
+        {/* SAĞ KOLON: FUTBOL SAHASI */}
         <div className="lg:col-span-8 relative aspect-[7/9] sm:aspect-[4/5] max-h-[620px] w-full rounded-3xl overflow-hidden border-2 border-emerald-500/30 bg-[#0d2a1a] shadow-2xl p-4 flex flex-col justify-between">
-          {/* Çim Dokusu & Saha Çizgileri */}
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_50%,rgba(16,185,129,0.15)_0%,rgba(6,40,24,0.9)_100%)] pointer-events-none" />
           <div className="absolute inset-4 border border-white/20 pointer-events-none rounded-xl" />
           <div className="absolute top-1/2 inset-x-4 h-[1px] bg-white/20 pointer-events-none" />
@@ -291,6 +337,11 @@ export function AuctionPitchBuilder({
                 isDragOver={dragOverSlotIndex === index}
                 isAnyDragging={Boolean(draggedPlayerId)}
                 onClick={() => handleSlotClick(index)}
+                onRemove={
+                  slot.placedPlayer
+                    ? () => handleRemovePlayerFromPitch(slot.placedPlayer!.id)
+                    : undefined
+                }
                 onDragStart={(e) => handleSlotDragStart(e, slot, index)}
                 onDragEnd={resetDragState}
                 onDragOver={(e) => {
@@ -307,6 +358,19 @@ export function AuctionPitchBuilder({
           </div>
         </div>
       </div>
+
+      {/* Oyuncu Pozisyonları & Detay Modalı */}
+      <AuctionPlayerDetailModal
+        player={inspectingPlayer}
+        currentSlot={inspectingSlot}
+        isPlacedOnPitch={Boolean(inspectingSlot?.placedPlayer)}
+        onClose={() => {
+          setInspectingPlayer(null);
+          setInspectingSlot(null);
+        }}
+        onRemoveFromPitch={handleRemovePlayerFromPitch}
+        onPlaceOnPitch={handlePlacePlayerFromModal}
+      />
     </div>
   );
 }
