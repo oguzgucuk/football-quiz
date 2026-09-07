@@ -38,6 +38,7 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
   const hasPendingRequests = pendingRequests.length > 0;
 
   const [isCustomRoomOpen, setIsCustomRoomOpen] = useState(false);
+  const [customRoomInitialTab, setCustomRoomInitialTab] = useState<"create" | "join">("create");
   const [isMatchmakingOpen, setIsMatchmakingOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalTab, setAuthModalTab] = useState<"login" | "register">("login");
@@ -109,12 +110,16 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
     startMatchmaking(user.id, user.username, user.eloRating || 1000, duration, mode, gameMode);
   };
 
-  const handleOpenCustomRoom = (gameMode: GameMode = "team_vs_team") => {
+  const handleOpenCustomRoom = (
+    gameMode: GameMode = "team_vs_team",
+    initialTab: "create" | "join" = "create"
+  ) => {
     if (!user) {
       handleOpenAuthModal("login");
       return;
     }
     setMatchmakingGameMode(gameMode);
+    setCustomRoomInitialTab(initialTab);
     setIsCustomRoomOpen(true);
   };
 
@@ -218,6 +223,7 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
         isOpen={isCustomRoomOpen}
         onClose={() => setIsCustomRoomOpen(false)}
         gameMode={matchmakingGameMode}
+        initialTab={customRoomInitialTab}
       />
 
       {/* Dashboard Üzeri Giriş / Kayıt Ol Penceresi (Auth Modal) */}

@@ -15,7 +15,7 @@ import { GameMode } from "@/types/game";
 interface PlayStageProps {
   onStartRanked: () => void;
   onStartCasual: (gameMode?: GameMode) => void;
-  onOpenCustomRoom: (gameMode?: GameMode) => void;
+  onOpenCustomRoom: (gameMode?: GameMode, initialTab?: "create" | "join") => void;
   onOpenAuctionRoom?: () => void;
   onGoToPlayers: () => void;
   onOpenAuthModal?: (tab: "login" | "register") => void;
@@ -38,21 +38,48 @@ export function PlayStage({
   const [activeGuideKey, setActiveGuideKey] = useState<string | null>(null);
   const [isJoinAuctionModalOpen, setIsJoinAuctionModalOpen] = useState(false);
 
-  const handleCreateAuction = () => {
+  const isCustomMode =
+    selectedModeId === "auction" ||
+    (selectedModeId === "common_player" && selectedSubMode === "custom") ||
+    (selectedModeId === "grid" && selectedNationTeamSubMode === "custom");
+
+  const handleCreateGame = () => {
     if (!user) {
       onOpenAuthModal?.("login");
       return;
     }
-    const roomId = `oda_muzayede_${Math.floor(1000 + Math.random() * 9000)}`;
-    router.push(`/auction/${roomId}`);
+    if (selectedModeId === "auction") {
+      const roomId = `oda_muzayede_${Math.floor(1000 + Math.random() * 9000)}`;
+      router.push(`/auction/${roomId}`);
+      return;
+    }
+    if (selectedModeId === "common_player") {
+      onOpenCustomRoom("team_vs_team", "create");
+      return;
+    }
+    if (selectedModeId === "grid") {
+      onOpenCustomRoom("country_vs_team", "create");
+      return;
+    }
   };
 
-  const handleJoinAuction = () => {
+  const handleJoinGame = () => {
     if (!user) {
       onOpenAuthModal?.("login");
       return;
     }
-    setIsJoinAuctionModalOpen(true);
+    if (selectedModeId === "auction") {
+      setIsJoinAuctionModalOpen(true);
+      return;
+    }
+    if (selectedModeId === "common_player") {
+      onOpenCustomRoom("team_vs_team", "join");
+      return;
+    }
+    if (selectedModeId === "grid") {
+      onOpenCustomRoom("country_vs_team", "join");
+      return;
+    }
   };
 
   const handleConfirm = () => {
@@ -68,38 +95,24 @@ export function PlayStage({
       return;
     }
 
-    if (selectedModeId === "auction") {
-      onOpenAuctionRoom?.();
-      return;
-    }
-
     if (selectedModeId === "common_player") {
       if (selectedSubMode === "ranked") {
         onStartRanked();
       } else if (selectedSubMode === "casual") {
         onStartCasual("team_vs_team");
-      } else if (selectedSubMode === "custom") {
-        onOpenCustomRoom("team_vs_team");
       }
     } else if (selectedModeId === "grid") {
       if (selectedNationTeamSubMode === "casual") {
         onStartCasual("country_vs_team");
-      } else if (selectedNationTeamSubMode === "custom") {
-        onOpenCustomRoom("country_vs_team");
       }
     }
   };
 
   const getButtonLabel = () => {
-    if (selectedModeId === "auction") return "OYUN KUR";
     if (selectedModeId === "training") {
       return selectedTrainingSubMode === "players" ? "OYUNCULARI GÖRÜNTÜLE" : "YAKINDA GELECEK";
     }
-    if (selectedModeId === "grid") {
-      return selectedNationTeamSubMode === "casual" ? "OYNA" : "OYUN KUR";
-    }
-    if (selectedSubMode === "ranked" || selectedSubMode === "casual") return "OYNA";
-    return "OYUN KUR";
+    return "OYNA";
   };
 
   return (
@@ -158,55 +171,45 @@ export function PlayStage({
         </div>
       </div>
 
-      {/* Onay Butonları */}
-      <div className="relative z-10 flex justify-center pt-4 pb-2 shrink-0">
-        {selectedModeId === "auction" ? (
-          <div className="flex items-center gap-3 w-full max-w-[460px] justify-center px-2">
-            {/* 1. OYUN KUR (Doğrudan Lobiye Girer) */}
-            <button
-              onClick={handleCreateAuction}
-              className="relative group flex-1 h-[60px] flex items-center justify-center transition-transform active:scale-[0.98] cursor-pointer"
-            >
-              <div className="absolute -inset-1 border border-emerald-500/40 group-hover:border-emerald-400/80 transition-colors rounded-2xl" />
-              <div className="relative w-full h-full flex items-center justify-center bg-gradient-to-b from-[#168841] to-[#126d34] border border-emerald-400/50 rounded-xl shadow-[0_0_25px_rgba(34,197,94,0.35),inset_0_1px_1px_rgba(255,255,255,0.3)] transition-all overflow-hidden">
-                <span className="relative flex items-center gap-2 text-white font-black text-sm sm:text-base tracking-[0.14em] uppercase">
-                  OYUN KUR <ChevronRight className="size-4 text-white stroke-[2.5]" />
-                </span>
-              </div>
-            </button>
+      {/* Onay Butonları Sabit Konteyner */}
+      <div className="relative z-10 flex justify-center items-center h-[76px] py-2 shrink-0">
+        <div className="w-full max-w-[420px] h-[56px] flex items-center justify-center">
+          {isCustomMode ? (
+            <div className="flex items-center gap-3 w-full h-full">
+              {/* 1. OYUN KUR */}
+              <button
+                onClick={handleCreateGame}
+                className="flex-1 h-full rounded-xl bg-gradient-to-b from-[#168841] to-[#126d34] hover:from-[#15803d] hover:to-[#0f5c2b] text-white font-black text-sm tracking-[0.14em] uppercase border border-emerald-400/50 shadow-md shadow-emerald-900/40 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>OYUN KUR</span>
+                <ChevronRight className="size-4 stroke-[2.5]" />
+              </button>
 
-            {/* 2. OYUNA KATIL (Sade Kod Girme Modalı Açar) */}
-            <button
-              onClick={handleJoinAuction}
-              className="relative group flex-1 h-[60px] flex items-center justify-center transition-transform active:scale-[0.98] cursor-pointer"
-            >
-              <div className="relative w-full h-full flex items-center justify-center bg-black/60 hover:bg-black/80 border border-white/20 hover:border-emerald-400/50 rounded-xl backdrop-blur-xl shadow-lg transition-all">
-                <span className="relative flex items-center gap-2 text-zinc-200 hover:text-white font-black text-sm sm:text-base tracking-[0.14em] uppercase">
-                  OYUNA KATIL
-                </span>
-              </div>
-            </button>
-          </div>
-        ) : selectedModeId !== "training" || selectedTrainingSubMode === "players" ? (
-          <button
-            onClick={handleConfirm}
-            className="relative group flex items-center justify-center transition-transform active:scale-[0.98] w-[340px] h-[62px] cursor-pointer"
-          >
-            <div className="absolute -inset-1 border border-emerald-500/40 group-hover:border-emerald-400/80 transition-colors rounded-2xl" />
-            <div className="relative w-full h-full flex items-center justify-center bg-gradient-to-b from-[#168841] to-[#126d34] border border-emerald-400/50 rounded-xl shadow-[0_0_30px_rgba(34,197,94,0.35),inset_0_1px_1px_rgba(255,255,255,0.3)] transition-all overflow-hidden">
-              <span className="relative flex items-center gap-3 text-white font-black text-lg tracking-[0.18em] uppercase">
-                {getButtonLabel()} <ChevronRight className="size-5 text-white stroke-[2.5]" />
-              </span>
+              {/* 2. OYUNA KATIL */}
+              <button
+                onClick={handleJoinGame}
+                className="flex-1 h-full rounded-xl bg-black/60 hover:bg-black/80 text-zinc-200 hover:text-white font-black text-sm tracking-[0.14em] uppercase border border-white/20 hover:border-emerald-400/50 backdrop-blur-xl shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>OYUNA KATIL</span>
+              </button>
             </div>
-          </button>
-        ) : (
-          <button
-            disabled
-            className="w-[340px] h-[62px] flex items-center justify-center bg-black/40 text-zinc-500 font-black text-base tracking-[0.18em] uppercase cursor-not-allowed rounded-xl border border-white/10 backdrop-blur-md"
-          >
-            YAKINDA GELECEK
-          </button>
-        )}
+          ) : selectedModeId !== "training" || selectedTrainingSubMode === "players" ? (
+            <button
+              onClick={handleConfirm}
+              className="w-full h-full rounded-xl bg-gradient-to-b from-[#168841] to-[#126d34] hover:from-[#15803d] hover:to-[#0f5c2b] text-white font-black text-base tracking-[0.18em] uppercase border border-emerald-400/50 shadow-md shadow-emerald-900/40 active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 cursor-pointer"
+            >
+              <span>{getButtonLabel()}</span>
+              <ChevronRight className="size-5 stroke-[2.5]" />
+            </button>
+          ) : (
+            <button
+              disabled
+              className="w-full h-full flex items-center justify-center bg-black/40 text-zinc-500 font-black text-sm tracking-[0.18em] uppercase cursor-not-allowed rounded-xl border border-white/10 backdrop-blur-md"
+            >
+              YAKINDA GELECEK
+            </button>
+          )}
+        </div>
       </div>
 
       {/* "Nasıl Oynanır?" Modal Rehberi */}

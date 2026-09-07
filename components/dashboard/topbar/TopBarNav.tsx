@@ -20,8 +20,8 @@ export function TopBarNav({ activeTab, onTabChange }: TopBarNavProps) {
   ];
 
   return (
-    <div className="flex items-center justify-center flex-1 min-w-0 mx-2 sm:mx-4">
-      <nav className="flex items-center gap-1 sm:gap-1.5 p-1 rounded-2xl bg-black/40 border border-white/5 backdrop-blur-md">
+    <div className="hidden sm:flex items-center justify-center absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 pointer-events-auto z-20">
+      <nav className="flex items-center gap-1 sm:gap-1.5 p-1 rounded-2xl bg-black/40 border border-white/5 backdrop-blur-md shadow-lg">
         {navItems.map((item) => {
           const isSelected = activeTab === item.id;
           const isPlay = item.id === "play";

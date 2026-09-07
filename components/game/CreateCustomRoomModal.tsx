@@ -11,9 +11,15 @@ interface CreateCustomRoomModalProps {
   isOpen: boolean;
   onClose: () => void;
   gameMode?: GameMode;
+  initialTab?: "create" | "join";
 }
 
-export function CreateCustomRoomModal({ isOpen, onClose, gameMode = "team_vs_team" }: CreateCustomRoomModalProps) {
+export function CreateCustomRoomModal({
+  isOpen,
+  onClose,
+  gameMode = "team_vs_team",
+  initialTab = "create",
+}: CreateCustomRoomModalProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"create" | "join">("create");
   const [copied, setCopied] = useState(false);
@@ -22,11 +28,14 @@ export function CreateCustomRoomModal({ isOpen, onClose, gameMode = "team_vs_tea
 
   useEffect(() => {
     if (isOpen) {
+      if (initialTab) {
+        setActiveTab(initialTab);
+      }
       const prefix = gameMode === "country_vs_team" ? "oda_millet" : "oda";
       setCustomRoomId(`${prefix}_${Math.floor(1000 + Math.random() * 9000)}`);
       setCopied(false);
     }
-  }, [isOpen, gameMode]);
+  }, [isOpen, gameMode, initialTab]);
 
   if (!isOpen) return null;
 

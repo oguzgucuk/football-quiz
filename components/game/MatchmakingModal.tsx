@@ -8,12 +8,9 @@ import {
   CheckCircle2,
   Radio,
   Timer,
-  Sparkles,
   ChevronRight,
   AlertCircle,
   Zap,
-  Flame,
-  Clock,
   Trophy,
 } from "lucide-react";
 import { GameMode } from "@/types/game";
@@ -32,10 +29,10 @@ interface MatchmakingModalProps {
 }
 
 const DURATION_OPTIONS = [
-  { value: 5, label: "5 sn", desc: "Aşırı Hızlı", icon: Zap },
-  { value: 10, label: "10 sn", desc: "Hızlı", icon: Flame },
-  { value: 15, label: "15 sn", desc: "Standart", icon: Timer },
-  { value: 20, label: "20 sn", desc: "Düşünceli", icon: Clock },
+  { value: 5 },
+  { value: 10 },
+  { value: 15 },
+  { value: 20 },
 ];
 
 export function MatchmakingModal({
@@ -118,48 +115,22 @@ export function MatchmakingModal({
             </p>
 
             {/* 4 Süre Kartı: 5, 10, 15, 20 sn */}
-            <div className="grid grid-cols-2 gap-2.5 w-full mb-6">
+            <div className="grid grid-cols-2 gap-3 w-full mb-6">
               {DURATION_OPTIONS.map((opt) => {
                 const isSelected = selectedDuration === opt.value;
-                const Icon = opt.icon;
                 return (
                   <button
                     key={opt.value}
                     onClick={() => onSelectDuration(opt.value)}
-                    className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                    className={`h-20 rounded-2xl border transition-all cursor-pointer flex items-center justify-center ${
                       isSelected
                         ? "bg-emerald-950/70 border-2 border-emerald-500 text-white shadow-[0_0_20px_rgba(34,197,94,0.25)] scale-[1.02]"
                         : "bg-white/5 border border-white/10 text-zinc-300 hover:border-white/20 hover:bg-white/10"
                     }`}
                   >
-                    <div className="flex items-center justify-between w-full mb-2">
-                      <div
-                        className={`size-8 rounded-xl flex items-center justify-center ${
-                          isSelected
-                            ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
-                            : "bg-white/5 text-zinc-400 border border-white/10"
-                        }`}
-                      >
-                        <Icon className="size-4" />
-                      </div>
-                      <span
-                        className={`text-[10px] font-mono font-black uppercase px-2 py-0.5 rounded-md ${
-                          isSelected
-                            ? "bg-emerald-500 text-zinc-950"
-                            : "bg-white/10 text-zinc-400"
-                        }`}
-                      >
-                        {opt.value}s
-                      </span>
-                    </div>
-                    <div>
-                      <div className="text-sm font-black tracking-tight text-white">
-                        {opt.label}
-                      </div>
-                      <div className="text-[11px] text-zinc-400 font-medium">
-                        {opt.desc}
-                      </div>
-                    </div>
+                    <span className="text-2xl font-black font-mono tracking-tight">
+                      {opt.value} SN
+                    </span>
                   </button>
                 );
               })}
@@ -168,7 +139,7 @@ export function MatchmakingModal({
             {/* Sıraya Gir Butonu */}
             <button
               onClick={() => onStartSearching(selectedDuration, mode, gameMode)}
-              className="w-full h-12 rounded-xl bg-gradient-to-b from-[#168841] to-[#126d34] hover:from-[#15803d] hover:to-[#0f5c2b] text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-emerald-900/50 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="w-48 sm:w-56 h-12 mx-auto rounded-xl bg-gradient-to-b from-[#168841] to-[#126d34] hover:from-[#15803d] hover:to-[#0f5c2b] text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-emerald-900/50 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <span>Sıraya Gir</span>
               <ChevronRight className="size-4 stroke-[2.5]" />

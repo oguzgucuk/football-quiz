@@ -1,14 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { ProfileGuestView } from "./profile/ProfileGuestView";
 import { ProfileHeaderCard } from "./profile/ProfileHeaderCard";
 import { ProfileMetricsGrid } from "./profile/ProfileMetricsGrid";
 import { ProfileMatchHistory, RecentMatchItem } from "./profile/ProfileMatchHistory";
-import { ProfileLogoutModal } from "./profile/ProfileLogoutModal";
 
 interface ProfileStageProps {
   onGoToPlay?: () => void;
@@ -16,10 +15,7 @@ interface ProfileStageProps {
 }
 
 export function ProfileStage({ onGoToPlay, onOpenAuthModal }: ProfileStageProps) {
-  const router = useRouter();
-  const { user, isLoading, logout, refreshUser } = useAuth();
-  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const { user, isLoading, refreshUser } = useAuth();
 
   // Gerçek Maç Geçmişi
   const [matchHistory, setMatchHistory] = useState<RecentMatchItem[]>([]);
@@ -39,20 +35,6 @@ export function ProfileStage({ onGoToPlay, onOpenAuthModal }: ProfileStageProps)
       .catch(() => setMatchHistory([]))
       .finally(() => setIsHistoryLoading(false));
   }, [user?.id]);
-
-  const handleConfirmLogout = async () => {
-    setIsLoggingOut(true);
-    try {
-      await logout();
-      onGoToPlay?.();
-      router.push("/");
-    } catch (err) {
-      console.error("[ProfileStage] Çıkış hatası:", err);
-    } finally {
-      setIsLoggingOut(false);
-      setIsLogoutModalOpen(false);
-    }
-  };
 
   const totalMatches = (user?.matchesWon || 0) + (user?.matchesLost || 0) + (user?.matchesDraw || 0);
   const winRate =
@@ -84,7 +66,11 @@ export function ProfileStage({ onGoToPlay, onOpenAuthModal }: ProfileStageProps)
         {/* 1. Üst Profil Kartı */}
         <ProfileHeaderCard
           user={user}
-          onOpenLogoutModal={() => setIsLogoutModalOpen(true)}
+          onEditProfile={() => {
+            toast.info("Profil Özelleştirme", {
+              description: "İsim, şifre ve avatar değiştirme seçenekleri çok yakında aktif olacaktır.",
+            });
+          }}
         />
 
         {/* 2. İstatistik Metrikleri */}
@@ -105,14 +91,6 @@ export function ProfileStage({ onGoToPlay, onOpenAuthModal }: ProfileStageProps)
           onGoToPlay={onGoToPlay}
         />
       </div>
-
-      {/* Çıkış Yap Onay Modalı */}
-      <ProfileLogoutModal
-        isOpen={isLogoutModalOpen}
-        isLoggingOut={isLoggingOut}
-        onClose={() => setIsLogoutModalOpen(false)}
-        onConfirmLogout={handleConfirmLogout}
-      />
     </div>
   );
 }

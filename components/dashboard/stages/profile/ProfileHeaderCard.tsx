@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { LogOut, Trophy, ShieldCheck } from "lucide-react";
+import { Pencil, Trophy, ShieldCheck } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 interface ProfileUser {
@@ -15,10 +15,10 @@ interface ProfileUser {
 
 interface ProfileHeaderCardProps {
   user: ProfileUser | null;
-  onOpenLogoutModal: () => void;
+  onEditProfile?: () => void;
 }
 
-export function ProfileHeaderCard({ user, onOpenLogoutModal }: ProfileHeaderCardProps) {
+export function ProfileHeaderCard({ user, onEditProfile }: ProfileHeaderCardProps) {
   const initials = user?.username ? user.username.substring(0, 2).toUpperCase() : "OY";
 
   return (
@@ -78,12 +78,12 @@ export function ProfileHeaderCard({ user, onOpenLogoutModal }: ProfileHeaderCard
 
         <button
           type="button"
-          onClick={onOpenLogoutModal}
-          className="flex items-center justify-center gap-2 px-4 py-3 sm:py-3.5 rounded-2xl border border-rose-500/30 bg-rose-950/40 text-rose-400 hover:bg-rose-900/50 hover:border-rose-400/50 font-extrabold text-xs transition-all cursor-pointer shadow-xs active:scale-95 shrink-0"
-          title="Hesaptan Çıkış Yap"
+          onClick={onEditProfile}
+          className="flex items-center justify-center gap-2 px-4 py-3 sm:py-3.5 rounded-2xl border border-emerald-500/40 bg-emerald-950/50 text-emerald-400 hover:bg-emerald-900/60 hover:border-emerald-400 font-extrabold text-xs transition-all cursor-pointer shadow-xs active:scale-95 shrink-0"
+          title="Profili Düzenle"
         >
-          <LogOut className="size-4" />
-          <span>Çıkış Yap</span>
+          <Pencil className="size-4" />
+          <span>Profili Düzenle</span>
         </button>
       </div>
     </div>
