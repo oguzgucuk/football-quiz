@@ -171,7 +171,10 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
           )}
 
           {activeTab === "store" && (
-            <StoreStage onOpenAuthModal={handleOpenAuthModal} />
+            <StoreStage
+              onGoToPlay={() => setActiveTab("play")}
+              onOpenAuthModal={handleOpenAuthModal}
+            />
           )}
 
           {activeTab === "players" && (
