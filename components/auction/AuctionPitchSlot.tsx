@@ -10,6 +10,7 @@
 
 import React, { useRef } from "react";
 import { SquadSlot } from "@/lib/auction/auctionTypes";
+import { getRatingTier } from "@/lib/game/playerRatingTiers";
 import { X, Sparkles } from "lucide-react";
 
 interface AuctionPitchSlotProps {
@@ -42,6 +43,7 @@ export function AuctionPitchSlot({
   onDrop,
 }: AuctionPitchSlotProps) {
   const p = slot.placedPlayer;
+  const pTier = p ? getRatingTier(slot.effectiveRating) : null;
   const isDraggingRef = useRef(false);
 
   const handleDragStartWrapper = (e: React.DragEvent) => {
@@ -80,14 +82,14 @@ export function AuctionPitchSlot({
         onDragEnd={handleDragEndWrapper}
         className={`relative flex size-12 sm:size-14 items-center justify-center rounded-2xl border-2 transition-all duration-200 shadow-xl ${
           isDragOver
-            ? "scale-115 ring-4 ring-emerald-400 border-emerald-300 bg-emerald-900/90 shadow-[0_0_25px_rgba(16,185,129,0.9)] z-30"
-            : p
+            ? "scale-115 ring-4 ring-cyan-400 border-cyan-300 bg-cyan-900/90 shadow-[0_0_25px_rgba(6,182,212,0.9)] z-30"
+            : p && pTier
             ? slot.penalty > 0
               ? "bg-amber-950/90 border-amber-500 text-amber-200 group-hover:scale-105 cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-amber-400/50"
-              : "bg-emerald-950/90 border-emerald-400 text-emerald-200 group-hover:scale-105 cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-emerald-400/50"
+              : `${pTier.cardBorder} ${pTier.badgeSubtle} group-hover:scale-105 cursor-grab active:cursor-grabbing hover:ring-2 shadow-lg`
             : isAnyDragging
             ? "bg-black/60 border-emerald-400/60 border-dashed text-emerald-300 animate-pulse scale-105"
-            : "bg-black/50 border-white/30 text-zinc-400 hover:border-emerald-400/80 group-hover:scale-105"
+            : "bg-black/50 border-white/30 text-zinc-400 hover:border-white/60 group-hover:scale-105"
         }`}
       >
         {/* Hızlı Sahadan Çıkar (X) Butonu */}
@@ -105,9 +107,13 @@ export function AuctionPitchSlot({
           </button>
         )}
 
-        {p ? (
+        {p && pTier ? (
           <div className="flex flex-col items-center">
-            <span className="font-mono font-black text-sm sm:text-base leading-none">
+            <span
+              className={`font-mono font-black text-sm sm:text-base leading-none ${
+                slot.penalty > 0 ? "text-amber-200" : pTier.accentText
+              }`}
+            >
               {slot.effectiveRating}
             </span>
             {slot.penalty > 0 && (

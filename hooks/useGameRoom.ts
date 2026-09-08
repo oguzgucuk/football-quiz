@@ -9,6 +9,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { RoomState, createInitialRoomState } from "@/lib/realtime/roomState";
 import { Team, Nation } from "@/types/game";
+import { DuelLobbySettings } from "@/lib/realtime/roomEngine";
 import { useGameRoomData } from "./useGameRoomData";
 import { useGameRoomSocket, MatchEloResult, RoundWinnerState } from "./useGameRoomSocket";
 import {
@@ -198,6 +199,37 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
   const isMyTurnToPickNation = isCountryVsTeam && roomState.currentNationPickerUserId === userId;
   const isMyTurnToPickTeam = isCountryVsTeam ? roomState.currentTeamPickerUserId === userId : true;
 
+  // 6. Özel Lobi Ayarları ve Oyunu Başlatma
+  const handleUpdateLobbySettings = useCallback(
+    (settings: Partial<DuelLobbySettings>) => {
+      // 1. Anında arayüze yansıması için yerel state'i güncelle (Optimistic UI)
+      setRoomState((prev) => ({
+        ...prev,
+        pickDuration: settings.pickDuration !== undefined ? settings.pickDuration : (prev.pickDuration || 15),
+        roundDuration: settings.answerDuration !== undefined ? settings.answerDuration : (prev.roundDuration || 15),
+        lobbySettings: {
+          pickDuration: settings.pickDuration !== undefined ? settings.pickDuration : (prev.lobbySettings?.pickDuration || 15),
+          answerDuration: settings.answerDuration !== undefined ? settings.answerDuration : (prev.lobbySettings?.answerDuration || 15),
+        },
+      }));
+
+      // 2. Canlı WebSocket ile sunucuya ve diğer oyuncuya gönder
+      sendSocketMessage({
+        type: "UPDATE_LOBBY_SETTINGS",
+        userId,
+        settings,
+      });
+    },
+    [userId, sendSocketMessage]
+  );
+
+  const handleStartLobbyGame = useCallback(() => {
+    sendSocketMessage({
+      type: "START_GAME",
+      userId,
+    });
+  }, [userId, sendSocketMessage]);
+
   return {
     roomState,
     allTeams,
@@ -221,6 +253,8 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
     handleSubmitAnswer,
     handleTimeExpired,
     handleVotePass,
+    handleUpdateLobbySettings,
+    handleStartLobbyGame,
     addBotOpponent: () => {
       if (isConnectedToSocket) {
         sendSocketMessage({ type: "ADD_BOT" });

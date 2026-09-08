@@ -9,7 +9,8 @@
 
 import React, { useState } from "react";
 import { AuctionRoomState } from "@/lib/auction/auctionTypes";
-import { Timer, Check, X, ShieldAlert, Gavel } from "lucide-react";
+import { Timer, Check, X, ShieldAlert, Gavel, Gem, Sparkles } from "lucide-react";
+import { getRatingTier } from "@/lib/game/playerRatingTiers";
 import { AuctionSoldNotification } from "./AuctionSoldNotification";
 import { AuctionParticipantSquad } from "./AuctionParticipantSquad";
 
@@ -86,34 +87,65 @@ export function AuctionBiddingStage({
         {/* SOL BÖLGE (Çizimdeki Sol Vitrin) */}
         <div className="lg:col-span-7 flex flex-col gap-4 p-5 rounded-3xl bg-black/50 border border-white/10 backdrop-blur-2xl shadow-2xl">
           {/* Futbolcu Kartı */}
-          {card ? (
-            <div className="flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-r from-emerald-950/70 via-black/60 to-zinc-900/60 border border-emerald-500/40 shadow-lg">
-              <div className="flex size-18 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/20 border-2 border-emerald-400 text-emerald-300 font-mono font-black text-3xl shadow-[0_0_20px_rgba(34,197,94,0.3)]">
-                {card.overallPrime}
-              </div>
+          {card ? (() => {
+            const cardTier = getRatingTier(card.overallPrime);
+            return (
+              <div
+                className={`relative overflow-hidden flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-r ${cardTier.glowGradient} border ${cardTier.cardBorder} shadow-xl transition-all duration-300`}
+              >
+                {/* Ambiyans ışığı */}
+                <div
+                  className={`absolute -right-8 -top-8 size-36 rounded-full blur-2xl pointer-events-none opacity-40 ${cardTier.ambientBlur}`}
+                />
 
-              <div className="flex flex-col min-w-0 flex-1">
-                <span className="text-xl font-black text-white truncate tracking-tight">
-                  {card.fullName}
-                </span>
-                <div className="flex items-center gap-1.5 flex-wrap mt-1">
-                  {card.positions.map((pos) => (
-                    <span
-                      key={pos}
-                      className="px-2 py-0.5 rounded-md bg-white/10 border border-white/15 text-xs font-bold text-emerald-400 font-mono"
-                    >
-                      {pos}
-                    </span>
-                  ))}
-                  {card.nationality && (
-                    <span className="text-xs text-zinc-400 font-medium ml-1">
-                      • {card.nationality}
+                {/* Reyting Rozeti */}
+                <div
+                  className={`relative flex size-18 shrink-0 items-center justify-center rounded-2xl ${cardTier.badgeClass} font-mono text-3xl font-black z-10`}
+                >
+                  {card.overallPrime}
+                  {cardTier.tier === "diamond" && (
+                    <span className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-cyan-300 text-slate-950 shadow-md">
+                      <Gem className="size-3" />
                     </span>
                   )}
                 </div>
+
+                <div className="flex flex-col min-w-0 flex-1 z-10">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl font-black text-white truncate tracking-tight">
+                      {card.fullName}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${cardTier.pillClass}`}
+                    >
+                      {cardTier.tierName}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                    {card.positions.map((pos) => (
+                      <span
+                        key={pos}
+                        className="px-2 py-0.5 rounded-md bg-white/10 border border-white/15 text-xs font-bold text-white font-mono"
+                      >
+                        {pos}
+                      </span>
+                    ))}
+                    {card.nationality && (
+                      <span className="text-xs text-zinc-300 font-medium ml-1">
+                        • {card.nationality}
+                      </span>
+                    )}
+                    {card.currentClub && (
+                      <span className="text-xs text-zinc-400 font-medium ml-1">
+                        • {card.currentClub}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          ) : (
+            );
+          })() : (
             <div className="py-12 text-center text-zinc-500 font-bold text-sm">
               Kart Yükleniyor...
             </div>

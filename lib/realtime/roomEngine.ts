@@ -14,3 +14,4 @@ export * from "./roomPickManager";
 export * from "./roomFoulManager";
 export * from "./roomRoundManager";
 export * from "./roomAnswerEvaluator";
+export * from "./roomLobbyManager";

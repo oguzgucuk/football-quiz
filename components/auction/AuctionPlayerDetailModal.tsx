@@ -10,7 +10,8 @@
 import React from "react";
 import { AuctionPlayerCard, SquadSlot } from "@/lib/auction/auctionTypes";
 import { getPlayerPositionBreakdown } from "@/lib/auction/positionSuitability";
-import { X, UserMinus, UserPlus, CheckCircle2, AlertTriangle, ShieldAlert } from "lucide-react";
+import { getRatingTier } from "@/lib/game/playerRatingTiers";
+import { X, UserMinus, UserPlus, CheckCircle2, AlertTriangle, ShieldAlert, Gem } from "lucide-react";
 
 interface AuctionPlayerDetailModalProps {
   player: AuctionPlayerCard | null;
@@ -32,6 +33,7 @@ export function AuctionPlayerDetailModal({
   if (!player) return null;
 
   const breakdown = getPlayerPositionBreakdown(player);
+  const tier = getRatingTier(player.overallPrime);
 
   return (
     <div
@@ -42,23 +44,34 @@ export function AuctionPlayerDetailModal({
         onClick={(e) => e.stopPropagation()}
         className="relative w-full max-w-md rounded-3xl bg-[#0e1319] border border-white/15 shadow-2xl p-5 sm:p-6 flex flex-col gap-4 text-white overflow-hidden"
       >
-        {/* Arka Plan Efekti */}
-        <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        {/* Tier'a Göre Ambiyans Arka Plan */}
+        <div className={`absolute top-0 right-0 w-48 h-48 rounded-full blur-3xl pointer-events-none opacity-40 ${tier.ambientBlur}`} />
 
         {/* Üst Kısım: Reyting, İsim, Kapat Butonu */}
         <div className="flex items-start justify-between gap-3 relative z-10">
           <div className="flex items-center gap-3">
-            <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/20 border-2 border-emerald-400 text-emerald-300 font-mono font-black text-2xl shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+            {/* Reyting Rozeti - Tier renginde */}
+            <div className={`relative flex size-14 shrink-0 items-center justify-center rounded-2xl ${tier.badgeClass} font-mono text-2xl font-black`}>
               {player.overallPrime}
+              {tier.tier === "diamond" && (
+                <span className="absolute -top-1.5 -right-1.5 flex size-4.5 items-center justify-center rounded-full bg-cyan-300 text-slate-950 shadow-md">
+                  <Gem className="size-2.5" />
+                </span>
+              )}
             </div>
             <div className="flex flex-col min-w-0">
-              <h3 className="text-lg font-black text-white leading-tight truncate">
-                {player.fullName}
-              </h3>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-lg font-black text-white leading-tight truncate">
+                  {player.fullName}
+                </h3>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider shrink-0 ${tier.pillClass}`}>
+                  {tier.tierName}
+                </span>
+              </div>
               <div className="flex items-center gap-2 mt-0.5 text-xs text-zinc-400">
                 {player.nationality && <span>{player.nationality}</span>}
                 {player.nationality && <span>•</span>}
-                <span className="font-mono text-emerald-400 font-bold">
+                <span className={`font-mono font-bold ${tier.accentText}`}>
                   {player.positions.join(" / ")}
                 </span>
               </div>

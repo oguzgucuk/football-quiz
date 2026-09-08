@@ -3,6 +3,7 @@
  */
 
 import { Team, Nation, GameMode, RoundStatus } from "@/types/game";
+import { DuelLobbySettings, DEFAULT_DUEL_LOBBY_SETTINGS, isCustomLobbyRoom } from "./roomLobbyManager";
 
 export interface RoomPlayer {
   userId: string;
@@ -58,6 +59,10 @@ export interface RoomState {
   roundStartTime: number | null;
   passVotes: string[];
   roundDuration: number;
+  pickDuration?: number;
+  hostUserId?: string | null;
+  isCustomLobby?: boolean;
+  lobbySettings?: DuelLobbySettings;
   disconnectGrace?: DisconnectGraceInfo | null;
   forfeitInfo?: ForfeitInfo | null;
   lastFoulEvent?: FoulEventInfo | null;
@@ -66,7 +71,8 @@ export interface RoomState {
 }
 
 export function createInitialRoomState(roomId: string): RoomState {
-  const isNationTeam = roomId.includes("_country_vs_team_") || roomId.includes("_millet_");
+  const isNationTeam = roomId.includes("country_vs_team") || roomId.includes("millet");
+  const isCustom = isCustomLobbyRoom(roomId);
 
   return {
     roomId,
@@ -89,6 +95,10 @@ export function createInitialRoomState(roomId: string): RoomState {
     roundStartTime: null,
     passVotes: [],
     roundDuration: 15,
+    pickDuration: 15,
+    hostUserId: null,
+    isCustomLobby: isCustom,
+    lobbySettings: isCustom ? { ...DEFAULT_DUEL_LOBBY_SETTINGS } : undefined,
     disconnectGrace: null,
     forfeitInfo: null,
     lastFoulEvent: null,

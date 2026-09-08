@@ -30,6 +30,10 @@ import {
   registerTeamPick,
   registerNationPick,
   checkSelectionTimeoutsAndApplyFouls,
+  updateLobbySettings,
+  canStartLobbyGame,
+  startLobbyGame,
+  DuelLobbySettings,
 } from "../lib/realtime/roomEngine";
 import {
   createBotPlayer,
@@ -221,7 +225,7 @@ export default class GameRoomServer implements Party.Server {
     }
 
     this.broadcastState();
-    const pickDuration = this.state.roundDuration || DEFAULT_ROUND_DURATION;
+    const pickDuration = this.state.pickDuration || this.state.lobbySettings?.pickDuration || this.state.roundDuration || DEFAULT_ROUND_DURATION;
     this.startServerTimer(pickDuration, () => {
       this.handlePickTimeout();
     });
@@ -233,7 +237,8 @@ export default class GameRoomServer implements Party.Server {
     this.state = state;
     this.broadcastState();
 
-    this.startServerTimer(duration, () => {
+    const answerDuration = this.state.lobbySettings?.answerDuration || duration;
+    this.startServerTimer(answerDuration, () => {
       this.handleRoundTimeout();
     });
   }
@@ -331,7 +336,7 @@ export default class GameRoomServer implements Party.Server {
       }
 
       this.broadcastState();
-      const pickDuration = this.state.roundDuration || DEFAULT_ROUND_DURATION;
+      const pickDuration = this.state.pickDuration || this.state.lobbySettings?.pickDuration || this.state.roundDuration || DEFAULT_ROUND_DURATION;
       this.startServerTimer(pickDuration, () => {
         this.handlePickTimeout();
       });
@@ -377,10 +382,70 @@ export default class GameRoomServer implements Party.Server {
         case "SUBMIT_ANSWER":
           await this.handleSubmitAnswer(sender, data);
           break;
+        case "UPDATE_LOBBY_SETTINGS":
+          this.handleUpdateLobbySettings(sender, data);
+          break;
+        case "START_GAME":
+          this.handleStartLobbyGame(sender, data);
+          break;
       }
     } catch (err) {
       console.error("[GameRoomServer Error]:", err);
     }
+  }
+
+  private handleUpdateLobbySettings(
+    sender: Party.Connection,
+    data: { userId?: string; settings?: Partial<DuelLobbySettings> }
+  ) {
+    const meta = this.connectionMeta.get(sender.id);
+    const senderUserId = data.userId || meta?.userId || "";
+    if (!this.state.hostUserId && senderUserId) {
+      this.state.hostUserId = senderUserId;
+    }
+    const { success, state, error } = updateLobbySettings(this.state, senderUserId, data.settings || {});
+    if (success) {
+      this.state = state;
+      this.broadcastState();
+    } else if (error) {
+      sender.send(JSON.stringify({ type: "LOBBY_ERROR", message: error }));
+    }
+  }
+
+  private handleStartLobbyGame(sender: Party.Connection, data?: { userId?: string }) {
+    const meta = this.connectionMeta.get(sender.id);
+    const senderUserId = data?.userId || meta?.userId || "";
+    const { canStart, reason } = canStartLobbyGame(this.state, senderUserId);
+    if (!canStart) {
+      sender.send(JSON.stringify({ type: "LOBBY_ERROR", message: reason }));
+      return;
+    }
+
+    this.state = startLobbyGame(this.state);
+
+    // Eğer rakip bir bot ise, oyun başladığında botun seçimini otomatik yaptır
+    if (isBotPlayer(this.state.player2?.userId)) {
+      const botUserId = this.state.player2!.userId;
+      if (this.state.gameMode === "country_vs_team") {
+        if (this.state.currentNationPickerUserId === botUserId) {
+          const botNation = pickBotNation(undefined, this.state.usedNationIds);
+          registerNationPick(this.state, botUserId, botNation);
+        } else if (this.state.currentTeamPickerUserId === botUserId) {
+          const botTeam = pickBotTeam(DEFAULT_POPULAR_TEAMS, this.state.usedTeamIds);
+          registerTeamPick(this.state, botUserId, botTeam);
+        }
+      } else {
+        const botTeam = pickBotTeam(DEFAULT_POPULAR_TEAMS, this.state.usedTeamIds);
+        registerTeamPick(this.state, botUserId, botTeam);
+      }
+    }
+
+    this.broadcastState();
+
+    const pickDuration = this.state.pickDuration || this.state.lobbySettings?.pickDuration || 15;
+    this.startServerTimer(pickDuration, () => {
+      this.handlePickTimeout();
+    });
   }
 
   private handlePlayerJoin(sender: Party.Connection, data: { userId: string; username: string; roundDuration?: number }) {
@@ -389,6 +454,11 @@ export default class GameRoomServer implements Party.Server {
 
     if (roundDuration && [5, 10, 15, 20].includes(Number(roundDuration))) {
       this.state.roundDuration = Number(roundDuration);
+    }
+
+    // İlk bağlanan oyuncuyu host yap
+    if (!this.state.hostUserId) {
+      this.state.hostUserId = userId;
     }
 
     const slot = (!this.state.player1 || this.state.player1.userId === userId) ? "player1" : "player2";
@@ -415,7 +485,9 @@ export default class GameRoomServer implements Party.Server {
         isDisconnected: false,
         disconnectedAt: null,
       };
-      if (this.state.status === "waiting_for_players") {
+
+      // Yalnızca normal eşleşmede maçı hemen başlat; özel lobide (isCustomLobby) host "OYUNU BAŞLAT" diyene kadar lobide bekle!
+      if (this.state.status === "waiting_for_players" && !this.state.isCustomLobby) {
         this.state.status = "in_round";
         this.state.roundStatus = "picking_teams";
         this.state.currentRound = 1;
@@ -467,6 +539,13 @@ export default class GameRoomServer implements Party.Server {
 
     const { player: botPlayer, team: botTeam } = createBotPlayer(DEFAULT_POPULAR_TEAMS);
     this.state.player2 = botPlayer;
+
+    // Özel lobi ise botu odaya ekle ama oyunu otomatik başlatma; lobi sahibi "Oyunu Başlat"a basınca başlasın!
+    if (this.state.isCustomLobby) {
+      this.broadcastState();
+      return;
+    }
+
     this.state.status = "in_round";
     this.state.roundStatus = "picking_teams";
     this.state.currentRound = 1;
@@ -489,7 +568,7 @@ export default class GameRoomServer implements Party.Server {
     }
 
     this.broadcastState();
-    const pickDuration = this.state.roundDuration || DEFAULT_ROUND_DURATION;
+    const pickDuration = this.state.pickDuration || this.state.lobbySettings?.pickDuration || this.state.roundDuration || DEFAULT_ROUND_DURATION;
     this.startServerTimer(pickDuration, () => {
       this.handlePickTimeout();
     });

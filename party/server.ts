@@ -38,6 +38,11 @@ import { createBotPlayer, pickBotTeam, pickBotNation, isBotPlayer } from "../lib
 import { handleMatchPlayerDisconnect } from "../lib/realtime/disconnectManager";
 import { handleLocalMatchmakingSocket, getMatchmakingQueueCount } from "./localMatchmaking";
 import { isAuctionRoomId, handleAuctionSocketConnection } from "../lib/auction/auctionPartyHandler";
+import {
+  updateLobbySettings,
+  canStartLobbyGame,
+  startLobbyGame,
+} from "../lib/realtime/roomLobbyManager";
 
 const PORT = parseInt(process.env.PORT || "1999", 10);
 const ROUNDS_PER_MATCH = DEFAULT_MAX_ROUNDS;
@@ -239,7 +244,7 @@ function handlePickTimeout(room: Room) {
   // Seçimlerin tamamlanabilmesi için sayaç yeniden başlatılır.
   broadcastRoomState(room);
 
-  const pickDuration = room.state.roundDuration || DEFAULT_ROUND_DURATION;
+  const pickDuration = room.state.pickDuration || room.state.lobbySettings?.pickDuration || room.state.roundDuration || DEFAULT_ROUND_DURATION;
   startServerTimer(room, pickDuration, () => {
     handlePickTimeout(room);
   });
@@ -251,7 +256,8 @@ function transitionToAnsweringPhase(room: Room) {
   room.state = state;
   broadcastRoomState(room);
 
-  startServerTimer(room, duration, () => {
+  const answerDuration = room.state.lobbySettings?.answerDuration || duration;
+  startServerTimer(room, answerDuration, () => {
     handleRoundTimeout(room);
   });
 }
@@ -301,7 +307,7 @@ function scheduleNextRound(room: Room) {
       }
 
       broadcastRoomState(room);
-      const pickDuration = room.state.roundDuration || DEFAULT_ROUND_DURATION;
+      const pickDuration = room.state.pickDuration || room.state.lobbySettings?.pickDuration || room.state.roundDuration || DEFAULT_ROUND_DURATION;
       startServerTimer(room, pickDuration, () => {
         handlePickTimeout(room);
       });
@@ -377,6 +383,11 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
             clientMeta.username = username;
           }
 
+          // İlk katılan oyuncuyu host (oda sahibi) yap
+          if (!room.state.hostUserId) {
+            room.state.hostUserId = userId;
+          }
+
           const slot = (!room.state.player1 || room.state.player1.userId === userId) ? "player1" : "player2";
           const sessionToken = createSession(roomId, userId, slot);
 
@@ -404,7 +415,8 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
             };
           }
 
-          if (room.state.player1 && room.state.player2 && room.state.status === "waiting_for_players") {
+          // Yalnızca normal eşleşmede 2 kişi olunca maçı hemen başlat; özel lobide (isCustomLobby) host "OYUNU BAŞLAT" diyene kadar lobide bekle!
+          if (room.state.player1 && room.state.player2 && room.state.status === "waiting_for_players" && !room.state.isCustomLobby) {
             room.state.status = "in_round";
             room.state.roundStatus = "picking_teams";
             room.state.currentRound = 1;
@@ -468,6 +480,13 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
 
           const { player: botPlayer, team: botTeam } = createBotPlayer(DEFAULT_POPULAR_TEAMS);
           room.state.player2 = botPlayer;
+
+          // Eğer özel lobi ise botu odaya ekle ama oyunu hemen başlatma; lobi sahibi "Oyunu Başlat"a basınca başlasın!
+          if (room.state.isCustomLobby) {
+            broadcastRoomState(room);
+            break;
+          }
+
           room.state.status = "in_round";
           room.state.roundStatus = "picking_teams";
           room.state.currentRound = 1;
@@ -490,7 +509,7 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
 
           broadcastRoomState(room);
 
-          const pickDuration = room.state.roundDuration || DEFAULT_ROUND_DURATION;
+          const pickDuration = room.state.pickDuration || room.state.lobbySettings?.pickDuration || room.state.roundDuration || DEFAULT_ROUND_DURATION;
           startServerTimer(room, pickDuration, () => {
             handlePickTimeout(room);
           });
@@ -677,6 +696,59 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
 
         case "ROUND_TIMEOUT": {
           handleRoundTimeout(room);
+          break;
+        }
+
+        case "UPDATE_LOBBY_SETTINGS": {
+          const clientMeta = room.clients.get(ws);
+          const requesterUserId = data.userId || clientMeta?.userId || "";
+          if (!room.state.hostUserId && requesterUserId) {
+            room.state.hostUserId = requesterUserId;
+          }
+          const { success, state, error } = updateLobbySettings(room.state, requesterUserId, data.settings || {});
+          if (success) {
+            room.state = state;
+            broadcastRoomState(room);
+          } else if (error) {
+            ws.send(JSON.stringify({ type: "LOBBY_ERROR", message: error }));
+          }
+          break;
+        }
+
+        case "START_GAME": {
+          const clientMeta = room.clients.get(ws);
+          const requesterUserId = data.userId || clientMeta?.userId || "";
+          const { canStart, reason } = canStartLobbyGame(room.state, requesterUserId);
+          if (!canStart) {
+            ws.send(JSON.stringify({ type: "LOBBY_ERROR", message: reason }));
+            break;
+          }
+
+          room.state = startLobbyGame(room.state);
+
+          // Eğer rakip bot ise botun ilk hamlesini otomatik yaptır
+          if (isBotPlayer(room.state.player2?.userId)) {
+            const botUserId = room.state.player2!.userId;
+            if (room.state.gameMode === "country_vs_team") {
+              if (room.state.currentNationPickerUserId === botUserId) {
+                const botNation = pickBotNation(undefined, room.state.usedNationIds);
+                registerNationPick(room.state, botUserId, botNation);
+              } else if (room.state.currentTeamPickerUserId === botUserId) {
+                const botTeam = pickBotTeam(DEFAULT_POPULAR_TEAMS, room.state.usedTeamIds);
+                registerTeamPick(room.state, botUserId, botTeam);
+              }
+            } else {
+              const botTeam = pickBotTeam(DEFAULT_POPULAR_TEAMS, room.state.usedTeamIds);
+              registerTeamPick(room.state, botUserId, botTeam);
+            }
+          }
+
+          broadcastRoomState(room);
+
+          const pickDuration = room.state.pickDuration || room.state.lobbySettings?.pickDuration || 15;
+          startServerTimer(room, pickDuration, () => {
+            handlePickTimeout(room);
+          });
           break;
         }
       }

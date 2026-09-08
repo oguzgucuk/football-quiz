@@ -11,6 +11,7 @@
 import React, { useState } from "react";
 import { AuctionPlayerCard } from "@/lib/auction/auctionTypes";
 import { Move, Info, CheckCircle2 } from "lucide-react";
+import { getRatingTier } from "@/lib/game/playerRatingTiers";
 
 interface AuctionSquadListProps {
   squad: AuctionPlayerCard[];
@@ -98,9 +99,14 @@ export function AuctionSquadList({
             }`}
           >
             <div className="flex items-center gap-2 min-w-0 flex-1">
-              <span className="font-mono font-black text-xs text-emerald-400 px-1.5 py-0.5 rounded bg-emerald-950/60 border border-emerald-500/30">
-                {player.overallPrime}
-              </span>
+              {(() => {
+                const playerTier = getRatingTier(player.overallPrime);
+                return (
+                  <span className={`font-mono font-black text-xs px-1.5 py-0.5 rounded ${playerTier.badgeSubtle}`}>
+                    {player.overallPrime}
+                  </span>
+                );
+              })()}
               <span className="text-xs font-bold text-white truncate">
                 {player.fullName}
               </span>

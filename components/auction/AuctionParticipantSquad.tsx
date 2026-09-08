@@ -9,6 +9,7 @@
 import React, { useState } from "react";
 import { AuctionPlayerCard } from "@/lib/auction/auctionTypes";
 import { AuctionPlayerDetailModal } from "./AuctionPlayerDetailModal";
+import { getRatingTier } from "@/lib/game/playerRatingTiers";
 
 interface AuctionParticipantSquadProps {
   squad: AuctionPlayerCard[];
@@ -117,7 +118,12 @@ export function AuctionParticipantSquad({ squad }: AuctionParticipantSquadProps)
                     onClick={() => setInspectingPlayer(player)}
                     className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] ${grp.accentBadge} cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-sm`}
                   >
-                    <span className="font-mono font-black">{player.overallPrime}</span>
+                    {(() => {
+                      const pTier = getRatingTier(player.overallPrime);
+                      return (
+                        <span className={`font-mono font-black ${pTier.accentText}`}>{player.overallPrime}</span>
+                      );
+                    })()}
                     <span className="truncate max-w-[70px] font-medium">
                       {player.fullName.split(" ").slice(-1)[0]}
                     </span>

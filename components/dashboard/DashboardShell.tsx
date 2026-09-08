@@ -16,7 +16,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useFriends } from "@/hooks/useFriends";
 import { useMatchmaking } from "@/hooks/useMatchmaking";
 import { MatchmakingModal } from "@/components/game/MatchmakingModal";
-import { CreateCustomRoomModal } from "@/components/game/CreateCustomRoomModal";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { StadiumBackground } from "@/components/ui/StadiumBackground";
 import { GameMode } from "@/types/game";
@@ -37,8 +36,6 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
   ).length;
   const hasPendingRequests = pendingRequests.length > 0;
 
-  const [isCustomRoomOpen, setIsCustomRoomOpen] = useState(false);
-  const [customRoomInitialTab, setCustomRoomInitialTab] = useState<"create" | "join">("create");
   const [isMatchmakingOpen, setIsMatchmakingOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalTab, setAuthModalTab] = useState<"login" | "register">("login");
@@ -110,19 +107,6 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
     startMatchmaking(user.id, user.username, user.eloRating || 1000, duration, mode, gameMode);
   };
 
-  const handleOpenCustomRoom = (
-    gameMode: GameMode = "team_vs_team",
-    initialTab: "create" | "join" = "create"
-  ) => {
-    if (!user) {
-      handleOpenAuthModal("login");
-      return;
-    }
-    setMatchmakingGameMode(gameMode);
-    setCustomRoomInitialTab(initialTab);
-    setIsCustomRoomOpen(true);
-  };
-
   const handleCancelMatchmaking = () => {
     cancelMatchmaking();
     setIsMatchmakingOpen(false);
@@ -156,8 +140,6 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
             <PlayStage
               onStartRanked={handleOpenRankedModal}
               onStartCasual={handleOpenCasualModal}
-              onOpenCustomRoom={handleOpenCustomRoom}
-              onOpenAuctionRoom={() => setIsAuctionRoomOpen(true)}
               onGoToPlayers={() => setActiveTab("players")}
               onOpenAuthModal={handleOpenAuthModal}
             />
@@ -197,12 +179,13 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
       <RightSocialSidebar
         isOpen={isSocialOpen}
         onClose={() => setIsSocialOpen(false)}
-        onQuickInvite={(friendId, friendName) => {
+        onQuickInvite={(_friendId, _friendName) => {
           if (!user) {
             handleOpenAuthModal("login");
             return;
           }
-          setIsCustomRoomOpen(true);
+          const roomId = `oda_${Math.floor(1000 + Math.random() * 9000)}`;
+          router.push(`/play/${roomId}`);
         }}
         onOpenAuthModal={handleOpenAuthModal}
       />
@@ -219,14 +202,6 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
         waitingSeconds={waitingSeconds}
         matchedData={matchedData}
         selectedDuration={selectedDuration}
-      />
-
-      {/* Özel Lobi Kurma Modalı */}
-      <CreateCustomRoomModal
-        isOpen={isCustomRoomOpen}
-        onClose={() => setIsCustomRoomOpen(false)}
-        gameMode={matchmakingGameMode}
-        initialTab={customRoomInitialTab}
       />
 
       {/* Dashboard Üzeri Giriş / Kayıt Ol Penceresi (Auth Modal) */}

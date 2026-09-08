@@ -19,6 +19,7 @@ import { WaitingForOpponentView } from "./WaitingForOpponentView";
 import { DisconnectGraceAlert } from "./DisconnectGraceAlert";
 import { PlayRoomFooter } from "./PlayRoomFooter";
 import { PlayRoomAnsweringPhase } from "./PlayRoomAnsweringPhase";
+import { DuelLobbyView } from "./DuelLobbyView";
 import { useGameRoom } from "@/hooks/useGameRoom";
 import { useGamePresence } from "@/hooks/useGamePresence";
 import { Button } from "@/components/ui/Button";
@@ -67,6 +68,8 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
     handleSubmitAnswer,
     handleTimeExpired,
     handleVotePass,
+    handleUpdateLobbySettings,
+    handleStartLobbyGame,
     addBotOpponent,
   } = useGameRoom({ roomId, userId: currentUserId, username });
 
@@ -86,6 +89,24 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
         <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 animate-pulse">
           <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
         </div>
+      </div>
+    );
+  }
+
+  // 1v1 Özel Lobi Ekranı (Ortak Oyuncu & Millet-Takım Lobi Görünümü)
+  if (roomState.isCustomLobby && roomState.status === "waiting_for_players") {
+    return (
+      <div className="flex flex-col min-h-screen overflow-y-auto overflow-x-hidden bg-[#0d1611] text-zinc-100 relative">
+        <StadiumBackground variant="dark" />
+        <main className="relative z-10 flex-1 flex flex-col justify-center py-6 px-4">
+          <DuelLobbyView
+            state={roomState}
+            currentUserId={currentUserId}
+            onUpdateSettings={handleUpdateLobbySettings}
+            onStartGame={handleStartLobbyGame}
+            onAddBot={addBotOpponent}
+          />
+        </main>
       </div>
     );
   }
@@ -195,13 +216,13 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
                 <div className="flex flex-col items-center gap-2 mb-6">
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-amber-950/80 text-amber-300 border border-amber-500/40 shadow-sm shadow-amber-950">
                     <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
-                    1. Aşama: {isCountryVsTeam ? (isMyTurnToPickNation ? "Milletini Seç" : "Kulübünü Seç") : "Takımını Seç"} ({roomState.roundDuration || 15} sn)
+                    1. Aşama: {isCountryVsTeam ? (isMyTurnToPickNation ? "Milletini Seç" : "Kulübünü Seç") : "Takımını Seç"} ({roomState.pickDuration || roomState.lobbySettings?.pickDuration || 15} sn)
                   </span>
                   <RoundTimer
                     key={`timer-${roomState.currentRound}-${roomState.roundStatus}`}
                     label={isCountryVsTeam ? (isMyTurnToPickNation ? "Millet Seçim Süresi" : "Kulüp Seçim Süresi") : "Takım Seçim Süresi"}
                     variant="picking"
-                    durationSeconds={roomState.roundDuration || 15}
+                    durationSeconds={roomState.pickDuration || roomState.lobbySettings?.pickDuration || 15}
                     serverSecondsLeft={serverSecondsLeft}
                     onTimeExpired={handleTimeExpired}
                   />

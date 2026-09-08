@@ -10,13 +10,12 @@ import { PlayAuctionModeCard } from "./play/PlayAuctionModeCard";
 import { PlayTrainingCard, TrainingSubMode } from "./play/PlayTrainingCard";
 import { PlayModeGuidesModal } from "./play/PlayModeGuidesModal";
 import { JoinAuctionRoomModal } from "@/components/auction/JoinAuctionRoomModal";
+import { JoinDuelRoomModal } from "@/components/game/JoinDuelRoomModal";
 import { GameMode } from "@/types/game";
 
 interface PlayStageProps {
   onStartRanked: () => void;
   onStartCasual: (gameMode?: GameMode) => void;
-  onOpenCustomRoom: (gameMode?: GameMode, initialTab?: "create" | "join") => void;
-  onOpenAuctionRoom?: () => void;
   onGoToPlayers: () => void;
   onOpenAuthModal?: (tab: "login" | "register") => void;
 }
@@ -24,8 +23,6 @@ interface PlayStageProps {
 export function PlayStage({
   onStartRanked,
   onStartCasual,
-  onOpenCustomRoom,
-  onOpenAuctionRoom,
   onGoToPlayers,
   onOpenAuthModal,
 }: PlayStageProps) {
@@ -33,15 +30,16 @@ export function PlayStage({
   const { user } = useAuth();
   const [selectedModeId, setSelectedModeId] = useState<"common_player" | "grid" | "auction" | "training">("common_player");
   const [selectedSubMode, setSelectedSubMode] = useState<SubModeType>("ranked");
-  const [selectedNationTeamSubMode, setSelectedNationTeamSubMode] = useState<NationTeamSubMode>("casual");
+  const [selectedNationTeamSubMode, setSelectedNationTeamSubMode] = useState<NationTeamSubMode>("custom");
   const [selectedTrainingSubMode, setSelectedTrainingSubMode] = useState<TrainingSubMode>("players");
   const [activeGuideKey, setActiveGuideKey] = useState<string | null>(null);
   const [isJoinAuctionModalOpen, setIsJoinAuctionModalOpen] = useState(false);
+  const [isJoinDuelModalOpen, setIsJoinDuelModalOpen] = useState(false);
 
   const isCustomMode =
     selectedModeId === "auction" ||
-    (selectedModeId === "common_player" && selectedSubMode === "custom") ||
-    (selectedModeId === "grid" && selectedNationTeamSubMode === "custom");
+    selectedModeId === "grid" ||
+    (selectedModeId === "common_player" && selectedSubMode === "custom");
 
   const handleCreateGame = () => {
     if (!user) {
@@ -54,11 +52,13 @@ export function PlayStage({
       return;
     }
     if (selectedModeId === "common_player") {
-      onOpenCustomRoom("team_vs_team", "create");
+      const roomId = `oda_${Math.floor(1000 + Math.random() * 9000)}`;
+      router.push(`/play/${roomId}`);
       return;
     }
     if (selectedModeId === "grid") {
-      onOpenCustomRoom("country_vs_team", "create");
+      const roomId = `oda_millet_${Math.floor(1000 + Math.random() * 9000)}`;
+      router.push(`/play/${roomId}`);
       return;
     }
   };
@@ -72,12 +72,8 @@ export function PlayStage({
       setIsJoinAuctionModalOpen(true);
       return;
     }
-    if (selectedModeId === "common_player") {
-      onOpenCustomRoom("team_vs_team", "join");
-      return;
-    }
-    if (selectedModeId === "grid") {
-      onOpenCustomRoom("country_vs_team", "join");
+    if (selectedModeId === "common_player" || selectedModeId === "grid") {
+      setIsJoinDuelModalOpen(true);
       return;
     }
   };
@@ -218,10 +214,17 @@ export function PlayStage({
         onClose={() => setActiveGuideKey(null)}
       />
 
-      {/* Sade Koda Katıl Modalı */}
+      {/* Müzayede Koda Katıl Modalı */}
       <JoinAuctionRoomModal
         isOpen={isJoinAuctionModalOpen}
         onClose={() => setIsJoinAuctionModalOpen(false)}
+      />
+
+      {/* 1v1 Ortak Oyuncu / Millet-Takım Koda Katıl Modalı */}
+      <JoinDuelRoomModal
+        isOpen={isJoinDuelModalOpen}
+        onClose={() => setIsJoinDuelModalOpen(false)}
+        defaultMode={selectedModeId === "grid" ? "country_vs_team" : "team_vs_team"}
       />
     </div>
   );
