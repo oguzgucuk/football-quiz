@@ -34,6 +34,12 @@ export function AuctionBiddingStage({
   const currentBidderId = state.currentHighestBid?.bidderUserId;
   const myParticipant = state.participants[currentUserId];
 
+  // Havuzda kalan (henüz açık artırmaya çıkmamış) elmas oyuncu sayısı
+  const remainingPool = state.pool.slice(state.currentCardIndex);
+  const remainingDiamondCount = remainingPool.filter(
+    (p) => getRatingTier(p.overallPrime).tier === "diamond"
+  ).length;
+
   const [customBid, setCustomBid] = useState<string>("");
   const isMyHighestBid = currentBidderId === currentUserId;
   const hasPassed = state.passedUserIds.includes(currentUserId);
@@ -86,6 +92,17 @@ export function AuctionBiddingStage({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* SOL BÖLGE (Çizimdeki Sol Vitrin) */}
         <div className="lg:col-span-7 flex flex-col gap-4 p-5 rounded-3xl bg-black/50 border border-white/10 backdrop-blur-2xl shadow-2xl">
+
+          {/* Elmas Oyuncu Havuz Uyarısı */}
+          {remainingDiamondCount > 0 && (
+            <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-cyan-950/60 border border-cyan-400/50 shadow-[0_0_18px_rgba(56,189,248,0.2)] animate-pulse-slow">
+              <Gem className="w-5 h-5 text-cyan-300 shrink-0" />
+              <span className="text-sm font-black text-cyan-200 tracking-wide">
+                {remainingDiamondCount} Elmas Oyuncu Havuzda !!
+              </span>
+            </div>
+          )}
+
           {/* Futbolcu Kartı */}
           {card ? (() => {
             const cardTier = getRatingTier(card.overallPrime);

@@ -87,6 +87,10 @@ export interface TeamLineup {
   rawFwdPower: number;
   effectiveAtkPower: number;
   effectiveDefPower: number;
+  /** En yüksek reytingli forvet oyuncusunun efektif reytingi (parlama mekaniği için). */
+  starAttackerRating: number;
+  /** Yıldız forvet oyuncusunun tam adı (parlama eventi anlatısı için). */
+  starAttackerName: string;
   isConfirmed: boolean;
 }
 
@@ -96,6 +100,8 @@ export interface MatchEvent {
   teamUserId: string;
   playerName?: string;
   description: string;
+  /** Bireysel parlama anıyla (yıldız oyuncu tek başına bitirdi) üretilen gol ise true. */
+  brilliance?: boolean;
 }
 
 export interface MatchSimulationResult {

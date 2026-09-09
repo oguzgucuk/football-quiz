@@ -6,9 +6,9 @@
  * Oyuncunun üstüne tıklayınca oynayabildiği pozisyonlar modalı açılır.
  */
 
-import React, { useState } from "react";
+import React from "react";
 import { AuctionPlayerCard } from "@/lib/auction/auctionTypes";
-import { AuctionPlayerDetailModal } from "./AuctionPlayerDetailModal";
+import { AuctionPlayerMiniCard } from "./AuctionPlayerMiniCard";
 import { getRatingTier } from "@/lib/game/playerRatingTiers";
 
 interface AuctionParticipantSquadProps {
@@ -26,8 +26,6 @@ interface PositionGroup {
 }
 
 export function AuctionParticipantSquad({ squad }: AuctionParticipantSquadProps) {
-  const [inspectingPlayer, setInspectingPlayer] = useState<AuctionPlayerCard | null>(null);
-
   const gk: AuctionPlayerCard[] = [];
   const def: AuctionPlayerCard[] = [];
   const mid: AuctionPlayerCard[] = [];
@@ -112,22 +110,23 @@ export function AuctionParticipantSquad({ squad }: AuctionParticipantSquadProps)
             <div className="flex items-center gap-1 flex-wrap flex-1 min-w-0">
               {grp.players.length > 0 ? (
                 grp.players.map((player, idx) => (
-                  <span
-                    key={`${player.id}_${idx}`}
-                    title="Pozisyonları görmek için tıklayın"
-                    onClick={() => setInspectingPlayer(player)}
-                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] ${grp.accentBadge} cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-sm`}
-                  >
-                    {(() => {
-                      const pTier = getRatingTier(player.overallPrime);
-                      return (
-                        <span className={`font-mono font-black ${pTier.accentText}`}>{player.overallPrime}</span>
-                      );
-                    })()}
-                    <span className="truncate max-w-[70px] font-medium">
-                      {player.fullName.split(" ").slice(-1)[0]}
-                    </span>
-                  </span>
+                  <AuctionPlayerMiniCard key={`${player.id}_${idx}`} player={player}>
+                    <button
+                      type="button"
+                      title="Pozisyonları görmek için tıklayın"
+                      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] ${grp.accentBadge} cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-sm`}
+                    >
+                      {(() => {
+                        const pTier = getRatingTier(player.overallPrime);
+                        return (
+                          <span className={`font-mono font-black ${pTier.accentText}`}>{player.overallPrime}</span>
+                        );
+                      })()}
+                      <span className="truncate max-w-[70px] font-medium">
+                        {player.fullName.split(" ").slice(-1)[0]}
+                      </span>
+                    </button>
+                  </AuctionPlayerMiniCard>
                 ))
               ) : (
                 <span
@@ -140,11 +139,6 @@ export function AuctionParticipantSquad({ squad }: AuctionParticipantSquadProps)
           </div>
         ))}
       </div>
-
-      <AuctionPlayerDetailModal
-        player={inspectingPlayer}
-        onClose={() => setInspectingPlayer(null)}
-      />
     </>
   );
 }
