@@ -117,6 +117,17 @@ export interface MatchSimulationResult {
   isFinished: boolean;
 }
 
+/**
+ * Bir ligde tur: Aynı anda oynanan maçlar + bye oyuncusu (tek sayıda oyuncu olunca).
+ * Tüm maçlar aynı dakika tickiyle ilerler.
+ */
+export interface SimulationRound {
+  roundNumber: number;
+  matches: MatchSimulationResult[];
+  /** Tek sayıda oyuncu varsa bu turda oynamayan oyuncu. Null = herkes oynuyor. */
+  byeUserId: string | null;
+}
+
 export interface StandingRow {
   userId: string;
   username: string;
@@ -146,9 +157,22 @@ export interface AuctionRoomState {
   secondsLeft: number;
   lineups: Record<string, TeamLineup>;
   confirmedLineupUserIds: string[];
+
+  // --- Eski sıralı simülasyon alanları (geriye dönük uyum) ---
   simulationMatches: MatchSimulationResult[];
   currentSimMatchIndex: number;
   currentSimMinute: number;
+
+  // --- Yeni tur tabanlı eş zamanlı simülasyon alanları ---
+  /** Tüm tur verisi: her tur içinde paralel maçlar ve bye oyuncusu. */
+  simulationRounds: SimulationRound[];
+  /** Şu an yayınlanan turun indexi (0-tabanlı). */
+  currentRoundIndex: number;
+  /** Şu an gösterilen dakika — tüm maçlar bu dakikada eş zamanlı ilerler. */
+  currentRoundMinute: number;
+  /** Her turun bye oyuncusu: byeUserIds[turIndex] → userId | null */
+  byeUserIds: (string | null)[];
+
   simReadyUserIds: string[];
   standings: StandingRow[];
   championUserId: string | null;
