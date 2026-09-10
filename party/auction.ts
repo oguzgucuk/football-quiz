@@ -1,7 +1,7 @@
 /**
  * PartyKit Cloud Canlı Müzayede Odası Sunucusu (AuctionPartyServer).
  * - Canlı Çok Oyunculu Açık Artırma (Lobi, Bütçe, Teklifler, Sayaç)
- * - Taktik ve Kadro Kurma (4-3-3, 4-4-2, 3-5-2)
+ * - Taktik ve Kadro Kurma
  * - Tur Tabanlı Eş Zamanlı Lig Simülasyonu:
  *   Her turda tüm maçlar aynı anda oynanır; herkes herkesi görebilir.
  *   Tek sayıda oyuncuda bir kişi "bye" (izleyici) olarak tur geçirir.
@@ -420,7 +420,7 @@ export default class AuctionPartyServer implements Party.Server {
   private autoConfirmLineups() {
     for (const [uid, p] of Object.entries(this.state.participants)) {
       if (!this.state.lineups[uid]?.isConfirmed) {
-        const defaultFormation: FormationName = "4-3-3";
+        const defaultFormation: FormationName = "4-2-3-1";
         const slots = createInitialSlotsForFormation(defaultFormation);
         p.squad.forEach((player, i) => {
           if (slots[i]) {

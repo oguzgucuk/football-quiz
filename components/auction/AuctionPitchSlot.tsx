@@ -9,9 +9,10 @@
  */
 
 import React, { useRef } from "react";
-import { SquadSlot } from "@/lib/auction/auctionTypes";
+import { PitchPosition, SquadSlot } from "@/lib/auction/auctionTypes";
 import { getRatingTier } from "@/lib/game/playerRatingTiers";
-import { X, Sparkles } from "lucide-react";
+import { Popover, PopoverArrow, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { RefreshCw, X } from "lucide-react";
 
 interface AuctionPitchSlotProps {
   slot: SquadSlot;
@@ -21,6 +22,8 @@ interface AuctionPitchSlotProps {
   isAnyDragging: boolean;
   onClick: () => void;
   onRemove?: () => void;
+  changeablePositions: PitchPosition[];
+  onPositionChange: (position: PitchPosition) => void;
   onDragStart: (e: React.DragEvent) => void;
   onDragEnd: () => void;
   onDragOver: (e: React.DragEvent) => void;
@@ -36,6 +39,8 @@ export function AuctionPitchSlot({
   isAnyDragging,
   onClick,
   onRemove,
+  changeablePositions,
+  onPositionChange,
   onDragStart,
   onDragEnd,
   onDragOver,
@@ -45,6 +50,7 @@ export function AuctionPitchSlot({
   const p = slot.placedPlayer;
   const pTier = p ? getRatingTier(slot.effectiveRating) : null;
   const isDraggingRef = useRef(false);
+  const alternativePositions = changeablePositions.filter((position) => position !== slot.targetPosition);
 
   const handleDragStartWrapper = (e: React.DragEvent) => {
     isDraggingRef.current = true;
@@ -107,6 +113,53 @@ export function AuctionPitchSlot({
           </button>
         )}
 
+        {alternativePositions.length > 0 && (
+          <div className="absolute -bottom-2.5 -right-2.5 z-30">
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  title="Mevkiyi değiştir"
+                  aria-label="Mevkiyi değiştir"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex size-6 items-center justify-center rounded-full border-2 border-[#0d2a1a] bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-[0_3px_10px_rgba(16,185,129,0.55)] transition-transform hover:scale-110 hover:from-emerald-300 hover:to-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                >
+                  <RefreshCw className="size-3.5" strokeWidth={2.5} />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                side="top"
+                align="end"
+                sideOffset={8}
+                collisionPadding={12}
+                className="w-auto min-w-32 rounded-xl border-emerald-400/35 p-2"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <PopoverArrow className="fill-[#0e1319]" width={10} height={5} />
+                <p className="mb-1.5 px-1 text-[9px] font-black uppercase tracking-widest text-emerald-300/80">
+                  Mevki değiştir
+                </p>
+                <div className="flex flex-wrap gap-1">
+                {alternativePositions.map((position) => (
+                  <button
+                    key={position}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onPositionChange(position);
+                    }}
+                    className="rounded-md border border-emerald-400/30 bg-emerald-950/50 px-2 py-1.5 font-mono text-[10px] font-black text-emerald-100 transition-colors hover:border-emerald-300 hover:bg-emerald-500 hover:text-white"
+                  >
+                    {position}
+                  </button>
+                ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+        )}
+
         {p && pTier ? (
           <div className="flex flex-col items-center">
             <span
@@ -139,7 +192,7 @@ export function AuctionPitchSlot({
             : "bg-black/60 border-white/10 text-zinc-300"
         }`}
       >
-        {p ? p.fullName.split(" ").slice(-1)[0] : def?.label || slot.targetPosition}
+        {p ? p.fullName.split(" ").slice(-1)[0] : slot.targetPosition}
       </span>
     </div>
   );

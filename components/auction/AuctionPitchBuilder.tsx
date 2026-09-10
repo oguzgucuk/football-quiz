@@ -2,7 +2,7 @@
 
 /**
  * Müzayede Saha Dizilişi ve Taktik Tahtası.
- * - Sol: Diziliş seçimi (4-3-3, 4-2-3-1 vb.) ve "OYUNCULARIM" paneli
+ * - Sol: Sadeleştirilmiş diziliş seçimi ve "OYUNCULARIM" paneli
  * - Sağ: Futbol sahası, 11 slot, sürükle-bırak pozisyon yer değiştirme (SWAP)
  * - Oyuncu üstüne tıklayınca oynayabildiği mevkileri gösteren detay modalı
  */
@@ -11,6 +11,7 @@ import React, { useState, useMemo, useRef } from "react";
 import {
   AuctionPlayerCard,
   FormationName,
+  PitchPosition,
   SquadSlot,
   TeamLineup,
 } from "@/lib/auction/auctionTypes";
@@ -21,11 +22,21 @@ import { AuctionSquadList } from "./AuctionSquadList";
 import { AuctionPlayerDetailModal } from "./AuctionPlayerDetailModal";
 import { CheckCircle2 } from "lucide-react";
 
-const FORMATION_GROUPS: Array<{ label: string; formations: FormationName[] }> = [
-  { label: "3'lü Taktikler", formations: ["3-1-4-2", "3-4-1-2", "3-4-2-1", "3-4-3", "3-5-2"] },
-  { label: "4'lü Taktikler", formations: ["4-1-2-1-2", "4-1-2-1-2(2)", "4-1-3-2", "4-1-4-1", "4-2-1-3", "4-2-2-2", "4-2-3-1", "4-2-3-1(2)", "4-2-4", "4-3-1-2", "4-3-2-1", "4-3-3", "4-3-3(2)", "4-3-3(3)", "4-3-3(4)", "4-4-1-1(2)", "4-4-2", "4-4-2(2)", "4-5-1", "4-5-1(2)"] },
-  { label: "5'li Taktikler", formations: ["5-2-1-2", "5-2-3", "5-3-2", "5-4-1"] },
+const FORMATIONS: FormationName[] = [
+  "3-5-2", "3-4-2-1", "3-4-3", "4-4-2(1)", "4-4-2(2)",
+  "4-2-3-1", "5-3-2", "5-2-3", "5-4-1(1)", "5-4-1(2)",
 ];
+
+const CHANGEABLE_POSITION_GROUPS: PitchPosition[][] = [
+  ["ST", "CF"],
+  ["CM", "CDM", "CAM"],
+  ["RB", "RWB"],
+  ["LB", "LWB"],
+];
+
+function getChangeablePositions(position: PitchPosition) {
+  return CHANGEABLE_POSITION_GROUPS.find((group) => group.includes(position)) ?? [];
+}
 
 interface AuctionPitchBuilderProps {
   userId: string;
@@ -44,14 +55,13 @@ export function AuctionPitchBuilder({
   totalParticipantCount = 1,
   onConfirmLineup,
 }: AuctionPitchBuilderProps) {
-  const [formation, setFormation] = useState<FormationName>("4-3-3");
-  const [slots, setSlots] = useState<SquadSlot[]>(() => createInitialSlotsForFormation("4-3-3"));
+  const [formation, setFormation] = useState<FormationName>("4-2-3-1");
+  const [slots, setSlots] = useState<SquadSlot[]>(() => createInitialSlotsForFormation("4-2-3-1"));
   const [selectedPlayer, setSelectedPlayer] = useState<AuctionPlayerCard | null>(null);
 
   // Detay Modalı (Pozisyon İnceleme)
   const [inspectingPlayer, setInspectingPlayer] = useState<AuctionPlayerCard | null>(null);
   const [inspectingSlot, setInspectingSlot] = useState<SquadSlot | null>(null);
-  const [openFormationGroup, setOpenFormationGroup] = useState("4'lü Taktikler");
 
   // Sürükle-Bırak Durumu
   const [draggedPlayerId, setDraggedPlayerId] = useState<string | null>(null);
@@ -152,6 +162,16 @@ export function AuctionPitchBuilder({
     setSelectedPlayer(null);
   };
 
+  const handleSlotPositionChange = (slotIndex: number, targetPosition: PitchPosition) => {
+    setSlots((currentSlots) => currentSlots.map((slot, index) => {
+      if (index !== slotIndex) return slot;
+      const rating = slot.placedPlayer
+        ? calculateSlotRating(slot.placedPlayer, targetPosition)
+        : { effectiveRating: 0, penalty: 0 };
+      return { ...slot, targetPosition, ...rating };
+    }));
+  };
+
   const handleSlotClick = (slotIndex: number) => {
     // Sürükleme yeni bittiyse tıklama olayını engelle
     if (Date.now() - lastDragTimeRef.current < 250) return;
@@ -247,18 +267,17 @@ export function AuctionPitchBuilder({
             <span className="text-[11px] font-extrabold uppercase tracking-widest text-zinc-400 block mb-2.5">
               Diziliş Seçimi
             </span>
-            <div className="flex flex-col gap-2">
-              {FORMATION_GROUPS.map((group) => {
-                const isOpen = openFormationGroup === group.label;
-                return <div key={group.label} className="rounded-xl border border-white/10 bg-black/25 overflow-hidden">
-                  <button type="button" onClick={() => setOpenFormationGroup(isOpen ? "" : group.label)} className="flex w-full items-center justify-between px-3 py-2.5 text-left text-xs font-black text-zinc-200 hover:bg-white/5">
-                    <span>{group.label}</span><span className="text-emerald-400">{isOpen ? "−" : "+"}</span>
-                  </button>
-                  {isOpen && <div className="grid grid-cols-2 gap-1.5 border-t border-white/10 p-2">
-                    {group.formations.map((f) => <button key={f} onClick={() => handleFormationChange(f)} className={`rounded-lg px-1 py-2 text-[11px] font-mono font-bold transition-all ${formation === f ? "bg-emerald-600 text-white shadow-md" : "bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white"}`}>{f}</button>)}
-                  </div>}
-                </div>;
-              })}
+            <div className="grid grid-cols-2 gap-1.5">
+              {FORMATIONS.map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => handleFormationChange(f)}
+                  className={`rounded-lg px-1 py-2 text-[11px] font-mono font-bold transition-all ${formation === f ? "bg-emerald-600 text-white shadow-md" : "bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white"}`}
+                >
+                  {f}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -338,6 +357,8 @@ export function AuctionPitchBuilder({
                     ? () => handleRemovePlayerFromPitch(slot.placedPlayer!.id)
                     : undefined
                 }
+                changeablePositions={getChangeablePositions(slot.targetPosition)}
+                onPositionChange={(position) => handleSlotPositionChange(index, position)}
                 onDragStart={(e) => handleSlotDragStart(e, slot, index)}
                 onDragEnd={resetDragState}
                 onDragOver={(e) => {

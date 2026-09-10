@@ -74,7 +74,7 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
   const myParticipant = state.participants[currentUserId];
 
   return (
-    <main className="relative flex flex-col min-h-screen w-full overflow-y-auto overflow-x-hidden bg-[#0d1611] text-white font-sans select-none">
+    <main className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-[#0d1611] text-white font-sans select-none">
       <StadiumBackground variant="light" />
 
       {/* Üst Çubuk */}

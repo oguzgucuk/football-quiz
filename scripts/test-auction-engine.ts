@@ -60,9 +60,9 @@ async function runTests() {
   console.log("🧪 3. 15 POZİSYONLUK MAÇ SİMÜLASYONU TESTİ");
   console.log("==========================================");
 
-  // Sahte iki takım dizilişi kuralım (4-3-3)
+  // Sahte iki takım dizilişi kuralım (4-2-3-1)
   const createMockLineup = (userId: string, baseOvr: number): TeamLineup => {
-    const slots = createInitialSlotsForFormation("4-3-3");
+    const slots = createInitialSlotsForFormation("4-2-3-1");
     slots.forEach((s) => {
       s.placedPlayer = {
         id: `p_${s.slotId}`,
@@ -72,7 +72,7 @@ async function runTests() {
       };
       s.effectiveRating = baseOvr;
     });
-    return calculateLineupPowers(userId, "4-3-3", slots);
+    return calculateLineupPowers(userId, "4-2-3-1", slots);
   };
 
   const teamA = createMockLineup("user_a", 88);

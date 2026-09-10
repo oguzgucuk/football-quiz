@@ -4,7 +4,7 @@ import { TeamLineup } from "../lib/auction/auctionTypes";
 function createMockLineup(userId: string, atk: number, mid: number, def: number, gk: number): TeamLineup {
   return {
     userId,
-    formation: "4-3-3",
+    formation: "4-2-3-1",
     teamOvr: Math.round((atk + mid + def + gk) / 4),
     rawDefPower: def,
     rawMidPower: mid,
@@ -53,4 +53,3 @@ for (let i = 0; i < 20; i++) {
   if (i < 5) console.log("Maç " + (i + 1) + ": " + res.homeScore + " - " + res.awayScore);
 }
 console.log("Ortalama skor: " + (derbiHome / 20).toFixed(1) + " - " + (derbiAway / 20).toFixed(1));
-

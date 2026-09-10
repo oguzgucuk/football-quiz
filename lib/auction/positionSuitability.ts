@@ -2,6 +2,7 @@
  * Saha Mevki Uyumu, Ceza Puanları ve Hat Güçleri Hesaplama Modülü.
  * Kullanıcı tanımlı formüller:
  * - Doğal: 0 ceza
+ * - Çok yakın: -2 reyting
  * - Yakın: -5 reyting
  * - Uzak: -20 reyting
  * - Kaleci harici kaleye geçerse: direkt 40 reyting
@@ -16,6 +17,20 @@ import { AuctionPlayerCard, PitchPosition, SquadSlot, TeamLineup, FormationName 
 const DEF_POSITIONS: PitchPosition[] = ["CB", "LB", "RB", "LWB", "RWB"];
 const MID_POSITIONS: PitchPosition[] = ["CDM", "CM", "CAM", "LM", "RM"];
 const FWD_POSITIONS: PitchPosition[] = ["ST", "CF", "LW", "RW"];
+
+/** Birbirinin doğrudan alternatifi olan mevkiler. */
+const VERY_NEAR_POSITIONS: Partial<Record<PitchPosition, PitchPosition[]>> = {
+  RB: ["RWB"],
+  RWB: ["RB"],
+  LB: ["LWB"],
+  LWB: ["LB"],
+  LM: ["LW"],
+  LW: ["LM"],
+  RM: ["RW"],
+  RW: ["RM"],
+  CF: ["ST"],
+  ST: ["CF"],
+};
 
 /**
  * Oyuncunun bir mevkideki ceza miktarını ve efektif reytingini hesaplar.
@@ -46,7 +61,16 @@ export function calculateSlotRating(
     return { effectiveRating: baseRating, penalty: 0 };
   }
 
-  // 3. Yakın Mevki Kontrolü (-5 Reyting)
+  // 3. Çok Yakın Mevki Kontrolü (-2 Reyting)
+  const isVeryNear = playerPositions.some((position) =>
+    VERY_NEAR_POSITIONS[position as PitchPosition]?.includes(targetPosition)
+  );
+  if (isVeryNear) {
+    const penalized = Math.max(40, baseRating - 2);
+    return { effectiveRating: penalized, penalty: 2 };
+  }
+
+  // 4. Yakın Mevki Kontrolü (-5 Reyting)
   const isTargetDef = DEF_POSITIONS.includes(targetPosition);
   const isTargetMid = MID_POSITIONS.includes(targetPosition);
   const isTargetFwd = FWD_POSITIONS.includes(targetPosition);
@@ -65,7 +89,7 @@ export function calculateSlotRating(
     return { effectiveRating: penalized, penalty: 5 };
   }
 
-  // 4. Uzak Mevki Kontrolü (-20 Reyting)
+  // 5. Uzak Mevki Kontrolü (-20 Reyting)
   const penalized = Math.max(40, baseRating - 20);
   return { effectiveRating: penalized, penalty: 20 };
 }
@@ -127,8 +151,8 @@ export function getPlayerPositionBreakdown(
     const { effectiveRating, penalty } = calculateSlotRating(player, pos);
     if (penalty === 0) {
       natural.push({ position: pos, effectiveRating, penalty: 0, category: "natural" });
-    } else if (penalty === 5) {
-      nearby.push({ position: pos, effectiveRating, penalty: 5, category: "nearby" });
+    } else if (penalty === 2 || penalty === 5) {
+      nearby.push({ position: pos, effectiveRating, penalty, category: "nearby" });
     } else {
       distant.push({
         position: pos,

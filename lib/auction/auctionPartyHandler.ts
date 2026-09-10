@@ -366,7 +366,7 @@ function startTimer(room: AuctionPartyRoom) {
 function autoConfirmLineups(room: AuctionPartyRoom) {
   for (const [uid, p] of Object.entries(room.state.participants)) {
     if (!room.state.lineups[uid]?.isConfirmed) {
-      const defaultFormation: FormationName = "4-3-3";
+      const defaultFormation: FormationName = "4-2-3-1";
       const slots = createInitialSlotsForFormation(defaultFormation);
       p.squad.forEach((player, i) => {
         if (slots[i]) {
