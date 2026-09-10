@@ -15,7 +15,6 @@ import { AuctionPitchBuilder } from "./AuctionPitchBuilder";
 import { AuctionSimulationStage } from "./AuctionSimulationStage";
 import { StadiumBackground } from "@/components/ui/StadiumBackground";
 import { Loader2, ArrowLeft, AlertTriangle, AlertCircle } from "lucide-react";
-import Link from "next/link";
 
 interface AuctionRoomClientProps {
   roomId: string;
@@ -78,51 +77,53 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
       <StadiumBackground variant="light" />
 
       {/* Üst Çubuk */}
-      <header className="relative z-20 flex items-center justify-between px-4 sm:px-8 py-4 border-b border-white/10 bg-black/40 backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => {
-              leaveRoom();
-              router.push("/?tab=play");
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-zinc-300 transition-colors cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Ayrıl</span>
-          </button>
-          <span className="font-mono text-xs text-zinc-400 font-bold hidden sm:inline">
-            Oda #{roomId}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {isSpectator && (
-            <div className="px-3 py-1 rounded-xl bg-sky-950/60 border border-sky-400/30 text-sky-200 font-mono text-xs font-bold">
-              👁 İzliyorsunuz
-            </div>
-          )}
-          {myParticipant && (
-            <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-amber-950/40 border border-amber-500/30 text-amber-400 font-mono text-xs font-bold">
-              <span>Bütçe:</span>
-              <span className="text-sm font-black">${myParticipant.budget}M</span>
-            </div>
-          )}
-
-          <div className="flex items-center gap-1.5">
-            <span
-              className={`size-2 rounded-full ${
-                isConnected ? "bg-emerald-400 animate-pulse" : "bg-red-500"
-              }`}
-            />
-            <span className="text-[11px] font-mono text-zinc-400">
-              {isConnected ? "Canlı" : "Bağlanıyor..."}
+      <header className="relative z-20 w-full border-b border-white/10 bg-black/40 backdrop-blur-md px-4 sm:px-8 py-3.5">
+        <div className="w-full max-w-[1720px] mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                leaveRoom();
+                router.push("/?tab=play");
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-zinc-300 transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Ayrıl</span>
+            </button>
+            <span className="font-mono text-xs text-zinc-400 font-bold hidden sm:inline">
+              Oda #{roomId}
             </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {isSpectator && (
+              <div className="px-3 py-1 rounded-xl bg-sky-950/60 border border-sky-400/30 text-sky-200 font-mono text-xs font-bold">
+                👁 İzliyorsunuz
+              </div>
+            )}
+            {myParticipant && (
+              <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-amber-950/40 border border-amber-500/30 text-amber-400 font-mono text-xs font-bold">
+                <span>Bütçe:</span>
+                <span className="text-sm font-black">${myParticipant.budget}M</span>
+              </div>
+            )}
+
+            <div className="flex items-center gap-1.5">
+              <span
+                className={`size-2 rounded-full ${
+                  isConnected ? "bg-emerald-400 animate-pulse" : "bg-red-500"
+                }`}
+              />
+              <span className="text-[11px] font-mono text-zinc-400">
+                {isConnected ? "Canlı" : "Bağlanıyor..."}
+              </span>
+            </div>
           </div>
         </div>
       </header>
 
       {/* Aşama İçeriği */}
-      <div className="relative z-10 flex-1 flex flex-col justify-center p-2 sm:p-6">
+      <div className="relative z-10 flex-1 flex flex-col w-full max-w-[1720px] mx-auto p-3 sm:p-6 lg:p-8">
         {state.status === "lobby" && (
           <AuctionLobbyView
             state={state}

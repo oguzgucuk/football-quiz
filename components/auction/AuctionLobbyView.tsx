@@ -10,7 +10,7 @@
 
 import React, { useState } from "react";
 import { AuctionRoomState, AuctionLobbySettings } from "@/lib/auction/auctionTypes";
-import { Users, Crown, Shield, Coins, Sparkles, Copy, Check, Share2, Loader2, ChevronRight } from "lucide-react";
+import { Users, Crown, Shield, Copy, Check, Share2, Loader2, ChevronRight } from "lucide-react";
 
 import { AuctionLobbySettingsCards } from "./AuctionLobbySettingsCards";
 
@@ -44,7 +44,7 @@ export function AuctionLobbyView({
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto flex flex-col items-center gap-6 p-4 sm:p-6 select-none animate-fadeIn">
+    <div className="w-full max-w-6xl mx-auto flex flex-col items-center gap-6 select-none animate-fadeIn">
       {/* Üst Başlık & Oda Kodu */}
       <div className="flex flex-col sm:flex-row items-center justify-between w-full border-b border-white/10 pb-4 gap-3">
         <div>

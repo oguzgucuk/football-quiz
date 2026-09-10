@@ -92,7 +92,7 @@ export function AuctionSimulationStage({
   // ---------------------------------------------------------------------------
   if (isAllMatchesFinished) {
     return (
-      <div className="w-full max-w-5xl mx-auto flex flex-col gap-6 p-4 sm:p-6 select-none animate-fadeIn">
+      <div className="w-full flex flex-col gap-6 select-none animate-fadeIn">
         <div className="flex flex-col items-center justify-center p-8 rounded-3xl bg-black/60 border border-emerald-500/40 backdrop-blur-2xl text-center shadow-[0_0_60px_rgba(34,197,94,0.2)]">
           <div className="flex size-20 items-center justify-center rounded-3xl bg-amber-500/20 border-2 border-amber-400 text-amber-300 mb-4 shadow-[0_0_30px_rgba(245,158,11,0.4)]">
             <Trophy className="w-10 h-10" />
@@ -105,9 +105,9 @@ export function AuctionSimulationStage({
             ŞAMPİYON: {state.standings[0]?.username || "Kazanan"} 🏆
           </h2>
 
-          <div className="mt-6 grid w-full max-w-4xl gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,1fr)]">
-            <div className="rounded-2xl border border-white/10 bg-black/25 p-3">
-              <p className="mb-2 text-left text-[10px] font-black uppercase tracking-widest text-zinc-400">Puan durumu</p>
+          <div className="mt-6 grid w-full max-w-5xl gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,1fr)]">
+            <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+              <p className="mb-2 text-left text-[11px] font-black uppercase tracking-widest text-zinc-400">Puan durumu</p>
               <StandingsTable standings={state.standings} currentUserId={currentUserId} />
             </div>
             <TournamentPlayerLeaders
@@ -142,10 +142,10 @@ export function AuctionSimulationStage({
   // Simülasyon Sahnesi
   // ---------------------------------------------------------------------------
   return (
-    <div className="w-full max-w-6xl mx-auto flex flex-col gap-4 p-3 sm:p-5 select-none animate-fadeIn">
+    <div className="w-full flex flex-col gap-4 select-none animate-fadeIn">
 
-      {/* ── Tur Başlığı ve Dakika Göstergesi ── */}
-      <div className="flex items-center justify-between px-5 py-3 rounded-2xl bg-black/50 border border-white/10 backdrop-blur-xl">
+      {/* ── Üst Bilgi Barı: Tur Sayacı ve Dakika ── */}
+      <div className="flex items-center justify-between p-4 rounded-2xl bg-black/50 border border-white/10 backdrop-blur-xl">
         <div className="flex items-center gap-3">
           <Swords className="w-5 h-5 text-emerald-400" />
           <span className="text-sm font-black text-white">
@@ -169,7 +169,7 @@ export function AuctionSimulationStage({
 
       {/* ── Eş Zamanlı Maç Kartları ── */}
       {currentRound ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {currentRound.matches.map((match) => (
             <LiveMatchCard
               key={match.matchId}

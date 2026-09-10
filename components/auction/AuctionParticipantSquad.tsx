@@ -25,6 +25,12 @@ interface PositionGroup {
   isGoalkeeper: boolean;
 }
 
+function formatPlayerDisplayName(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length <= 1) return fullName;
+  return `${parts[0][0]}. ${parts.slice(1).join(" ")}`;
+}
+
 export function AuctionParticipantSquad({ squad }: AuctionParticipantSquadProps) {
   const gk: AuctionPlayerCard[] = [];
   const def: AuctionPlayerCard[] = [];
@@ -87,15 +93,15 @@ export function AuctionParticipantSquad({ squad }: AuctionParticipantSquadProps)
 
   return (
     <>
-      <div className="flex flex-col gap-1.5 mt-2.5 pt-2 border-t border-white/10">
+      <div className="flex flex-col gap-2 mt-3 pt-2.5 border-t border-white/10">
         {groups.map((grp) => (
-          <div key={grp.key} className="flex items-center gap-2 text-[11px] min-w-0">
-            <div className="flex items-center gap-1 w-12 shrink-0">
-              <span className="font-mono font-bold text-[10px] text-zinc-400">
+          <div key={grp.key} className="flex items-center gap-2 text-xs min-w-0">
+            <div className="flex items-center gap-1.5 w-14 shrink-0">
+              <span className="font-mono font-black text-[11px] text-zinc-400">
                 {grp.label}
               </span>
               <span
-                className={`font-mono text-[9px] px-1 py-0.2 rounded font-black ${
+                className={`font-mono text-[10px] px-1.5 py-0.5 rounded font-black ${
                   grp.players.length > 0
                     ? "bg-white/10 text-white"
                     : grp.isGoalkeeper
@@ -107,30 +113,32 @@ export function AuctionParticipantSquad({ squad }: AuctionParticipantSquadProps)
               </span>
             </div>
 
-            <div className="flex items-center gap-1 flex-wrap flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap flex-1 min-w-0">
               {grp.players.length > 0 ? (
                 grp.players.map((player, idx) => (
                   <AuctionPlayerMiniCard key={`${player.id}_${idx}`} player={player}>
                     <button
                       type="button"
-                      title="Pozisyonları görmek için tıklayın"
-                      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] ${grp.accentBadge} cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-sm`}
+                      title={`${player.fullName} — Pozisyonları görmek için tıklayın`}
+                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[11px] ${grp.accentBadge} cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-sm`}
                     >
                       {(() => {
                         const pTier = getRatingTier(player.overallPrime);
                         return (
-                          <span className={`font-mono font-black ${pTier.accentText}`}>{player.overallPrime}</span>
+                          <span className={`font-mono font-black ${pTier.accentText}`}>
+                            {player.overallPrime}
+                          </span>
                         );
                       })()}
-                      <span className="truncate max-w-[70px] font-medium">
-                        {player.fullName.split(" ").slice(-1)[0]}
+                      <span className="truncate max-w-[95px] sm:max-w-[130px] font-semibold text-zinc-100">
+                        {formatPlayerDisplayName(player.fullName)}
                       </span>
                     </button>
                   </AuctionPlayerMiniCard>
                 ))
               ) : (
                 <span
-                  className={`inline-flex items-center px-1.5 py-0.5 rounded border text-[9px] font-mono ${grp.emptyBadge}`}
+                  className={`inline-flex items-center px-2 py-0.5 rounded border text-[10px] font-mono ${grp.emptyBadge}`}
                 >
                   {grp.isGoalkeeper ? "⚠️ Kaleci Yok" : "Boş (0)"}
                 </span>

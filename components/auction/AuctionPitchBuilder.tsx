@@ -238,7 +238,7 @@ export function AuctionPitchBuilder({
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto flex flex-col gap-4 p-4 sm:p-6 select-none animate-fadeIn">
+    <div className="w-full flex flex-col gap-5 select-none animate-fadeIn">
       {/* Üst Bilgi Barı */}
       <div className="flex flex-wrap items-center justify-between p-4 rounded-2xl bg-black/50 border border-white/10 backdrop-blur-xl gap-3">
         <div className="flex items-center gap-3">
@@ -335,7 +335,7 @@ export function AuctionPitchBuilder({
         </div>
 
         {/* SAĞ KOLON: FUTBOL SAHASI */}
-        <div className="lg:col-span-8 relative aspect-[7/9] sm:aspect-[4/5] max-h-[620px] w-full rounded-3xl overflow-hidden border-2 border-emerald-500/30 bg-[#0d2a1a] shadow-2xl p-4 flex flex-col justify-between">
+        <div className="lg:col-span-8 relative aspect-[7/9] sm:aspect-[4/5] max-h-[680px] xl:max-h-[740px] w-full rounded-3xl overflow-hidden border-2 border-emerald-500/30 bg-[#0d2a1a] shadow-2xl p-4 flex flex-col justify-between">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_50%,rgba(16,185,129,0.15)_0%,rgba(6,40,24,0.9)_100%)] pointer-events-none" />
           <div className="absolute inset-4 border border-white/20 pointer-events-none rounded-xl" />
           <div className="absolute top-1/2 inset-x-4 h-[1px] bg-white/20 pointer-events-none" />
