@@ -120,7 +120,7 @@ export function AuctionParticipantSquad({ squad }: AuctionParticipantSquadProps)
                     <button
                       type="button"
                       title={`${player.fullName} — Pozisyonları görmek için tıklayın`}
-                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[11px] ${grp.accentBadge} cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-sm`}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs ${grp.accentBadge} cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-sm`}
                     >
                       {(() => {
                         const pTier = getRatingTier(player.overallPrime);
@@ -130,7 +130,7 @@ export function AuctionParticipantSquad({ squad }: AuctionParticipantSquadProps)
                           </span>
                         );
                       })()}
-                      <span className="truncate max-w-[95px] sm:max-w-[130px] font-semibold text-zinc-100">
+                      <span className="truncate max-w-[180px] font-semibold text-zinc-100">
                         {formatPlayerDisplayName(player.fullName)}
                       </span>
                     </button>

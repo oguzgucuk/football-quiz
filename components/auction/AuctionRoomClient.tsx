@@ -77,8 +77,8 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
       <StadiumBackground variant="light" />
 
       {/* Üst Çubuk */}
-      <header className="relative z-20 w-full border-b border-white/10 bg-black/40 backdrop-blur-md px-4 sm:px-8 py-3.5">
-        <div className="w-full max-w-[1720px] mx-auto flex items-center justify-between">
+      <header className="relative z-20 w-full border-b border-white/10 bg-black/40 backdrop-blur-md px-4 sm:px-8 lg:px-12 py-3.5">
+        <div className="w-full flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={() => {
@@ -123,7 +123,7 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
       </header>
 
       {/* Aşama İçeriği */}
-      <div className="relative z-10 flex-1 flex flex-col w-full max-w-[1720px] mx-auto p-3 sm:p-6 lg:p-8">
+      <div className="relative z-10 flex-1 flex flex-col w-full px-4 sm:px-8 lg:px-12 py-4 sm:py-6">
         {state.status === "lobby" && (
           <AuctionLobbyView
             state={state}
