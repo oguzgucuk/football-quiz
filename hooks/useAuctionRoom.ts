@@ -127,6 +127,10 @@ export function useAuctionRoom({ roomId, userId, username }: UseAuctionRoomProps
     [userId, sendMessage]
   );
 
+  const unconfirmLineup = useCallback(() => {
+    sendMessage({ type: "AUCTION_UNCONFIRM_LINEUP", userId });
+  }, [userId, sendMessage]);
+
   const nextSimMatch = useCallback(() => {
     sendMessage({ type: "AUCTION_NEXT_SIM_MATCH", userId });
   }, [userId, sendMessage]);
@@ -157,6 +161,7 @@ export function useAuctionRoom({ roomId, userId, username }: UseAuctionRoomProps
     placeBid,
     passBid,
     confirmLineup,
+    unconfirmLineup,
     nextSimMatch,
     readyForNextSimMatch,
     returnToLobby,

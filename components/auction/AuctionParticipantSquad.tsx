@@ -13,6 +13,7 @@ import { getRatingTier } from "@/lib/game/playerRatingTiers";
 
 interface AuctionParticipantSquadProps {
   squad: AuctionPlayerCard[];
+  variant?: "default" | "large" | "compact";
 }
 
 interface PositionGroup {
@@ -25,7 +26,16 @@ interface PositionGroup {
   isGoalkeeper: boolean;
 }
 
-export function AuctionParticipantSquad({ squad }: AuctionParticipantSquadProps) {
+function formatPlayerDisplayName(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length <= 1) return fullName;
+  return `${parts[0][0]}. ${parts.slice(1).join(" ")}`;
+}
+
+export function AuctionParticipantSquad({ squad, variant = "default" }: AuctionParticipantSquadProps) {
+  const isLarge = variant === "large";
+  const isCompact = variant === "compact";
+
   const gk: AuctionPlayerCard[] = [];
   const def: AuctionPlayerCard[] = [];
   const mid: AuctionPlayerCard[] = [];
@@ -87,15 +97,39 @@ export function AuctionParticipantSquad({ squad }: AuctionParticipantSquadProps)
 
   return (
     <>
-      <div className="flex flex-col gap-1.5 mt-2.5 pt-2 border-t border-white/10">
+      <div
+        className={`flex flex-col border-t border-white/10 ${
+          isLarge ? "gap-2.5 mt-3.5 pt-3.5" : isCompact ? "gap-1 mt-1.5 pt-1.5" : "gap-2 mt-3 pt-2.5"
+        }`}
+      >
         {groups.map((grp) => (
-          <div key={grp.key} className="flex items-center gap-2 text-[11px] min-w-0">
-            <div className="flex items-center gap-1 w-12 shrink-0">
-              <span className="font-mono font-bold text-[10px] text-zinc-400">
+          <div
+            key={grp.key}
+            className={`flex items-center min-w-0 ${
+              isLarge ? "gap-2.5 text-sm" : isCompact ? "gap-1.5 text-[11px]" : "gap-2 text-xs"
+            }`}
+          >
+            {/* Mevki Etiketi ve Sayı */}
+            <div
+              className={`flex items-center shrink-0 ${
+                isLarge ? "w-16 gap-2" : isCompact ? "w-11 gap-1" : "w-14 gap-1.5"
+              }`}
+            >
+              <span
+                className={`font-mono font-black ${
+                  isLarge ? "text-xs sm:text-sm text-zinc-300" : isCompact ? "text-[10px] text-zinc-400" : "text-[11px] text-zinc-400"
+                }`}
+              >
                 {grp.label}
               </span>
               <span
-                className={`font-mono text-[9px] px-1 py-0.2 rounded font-black ${
+                className={`font-mono font-black rounded ${
+                  isLarge
+                    ? "text-xs px-2 py-0.5"
+                    : isCompact
+                    ? "text-[9px] px-1 py-0.2"
+                    : "text-[10px] px-1.5 py-0.5"
+                } ${
                   grp.players.length > 0
                     ? "bg-white/10 text-white"
                     : grp.isGoalkeeper
@@ -107,30 +141,65 @@ export function AuctionParticipantSquad({ squad }: AuctionParticipantSquadProps)
               </span>
             </div>
 
-            <div className="flex items-center gap-1 flex-wrap flex-1 min-w-0">
+            {/* Oyuncu Rozetleri */}
+            <div
+              className={`flex items-center flex-wrap flex-1 min-w-0 ${
+                isLarge ? "gap-2" : isCompact ? "gap-1" : "gap-1.5"
+              }`}
+            >
               {grp.players.length > 0 ? (
                 grp.players.map((player, idx) => (
                   <AuctionPlayerMiniCard key={`${player.id}_${idx}`} player={player}>
                     <button
                       type="button"
-                      title="Pozisyonları görmek için tıklayın"
-                      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] ${grp.accentBadge} cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-sm`}
+                      title={`${player.fullName} — Pozisyonları görmek için tıklayın`}
+                      className={`inline-flex items-center cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-sm ${
+                        grp.accentBadge
+                      } ${
+                        isLarge
+                          ? "gap-2 px-3 py-1 rounded-xl text-xs sm:text-sm font-bold"
+                          : isCompact
+                          ? "gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium shadow-none"
+                          : "gap-1.5 px-2.5 py-1 rounded-lg text-xs"
+                      }`}
                     >
                       {(() => {
                         const pTier = getRatingTier(player.overallPrime);
                         return (
-                          <span className={`font-mono font-black ${pTier.accentText}`}>{player.overallPrime}</span>
+                          <span
+                            className={`font-mono font-black ${pTier.accentText} ${
+                              isLarge ? "text-sm" : isCompact ? "text-[10px]" : "text-xs"
+                            }`}
+                          >
+                            {player.overallPrime}
+                          </span>
                         );
                       })()}
-                      <span className="truncate max-w-[70px] font-medium">
-                        {player.fullName.split(" ").slice(-1)[0]}
+                      <span
+                        className={`truncate font-semibold ${
+                          isLarge
+                            ? "max-w-[200px] text-white"
+                            : isCompact
+                            ? "max-w-[85px] text-zinc-200"
+                            : "max-w-[180px] text-zinc-100"
+                        }`}
+                      >
+                        {formatPlayerDisplayName(player.fullName)}
                       </span>
                     </button>
                   </AuctionPlayerMiniCard>
                 ))
               ) : (
                 <span
-                  className={`inline-flex items-center px-1.5 py-0.5 rounded border text-[9px] font-mono ${grp.emptyBadge}`}
+                  className={`inline-flex items-center font-mono rounded border ${
+                    grp.emptyBadge
+                  } ${
+                    isLarge
+                      ? "text-xs px-2.5 py-0.5"
+                      : isCompact
+                      ? "text-[9px] px-1.5 py-0.2"
+                      : "text-[10px] px-2 py-0.5"
+                  }`}
                 >
                   {grp.isGoalkeeper ? "⚠️ Kaleci Yok" : "Boş (0)"}
                 </span>

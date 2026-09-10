@@ -92,22 +92,22 @@ export function AuctionSimulationStage({
   // ---------------------------------------------------------------------------
   if (isAllMatchesFinished) {
     return (
-      <div className="w-full max-w-5xl mx-auto flex flex-col gap-6 p-4 sm:p-6 select-none animate-fadeIn">
-        <div className="flex flex-col items-center justify-center p-8 rounded-3xl bg-black/60 border border-emerald-500/40 backdrop-blur-2xl text-center shadow-[0_0_60px_rgba(34,197,94,0.2)]">
-          <div className="flex size-20 items-center justify-center rounded-3xl bg-amber-500/20 border-2 border-amber-400 text-amber-300 mb-4 shadow-[0_0_30px_rgba(245,158,11,0.4)]">
-            <Trophy className="w-10 h-10" />
+      <div className="w-full max-w-5xl mx-auto flex flex-col gap-3.5 select-none animate-fadeIn">
+        <div className="flex flex-col items-center justify-center p-4 sm:p-6 rounded-3xl bg-black/60 border border-emerald-500/40 backdrop-blur-2xl text-center shadow-[0_0_60px_rgba(34,197,94,0.2)]">
+          <div className="flex size-14 sm:size-16 items-center justify-center rounded-2xl bg-amber-500/20 border-2 border-amber-400 text-amber-300 mb-2 shadow-[0_0_24px_rgba(245,158,11,0.35)]">
+            <Trophy className="w-7 h-7 sm:w-8 sm:h-8" />
           </div>
 
-          <span className="text-xs font-black uppercase tracking-widest text-emerald-400 bg-emerald-950/80 px-3 py-1 rounded-full border border-emerald-500/30 mb-2">
+          <span className="text-[11px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-950/80 px-2.5 py-0.5 rounded-full border border-emerald-500/30 mb-1.5">
             Müzayede Ligi Tamamlandı
           </span>
-          <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+          <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
             ŞAMPİYON: {state.standings[0]?.username || "Kazanan"} 🏆
           </h2>
 
-          <div className="mt-6 grid w-full max-w-4xl gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,1fr)]">
+          <div className="mt-4 grid w-full gap-3 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,1fr)]">
             <div className="rounded-2xl border border-white/10 bg-black/25 p-3">
-              <p className="mb-2 text-left text-[10px] font-black uppercase tracking-widest text-zinc-400">Puan durumu</p>
+              <p className="mb-1.5 text-left text-[11px] font-black uppercase tracking-widest text-zinc-400">Puan durumu</p>
               <StandingsTable standings={state.standings} currentUserId={currentUserId} />
             </div>
             <TournamentPlayerLeaders
@@ -116,10 +116,10 @@ export function AuctionSimulationStage({
             />
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-xl mt-8">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-md mt-4">
             <button
               onClick={onReturnToLobby}
-              className="w-full sm:w-1/2 py-3.5 px-5 rounded-2xl bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white font-black text-xs uppercase tracking-wider transition-all cursor-pointer shadow-xl flex items-center justify-center gap-2 active:scale-98"
+              className="w-full sm:w-1/2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white font-black text-xs uppercase tracking-wider transition-all cursor-pointer shadow-lg flex items-center justify-center gap-2 active:scale-98"
             >
               <RotateCcw className="w-4 h-4" />
               <span>Lobiye Dön</span>
@@ -127,7 +127,7 @@ export function AuctionSimulationStage({
 
             <button
               onClick={() => router.push("/?tab=play")}
-              className="w-full sm:w-1/2 py-3.5 px-5 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/15 text-zinc-200 hover:text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-98"
+              className="w-full sm:w-1/2 py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-zinc-200 hover:text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-98"
             >
               <Home className="w-4 h-4" />
               <span>Ana Sayfaya Dön</span>
@@ -142,10 +142,10 @@ export function AuctionSimulationStage({
   // Simülasyon Sahnesi
   // ---------------------------------------------------------------------------
   return (
-    <div className="w-full max-w-6xl mx-auto flex flex-col gap-4 p-3 sm:p-5 select-none animate-fadeIn">
+    <div className="w-full flex flex-col gap-4 select-none animate-fadeIn">
 
-      {/* ── Tur Başlığı ve Dakika Göstergesi ── */}
-      <div className="flex items-center justify-between px-5 py-3 rounded-2xl bg-black/50 border border-white/10 backdrop-blur-xl">
+      {/* ── Üst Bilgi Barı: Tur Sayacı ve Dakika ── */}
+      <div className="flex items-center justify-between p-4 rounded-2xl bg-black/50 border border-white/10 backdrop-blur-xl">
         <div className="flex items-center gap-3">
           <Swords className="w-5 h-5 text-emerald-400" />
           <span className="text-sm font-black text-white">
@@ -169,7 +169,7 @@ export function AuctionSimulationStage({
 
       {/* ── Eş Zamanlı Maç Kartları ── */}
       {currentRound ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {currentRound.matches.map((match) => (
             <LiveMatchCard
               key={match.matchId}
@@ -287,7 +287,7 @@ function LiveMatchCard({ match, currentMinute, currentUserId, lineups }: LiveMat
 
   return (
     <div
-      className={`flex flex-col gap-3 p-4 rounded-2xl border backdrop-blur-xl transition-all ${
+      className={`flex flex-col gap-2.5 p-3 sm:p-3.5 rounded-2xl border backdrop-blur-xl transition-all ${
         isMyMatch
           ? "bg-emerald-950/30 border-emerald-500/30 shadow-[0_0_20px_rgba(34,197,94,0.12)]"
           : "bg-black/50 border-white/8"
@@ -335,7 +335,7 @@ function LiveMatchCard({ match, currentMinute, currentUserId, lineups }: LiveMat
       </div>
 
       {/* Event Feed — tüm görünür eventler, en yeni üstte */}
-      <div className="flex flex-col gap-1 max-h-36 overflow-y-auto">
+      <div className="flex flex-col gap-1 max-h-24 sm:max-h-28 overflow-y-auto">
         {visibleEvents.length === 0 ? (
           <div className="text-[10px] text-zinc-600 text-center py-2 font-mono animate-pulse">
             {currentMinute < 6 ? "Maç başlıyor..." : "Maç devam ediyor..."}
@@ -454,14 +454,14 @@ function StandingsTable({
       <table className="w-full text-left text-xs">
         <thead>
           <tr className="border-b border-white/10 text-zinc-400 font-mono text-[11px]">
-            <th className="py-2 px-3">#</th>
-            <th className="py-2 px-3">OYUNCU</th>
-            <th className="py-2 px-2 text-center">O</th>
-            <th className="py-2 px-2 text-center">G</th>
-            <th className="py-2 px-2 text-center">B</th>
-            <th className="py-2 px-2 text-center">M</th>
-            <th className="py-2 px-2 text-center">AV</th>
-            <th className="py-2 px-3 text-right font-black text-emerald-400">P</th>
+            <th className="py-1.5 px-2.5">#</th>
+            <th className="py-1.5 px-2.5">OYUNCU</th>
+            <th className="py-1.5 px-2 text-center">O</th>
+            <th className="py-1.5 px-2 text-center">G</th>
+            <th className="py-1.5 px-2 text-center">B</th>
+            <th className="py-1.5 px-2 text-center">M</th>
+            <th className="py-1.5 px-2 text-center">AV</th>
+            <th className="py-1.5 px-2.5 text-right font-black text-emerald-400">P</th>
           </tr>
         </thead>
         <tbody>
@@ -474,17 +474,17 @@ function StandingsTable({
                   : "text-zinc-300"
               }`}
             >
-              <td className="py-2.5 px-3 font-bold">{idx + 1}</td>
-              <td className="py-2.5 px-3 font-sans font-bold flex items-center gap-1.5">
+              <td className="py-1.5 px-2.5 font-bold">{idx + 1}</td>
+              <td className="py-1.5 px-2.5 font-sans font-bold flex items-center gap-1.5">
                 {row.username}
                 {idx === 0 && <Award className="w-3.5 h-3.5 text-amber-400" />}
               </td>
-              <td className="py-2.5 px-2 text-center">{row.played}</td>
-              <td className="py-2.5 px-2 text-center">{row.won}</td>
-              <td className="py-2.5 px-2 text-center">{row.drawn}</td>
-              <td className="py-2.5 px-2 text-center">{row.lost}</td>
-              <td className="py-2.5 px-2 text-center">{row.goalDiff > 0 ? `+${row.goalDiff}` : row.goalDiff}</td>
-              <td className="py-2.5 px-3 text-right font-black text-emerald-400 text-sm">{row.points}</td>
+              <td className="py-1.5 px-2 text-center">{row.played}</td>
+              <td className="py-1.5 px-2 text-center">{row.won}</td>
+              <td className="py-1.5 px-2 text-center">{row.drawn}</td>
+              <td className="py-1.5 px-2 text-center">{row.lost}</td>
+              <td className="py-1.5 px-2 text-center">{row.goalDiff > 0 ? `+${row.goalDiff}` : row.goalDiff}</td>
+              <td className="py-1.5 px-2.5 text-right font-black text-emerald-400 text-sm">{row.points}</td>
             </tr>
           ))}
         </tbody>
@@ -554,7 +554,7 @@ function LeaderTable({
         <span className="text-[8px] font-black text-zinc-500">{valueLabel}</span>
       </div>
       {players.length ? (
-        <ol className="custom-scrollbar max-h-64 space-y-1 overflow-y-auto pr-1">
+        <ol className="custom-scrollbar max-h-36 sm:max-h-44 space-y-1 overflow-y-auto pr-1">
           {players.map((player, index) => (
             <li key={`${player.teamUserId}:${player.playerName}`} className="grid grid-cols-[16px_minmax(0,1fr)_24px] items-center gap-1 rounded-md px-1 py-1 text-[10px] odd:bg-white/[0.03]">
               <span className={`font-mono font-black ${index === 0 ? "text-amber-300" : "text-zinc-500"}`}>{index + 1}.</span>

@@ -64,6 +64,7 @@ export function createInitialAuctionState(
     standings: [],
     championUserId: null,
     lastSoldEvent: null,
+    salesHistory: [],
   };
 }
 
@@ -198,6 +199,7 @@ export function advanceAuctionCard(state: AuctionRoomState): AuctionRoomState {
     ...state,
     participants: updatedParticipants,
     lastSoldEvent: soldEvent,
+    salesHistory: [...(state.salesHistory || []), soldEvent],
   });
 }
 

@@ -87,6 +87,9 @@ export default class AuctionPartyServer implements Party.Server {
         case "AUCTION_CONFIRM_LINEUP":
           if (msg.lineup) this.handleConfirmLineup(msg.userId, msg.lineup);
           break;
+        case "AUCTION_UNCONFIRM_LINEUP":
+          this.handleUnconfirmLineup(msg.userId);
+          break;
         case "AUCTION_SIM_READY":
           this.handleSimReady(msg.userId);
           break;
@@ -250,6 +253,16 @@ export default class AuctionPartyServer implements Party.Server {
     } else {
       this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
     }
+  }
+
+  private handleUnconfirmLineup(userId: string) {
+    if (!this.state.participants[userId]) return;
+    if (this.state.status !== "tactics") return;
+    this.state.confirmedLineupUserIds = (this.state.confirmedLineupUserIds || []).filter((id) => id !== userId);
+    if (this.state.lineups[userId]) {
+      this.state.lineups[userId].isConfirmed = false;
+    }
+    this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
   }
 
   // ---------------------------------------------------------------------------
