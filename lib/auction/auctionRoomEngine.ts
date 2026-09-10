@@ -215,7 +215,7 @@ function finishOrNextTurn(state: AuctionRoomState): AuctionRoomState {
       currentCard: null,
       currentHighestBid: null,
       confirmedLineupUserIds: [],
-      secondsLeft: 90, // Diziliş ve taktik için 90 saniye
+      secondsLeft: 180, // Diziliş ve taktik için 3 dakika
     };
   }
 
