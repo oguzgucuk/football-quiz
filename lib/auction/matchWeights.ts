@@ -18,6 +18,13 @@ export const DEF_WEIGHTS: Record<PitchPosition, number> = {
   LW: 0.25, RW: 0.25, ST: 0.1, CF: 0.1,
 };
 
+/** Gol pasını kimin hazırlayacağını belirler: hücum ve orta saha katkısının toplamı. */
+export const ASSIST_WEIGHTS: Record<PitchPosition, number> = {
+  GK: 0, CB: 0.15, LB: 0.45, RB: 0.45, LWB: 0.8, RWB: 0.8,
+  CDM: 1.2, CM: 1.35, LM: 1.45, RM: 1.45, CAM: 1.8,
+  LW: 1.75, RW: 1.75, ST: 1.9, CF: 1.9,
+};
+
 export function ratingCurve(rating: number): number {
   return Math.pow(Math.max(0, (rating - 40) / 59), 2.5);
 }

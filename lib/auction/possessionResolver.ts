@@ -1,12 +1,16 @@
 import { MatchEvent, PossessionResult, SquadSlot, TeamLineup } from "./auctionTypes";
-import { ATK_WEIGHTS, DEF_WEIGHTS, MID_WEIGHTS, ratingCurve, sumScore } from "./matchWeights";
+import { ASSIST_WEIGHTS, ATK_WEIGHTS, DEF_WEIGHTS, MID_WEIGHTS, ratingCurve, sumScore } from "./matchWeights";
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
-function weightedPlayer(slots: SquadSlot[], weightFor: (slot: SquadSlot) => number): string | undefined {
+function weightedPlayer(
+  slots: SquadSlot[],
+  weightFor: (slot: SquadSlot) => number,
+  excludedPlayerName?: string
+): string | undefined {
   const candidates = slots.filter((slot) => slot.placedPlayer && slot.targetPosition !== "GK")
     .map((slot) => ({ name: slot.placedPlayer!.fullName, weight: weightFor(slot) }))
-    .filter((candidate) => candidate.weight > 0);
+    .filter((candidate) => candidate.weight > 0 && candidate.name !== excludedPlayerName);
   const total = candidates.reduce((sum, candidate) => sum + candidate.weight, 0);
   if (!total) return undefined;
   let roll = Math.random() * total;
@@ -40,8 +44,12 @@ export function pickGoalScorer(atkSlots: SquadSlot[]): string {
   return weightedPlayer(atkSlots, (slot) => ratingCurve(slot.effectiveRating) * ATK_WEIGHTS[slot.targetPosition]) || "Futbolcu";
 }
 
-export function pickMidfieldCarrier(atkSlots: SquadSlot[]): string | undefined {
-  return weightedPlayer(atkSlots, (slot) => ratingCurve(slot.effectiveRating) * MID_WEIGHTS[slot.targetPosition]);
+export function pickAssistProvider(atkSlots: SquadSlot[], goalScorerName: string): string | undefined {
+  return weightedPlayer(
+    atkSlots,
+    (slot) => ratingCurve(slot.effectiveRating) * ASSIST_WEIGHTS[slot.targetPosition],
+    goalScorerName
+  );
 }
 
 function pickDefender(defSlots: SquadSlot[]): string | undefined {
@@ -54,7 +62,6 @@ export function resolvePossession(minute: number, home: TeamLineup, homeUsername
   const defending = homeAttacks ? away : home;
   const attackingUsername = homeAttacks ? homeUsername : awayUsername;
   const defendingUsername = homeAttacks ? awayUsername : homeUsername;
-  const carrier = pickMidfieldCarrier(attacking.slots);
   const defense = resolveDefense(attacking.slots, defending.slots);
 
   if (!defense.beaten) {
@@ -73,7 +80,7 @@ export function resolvePossession(minute: number, home: TeamLineup, homeUsername
   }
 
   const goalScorerName = pickGoalScorer(attacking.slots);
-  const assistPlayerName = carrier && carrier !== goalScorerName ? carrier : undefined;
+  const assistPlayerName = pickAssistProvider(attacking.slots, goalScorerName);
   const event: MatchEvent = { minute, type: "goal", teamUserId: attacking.userId, playerName: goalScorerName, assistPlayerName,
     description: `⚽ GOL! ${goalScorerName} (${attackingUsername}) ${assistPlayerName ? `— asist: ${assistPlayerName}!` : "müthiş bir bitirişle skoru güncelledi!"}` };
   return { attackingTeamUserId: attacking.userId, isGoal: true, gkSaved: false, defenseBlocked: false, goalScorerName, assistPlayerName, gkName, event };
