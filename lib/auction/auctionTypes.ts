@@ -22,7 +22,10 @@ export type PitchPosition =
   | "ST"
   | "CF";
 
-export type FormationName = "4-3-3" | "4-2-3-1" | "5-4-1" | "3-5-2" | "4-4-2";
+export type FormationName =
+  | "3-1-4-2" | "3-4-1-2" | "3-4-2-1" | "3-4-3" | "3-5-2"
+  | "4-1-2-1-2" | "4-1-2-1-2(2)" | "4-1-3-2" | "4-1-4-1" | "4-2-1-3" | "4-2-2-2" | "4-2-3-1" | "4-2-3-1(2)" | "4-2-4" | "4-3-1-2" | "4-3-2-1" | "4-3-3" | "4-3-3(2)" | "4-3-3(3)" | "4-3-3(4)" | "4-4-1-1(2)" | "4-4-2" | "4-4-2(2)" | "4-5-1" | "4-5-1(2)"
+  | "5-2-1-2" | "5-2-3" | "5-3-2" | "5-4-1";
 
 export interface AuctionPlayerCard {
   id: string;
@@ -82,15 +85,6 @@ export interface TeamLineup {
   formation: FormationName;
   slots: SquadSlot[];
   teamOvr: number;
-  rawDefPower: number;
-  rawMidPower: number;
-  rawFwdPower: number;
-  effectiveAtkPower: number;
-  effectiveDefPower: number;
-  /** En yüksek reytingli forvet oyuncusunun efektif reytingi (parlama mekaniği için). */
-  starAttackerRating: number;
-  /** Yıldız forvet oyuncusunun tam adı (parlama eventi anlatısı için). */
-  starAttackerName: string;
   isConfirmed: boolean;
 }
 
@@ -99,9 +93,28 @@ export interface MatchEvent {
   type: "goal" | "save" | "chance" | "attack_start";
   teamUserId: string;
   playerName?: string;
+  assistPlayerName?: string;
   description: string;
-  /** Bireysel parlama anıyla (yıldız oyuncu tek başına bitirdi) üretilen gol ise true. */
-  brilliance?: boolean;
+}
+
+export interface PossessionResult {
+  attackingTeamUserId: string;
+  isGoal: boolean;
+  gkSaved: boolean;
+  defenseBlocked: boolean;
+  goalScorerName?: string;
+  assistPlayerName?: string;
+  gkName?: string;
+  defenderName?: string;
+  event: MatchEvent;
+}
+
+export interface PlayerMatchStat {
+  playerName: string;
+  teamUserId: string;
+  goals: number;
+  assists: number;
+  saves: number;
 }
 
 export interface MatchSimulationResult {
@@ -115,6 +128,7 @@ export interface MatchSimulationResult {
   events: MatchEvent[];
   winnerUserId: string | null;
   isFinished: boolean;
+  playerStats: Record<string, PlayerMatchStat>;
 }
 
 /**

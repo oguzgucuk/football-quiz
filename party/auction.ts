@@ -90,6 +90,9 @@ export default class AuctionPartyServer implements Party.Server {
         case "AUCTION_SIM_READY":
           this.handleSimReady(msg.userId);
           break;
+        case "AUCTION_ROUND_COMPLETE":
+          this.handleRoundComplete(msg.userId);
+          break;
         case "AUCTION_NEXT_SIM_MATCH":
           this.handleNextRound(msg.userId);
           break;
@@ -131,6 +134,17 @@ export default class AuctionPartyServer implements Party.Server {
 
     if (!this.state.hostUserId) {
       this.state.hostUserId = userId;
+    }
+
+    if (!this.state.participants[userId] && this.state.status !== "lobby") {
+      // Oyun başladıktan sonra bağlananlar yalnızca mevcut durumu izler.
+      // Katılımcı listesine eklenmedikleri için bütçe, teklif ve kadro akışını etkileyemezler.
+      sender.send(JSON.stringify({
+        type: "AUCTION_STATE_SYNC",
+        state: this.state,
+        viewerMode: true,
+      }));
+      return;
     }
 
     if (!this.state.participants[userId]) {
@@ -194,7 +208,7 @@ export default class AuctionPartyServer implements Party.Server {
   }
 
   private handleBid(sender: Party.Connection, userId: string, amount: number) {
-    if (this.state.status !== "auction") return;
+    if (this.state.status !== "auction" || !this.state.participants[userId]) return;
     const res = applyBid(this.state, userId, amount);
     if (!res.success) {
       sender.send(JSON.stringify({ type: "AUCTION_ERROR", message: res.error }));
@@ -205,7 +219,7 @@ export default class AuctionPartyServer implements Party.Server {
   }
 
   private handlePass(userId: string) {
-    if (this.state.status !== "auction") return;
+    if (this.state.status !== "auction" || !this.state.participants[userId]) return;
     this.state = applyPass(this.state, userId);
 
     const activeBidders = Object.values(this.state.participants).filter((p) => p.squad.length < 11);
@@ -218,6 +232,7 @@ export default class AuctionPartyServer implements Party.Server {
   }
 
   private handleConfirmLineup(userId: string, lineup: TeamLineup) {
+    if (!this.state.participants[userId]) return;
     if (!this.state.confirmedLineupUserIds) {
       this.state.confirmedLineupUserIds = [];
     }
@@ -275,48 +290,21 @@ export default class AuctionPartyServer implements Party.Server {
     this.state.secondsLeft = 30;
 
     this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
-    this.startRoundTimer();
   }
 
-  // ---------------------------------------------------------------------------
-  // Tur Timer — Tüm Aktif Maçlar Aynı Dakikada İlerler
-  // ---------------------------------------------------------------------------
+  private handleRoundComplete(userId: string) {
+    // Client'tan gelen "round bitti" bildirimi.
+    // Server'da currentRoundMinute client-side timer tarafından artırılmaz —
+    // sadece client local state'te artıyor. Dolayısıyla server'daki değer
+    // hep 0'da kalır; >= 90 kontrolü güvenilmez. Bunun yerine
+    // simReadyUserIds ile duplicate'i engelliyoruz (aşağıdaki handleSimReady ile aynı mantık).
+    if (!this.state.participants[userId] || this.state.status !== "simulation") return;
 
-  private startRoundTimer() {
-    if (this.timerInterval) clearInterval(this.timerInterval);
-
-    this.timerInterval = setInterval(() => {
-      if (this.state.status !== "simulation") {
-        if (this.timerInterval) clearInterval(this.timerInterval);
-        return;
-      }
-
-      if (this.state.currentRoundMinute < 90) {
-        this.state.currentRoundMinute = Math.min(90, this.state.currentRoundMinute + 6);
-        // Eski alanı da güncelle (geriye dönük uyum)
-        this.state.currentSimMinute = this.state.currentRoundMinute;
-
-        this.broadcast({
-          type: "AUCTION_SIM_TICK",
-          currentMinute: this.state.currentRoundMinute,
-          currentRoundIndex: this.state.currentRoundIndex,
-          // Eski alan (geriye dönük uyum)
-          currentMatchIndex: this.state.currentSimMatchIndex,
-        });
-
-        if (this.state.currentRoundMinute >= 90) {
-          if (this.timerInterval) clearInterval(this.timerInterval);
-          this.updateStandingsAfterRound();
-          this.broadcast({
-            type: "AUCTION_SIM_ROUND_END",
-            currentRoundIndex: this.state.currentRoundIndex,
-          });
-          this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
-        }
-      } else {
-        if (this.timerInterval) clearInterval(this.timerInterval);
-      }
-    }, 2000); // 2 saniye tick → ~30 saniyede 90dk tamamlanır
+    // Puan tablosunu güncelle (idempotent — birden fazla çağrıda sorun yok)
+    this.state.currentRoundMinute = 90;
+    this.state.currentSimMinute = 90;
+    this.updateStandingsAfterRound();
+    this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
   }
 
   // ---------------------------------------------------------------------------
@@ -343,7 +331,7 @@ export default class AuctionPartyServer implements Party.Server {
   // ---------------------------------------------------------------------------
 
   private handleSimReady(userId: string) {
-    if (this.state.status !== "simulation" || this.state.currentRoundMinute < 90) return;
+    if (!this.state.participants[userId] || this.state.status !== "simulation" || this.state.currentRoundMinute < 90) return;
     if (!this.state.simReadyUserIds) {
       this.state.simReadyUserIds = [];
     }
@@ -360,6 +348,7 @@ export default class AuctionPartyServer implements Party.Server {
   }
 
   private handleNextRound(userId?: string) {
+    if (userId && !this.state.participants[userId]) return;
     if (this.state.status !== "simulation" || this.state.currentRoundMinute < 90) return;
 
     const activeUids = Object.keys(this.state.participants).filter((id) => Boolean(id && id.trim()));
@@ -389,7 +378,6 @@ export default class AuctionPartyServer implements Party.Server {
       this.state.currentSimMatchIndex = roundStartMatchIndex;
 
       this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
-      this.startRoundTimer();
     } else {
       // Tüm turlar tamamlandı
       this.state.status = "finished";

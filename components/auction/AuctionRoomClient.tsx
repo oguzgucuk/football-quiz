@@ -40,6 +40,7 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
     errorMessage,
     toastMessage,
     roomClosedReason,
+    isSpectator,
     updateSettings,
     startGame,
     placeBid,
@@ -95,6 +96,11 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
         </div>
 
         <div className="flex items-center gap-3">
+          {isSpectator && (
+            <div className="px-3 py-1 rounded-xl bg-sky-950/60 border border-sky-400/30 text-sky-200 font-mono text-xs font-bold">
+              👁 İzliyorsunuz
+            </div>
+          )}
           {myParticipant && (
             <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-amber-950/40 border border-amber-500/30 text-amber-400 font-mono text-xs font-bold">
               <span>Bütçe:</span>
@@ -133,10 +139,11 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
             errorMessage={errorMessage}
             onPlaceBid={placeBid}
             onPass={passBid}
+            isSpectator={isSpectator}
           />
         )}
 
-        {state.status === "tactics" && (
+        {state.status === "tactics" && !isSpectator && (
           <AuctionPitchBuilder
             userId={currentUserId}
             squad={myParticipant?.squad || []}
@@ -149,10 +156,19 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
           />
         )}
 
+        {state.status === "tactics" && isSpectator && (
+          <div className="mx-auto max-w-md rounded-3xl border border-sky-400/30 bg-slate-950/70 p-8 text-center shadow-2xl backdrop-blur-xl">
+            <div className="mb-3 text-3xl">👁</div>
+            <h2 className="text-lg font-black text-white">Dizilişler hazırlanıyor</h2>
+            <p className="mt-2 text-sm text-zinc-300">Bu turu seyirci olarak izliyorsunuz. Maç başladığında canlı simülasyon otomatik açılacak.</p>
+          </div>
+        )}
+
         {(state.status === "simulation" || state.status === "finished") && (
           <AuctionSimulationStage
             state={state}
             currentUserId={currentUserId}
+            isSpectator={isSpectator}
             onNextMatch={nextSimMatch}
             onReadyForNextMatch={readyForNextSimMatch}
             onReturnToLobby={returnToLobby}

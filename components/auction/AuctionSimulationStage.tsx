@@ -25,10 +25,12 @@ import {
   Eye,
   Swords,
 } from "lucide-react";
+import { MatchLineupDrawer } from "./MatchLineupDrawer";
 
 interface AuctionSimulationStageProps {
   state: AuctionRoomState;
   currentUserId: string;
+  isSpectator?: boolean;
   onNextMatch: () => void;
   onReadyForNextMatch: () => void;
   onReturnToLobby: () => void;
@@ -37,6 +39,7 @@ interface AuctionSimulationStageProps {
 export function AuctionSimulationStage({
   state,
   currentUserId,
+  isSpectator = false,
   onNextMatch,
   onReadyForNextMatch,
   onReturnToLobby,
@@ -44,7 +47,7 @@ export function AuctionSimulationStage({
   const router = useRouter();
 
   const isAllMatchesFinished = state.status === "finished";
-  const rounds = state.simulationRounds || [];
+  const rounds = state.simulationRounds;
   const currentRoundIndex = state.currentRoundIndex ?? 0;
   const currentRoundMinute = state.currentRoundMinute ?? state.currentSimMinute ?? 0;
   const currentRound = rounds[currentRoundIndex];
@@ -64,6 +67,7 @@ export function AuctionSimulationStage({
   // Bye oyuncusu — bu turda oynamayan kişi
   const byeUserId = currentRound?.byeUserId ?? null;
   const byeUsername = byeUserId ? state.participants[byeUserId]?.username : null;
+  const viewedMatch = currentRound?.matches.find((match) => match.homeUserId === currentUserId || match.awayUserId === currentUserId) || currentRound?.matches[0];
 
   // Puan tablosu: sadece tamamlanmış turlar dahil (spoiler yok)
   const currentStandings = useMemo(() => {
@@ -157,6 +161,15 @@ export function AuctionSimulationStage({
         </div>
       </div>
 
+      {viewedMatch && <MatchLineupDrawer
+        homeName={viewedMatch.homeUsername}
+        homeLineup={state.lineups[viewedMatch.homeUserId]}
+        awayName={viewedMatch.awayUsername}
+        awayLineup={state.lineups[viewedMatch.awayUserId]}
+        currentUserId={currentUserId}
+        homeUserId={viewedMatch.homeUserId}
+      />}
+
       {/* ── Eş Zamanlı Maç Kartları ── */}
       {currentRound ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -183,7 +196,7 @@ export function AuctionSimulationStage({
               : "Son Tur Tamamlandı — Lig Bitti!"}
           </span>
 
-          <div className="flex flex-wrap items-center justify-center gap-3 w-full">
+          {!isSpectator && <div className="flex flex-wrap items-center justify-center gap-3 w-full">
             <button
               onClick={onReadyForNextMatch}
               disabled={isMyReady}
@@ -216,9 +229,9 @@ export function AuctionSimulationStage({
                 <ChevronRight className="w-4 h-4 stroke-[3]" />
               </button>
             )}
-          </div>
+          </div>}
 
-          <div className="flex items-center gap-2 text-xs font-mono font-bold text-zinc-400">
+          {!isSpectator && <div className="flex items-center gap-2 text-xs font-mono font-bold text-zinc-400">
             <span className="text-emerald-400 font-extrabold text-sm">{readyCount}</span>
             <span>/</span>
             <span className="text-white font-extrabold text-sm">{totalPlayers}</span>
@@ -228,7 +241,9 @@ export function AuctionSimulationStage({
                 (Herkes hazır, başlanıyor...)
               </span>
             )}
-          </div>
+          </div>}
+
+          <RoundHighlights matches={currentRound?.matches || []} lineups={state.lineups} />
         </div>
       )}
 
@@ -254,21 +269,22 @@ interface LiveMatchCardProps {
 }
 
 function LiveMatchCard({ match, currentMinute, currentUserId }: LiveMatchCardProps) {
-  // Görünen eventler: sadece bu dakikaya kadar olanlar
-  const visibleEvents = match.events.filter((e) => e.minute <= currentMinute);
+  // Görünen eventler: sadece bu dakikaya kadar olanlar (kronolojik ters sıra — en yeni üstte)
+  const visibleEvents = match.events
+    .filter((e) => e.minute <= currentMinute)
+    .slice()
+    .reverse();
 
   // Canlı skor
-  const homeGoals = visibleEvents.filter(
-    (e) => e.type === "goal" && e.teamUserId === match.homeUserId
+  const homeGoals = match.events.filter(
+    (e) => e.type === "goal" && e.teamUserId === match.homeUserId && e.minute <= currentMinute
   );
-  const awayGoals = visibleEvents.filter(
-    (e) => e.type === "goal" && e.teamUserId === match.awayUserId
+  const awayGoals = match.events.filter(
+    (e) => e.type === "goal" && e.teamUserId === match.awayUserId && e.minute <= currentMinute
   );
 
   const isMyMatch = match.homeUserId === currentUserId || match.awayUserId === currentUserId;
-
-  // Son event (flash bildirim)
-  const latestEvent = visibleEvents[visibleEvents.length - 1];
+  const latestGoal = visibleEvents.find((e) => e.type === "goal");
 
   return (
     <div
@@ -285,13 +301,16 @@ function LiveMatchCard({ match, currentMinute, currentUserId }: LiveMatchCardPro
           <span className={`text-sm font-black truncate max-w-[120px] ${isMyMatch && match.homeUserId === currentUserId ? "text-emerald-300" : "text-white"}`}>
             {match.homeUsername}
           </span>
-          {/* Golcüler */}
           <GoalScorerList goals={homeGoals} />
         </div>
 
         {/* Skor */}
         <div className="col-span-1 flex items-center justify-center">
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-black/70 border border-white/15 font-mono font-black text-xl text-emerald-300">
+          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-xl border font-mono font-black text-xl transition-all ${
+            latestGoal
+              ? "bg-amber-950/60 border-amber-500/40 text-amber-300 scale-110"
+              : "bg-black/70 border-white/15 text-emerald-300"
+          }`}>
             <span>{homeGoals.length}</span>
             <span className="text-zinc-600">-</span>
             <span>{awayGoals.length}</span>
@@ -303,27 +322,88 @@ function LiveMatchCard({ match, currentMinute, currentUserId }: LiveMatchCardPro
           <span className={`text-sm font-black truncate max-w-[120px] ${isMyMatch && match.awayUserId === currentUserId ? "text-emerald-300" : "text-white"}`}>
             {match.awayUsername}
           </span>
-          {/* Golcüler */}
           <GoalScorerList goals={awayGoals} />
         </div>
       </div>
 
-      {/* Son Event Flash Bandı */}
-      {latestEvent && (
-        <div
-          className={`text-[11px] font-bold px-3 py-1.5 rounded-xl text-center transition-all ${
-            latestEvent.type === "goal"
-              ? "text-amber-300 bg-amber-950/60 border border-amber-500/40 animate-bounce"
-              : latestEvent.type === "save"
-              ? "text-blue-300 bg-blue-950/50 border border-blue-500/30"
-              : "text-zinc-400 bg-black/30 border border-white/5"
-          }`}
-        >
-          [{latestEvent.minute}&apos;] {latestEvent.description}
-        </div>
-      )}
+      {/* Event Feed — tüm görünür eventler, en yeni üstte */}
+      <div className="flex flex-col gap-1 max-h-36 overflow-y-auto">
+        {visibleEvents.length === 0 ? (
+          <div className="text-[10px] text-zinc-600 text-center py-2 font-mono animate-pulse">
+            {currentMinute < 6 ? "Maç başlıyor..." : "Maç devam ediyor..."}
+          </div>
+        ) : (
+          visibleEvents.map((event, index) => (
+            <div
+              key={`${event.minute}-${event.type}-${index}`}
+              className={`text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition-all ${
+                event.type === "goal" && index === 0
+                  ? "text-amber-200 bg-amber-950/70 border border-amber-500/50 animate-bounce"
+                  : event.type === "goal"
+                  ? "text-amber-300/80 bg-amber-950/40 border border-amber-500/20"
+                  : event.type === "save"
+                  ? "text-sky-300 bg-sky-950/40 border border-sky-500/20"
+                  : "text-zinc-400 bg-black/20 border border-white/5"
+              }`}
+            >
+              <span className="font-mono text-zinc-500 mr-1.5">{event.minute}&apos;</span>
+              {event.description}
+            </div>
+          ))
+        )}
+      </div>
+
+      {currentMinute >= 90 && <MatchSummary match={match} />}
     </div>
   );
+}
+
+function MatchSummary({ match }: { match: MatchSimulationResult }) {
+  const stats = Object.values(match.playerStats || {});
+  const topPlayer = [...stats].sort((a, b) => (b.goals + b.assists) - (a.goals + a.assists) || b.saves - a.saves)[0];
+  const saves = stats.filter((stat) => stat.saves > 0);
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/35 p-3 text-[10px]">
+      <p className="mb-1 font-black uppercase tracking-wider text-amber-300">Maç Sonu</p>
+      {topPlayer && <p className="text-zinc-200">⭐ En iyi oyuncu: <span className="font-bold text-white">{topPlayer.playerName}</span> ({topPlayer.goals + topPlayer.assists} gol katkısı)</p>}
+      {saves.length > 0 && <p className="mt-1 text-sky-200">🧤 {saves.map((stat) => `${stat.playerName} — ${stat.saves} kurtarış`).join(", ")}</p>}
+    </div>
+  );
+}
+
+function RoundHighlights({ matches, lineups }: { matches: MatchSimulationResult[]; lineups: AuctionRoomState["lineups"] }) {
+  const totals = new Map<string, { name: string; goals: number; assists: number; saves: number }>();
+  for (const match of matches) {
+    for (const stat of Object.values(match.playerStats || {})) {
+      const current = totals.get(`${stat.teamUserId}:${stat.playerName}`) || { name: stat.playerName, goals: 0, assists: 0, saves: 0 };
+      current.goals += stat.goals;
+      current.assists += stat.assists;
+      current.saves += stat.saves;
+      totals.set(`${stat.teamUserId}:${stat.playerName}`, current);
+    }
+  }
+  const leaders = [...totals.values()];
+  const topGoals = [...leaders].sort((a, b) => b.goals - a.goals)[0];
+  const topAssists = [...leaders].sort((a, b) => b.assists - a.assists)[0];
+  const surprise = matches
+    .filter((match) => match.winnerUserId)
+    .map((match) => {
+      const winnerIsHome = match.winnerUserId === match.homeUserId;
+      const winnerOvr = lineups[winnerIsHome ? match.homeUserId : match.awayUserId]?.teamOvr || 0;
+      const loserOvr = lineups[winnerIsHome ? match.awayUserId : match.homeUserId]?.teamOvr || 0;
+      return { match, difference: loserOvr - winnerOvr };
+    })
+    .filter((item) => item.difference > 0)
+    .sort((a, b) => b.difference - a.difference)[0];
+  if (!topGoals) return null;
+  return <div className="w-full rounded-xl border border-amber-500/20 bg-amber-950/20 p-3 text-center text-[11px] text-zinc-200">
+    <p className="mb-1 font-black uppercase tracking-wider text-amber-300">Turun Öne Çıkanları</p>
+    <p>
+      {topGoals?.goals ? `⚽ ${topGoals.name}: ${topGoals.goals} gol` : ""}
+      {topAssists?.assists ? ` · 🎯 ${topAssists.name}: ${topAssists.assists} asist` : ""}
+    </p>
+    {surprise && <p className="mt-1 text-emerald-200">✨ Sürpriz: {surprise.match.homeUsername} {surprise.match.homeScore}-{surprise.match.awayScore} {surprise.match.awayUsername}</p>}
+  </div>;
 }
 
 // ---------------------------------------------------------------------------
@@ -339,15 +419,8 @@ function GoalScorerList({ goals }: GoalScorerListProps) {
     return <span className="text-[10px] text-zinc-600 font-mono h-4"> </span>;
   }
 
-  // Golcüleri grupla: "Messi (2), Ronaldo" formatı
-  const scorerCounts = goals.reduce<Record<string, number>>((acc, g) => {
-    const name = g.playerName || "—";
-    acc[name] = (acc[name] || 0) + 1;
-    return acc;
-  }, {});
-
-  const formatted = Object.entries(scorerCounts)
-    .map(([name, count]) => (count > 1 ? `${name} (${count})` : name))
+  const formatted = goals
+    .map((goal) => `${goal.playerName || "—"}${goal.assistPlayerName ? ` (a: ${goal.assistPlayerName})` : ""}`)
     .join(", ");
 
   return (

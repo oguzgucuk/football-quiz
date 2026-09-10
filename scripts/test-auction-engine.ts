@@ -78,8 +78,8 @@ async function runTests() {
   const teamA = createMockLineup("user_a", 88);
   const teamB = createMockLineup("user_b", 80);
 
-  console.log(`Takım A Hatları: FOR: ${teamA.rawFwdPower}, ORT: ${teamA.rawMidPower}, DEF: ${teamA.rawDefPower}`);
-  console.log(`Takım B Hatları: FOR: ${teamB.rawFwdPower}, ORT: ${teamB.rawMidPower}, DEF: ${teamB.rawDefPower}`);
+  console.log(`Takım A OVR: ${teamA.teamOvr}`);
+  console.log(`Takım B OVR: ${teamB.teamOvr}`);
 
   const match = simulateMatch("m1", teamA, "Galatasaray", teamB, "Fenerbahçe");
   console.log(`\n🏆 Maç Sonucu: Galatasaray ${match.homeScore} - ${match.awayScore} Fenerbahçe`);
@@ -88,6 +88,14 @@ async function runTests() {
   match.events.slice(0, 5).forEach((e) => {
     console.log(`  [${e.minute}'] (${e.type.toUpperCase()}) ${e.description}`);
   });
+
+  const samples = Array.from({ length: 100 }, (_, index) =>
+    simulateMatch(`sample_${index}`, teamA, "Galatasaray", teamB, "Fenerbahçe")
+  );
+  const homeWins = samples.filter((result) => result.winnerUserId === teamA.userId).length;
+  const awayWins = samples.filter((result) => result.winnerUserId === teamB.userId).length;
+  const draws = samples.length - homeWins - awayWins;
+  console.log(`100 maçlık dağılım: güçlü takım ${homeWins} galibiyet, zayıf takım ${awayWins} galibiyet, ${draws} beraberlik.`);
 
   console.log("\n==========================================");
   console.log("🧪 4. LİG FİKSTÜRÜ VE PUAN DURUMU TESTİ (3 Oyuncu)");

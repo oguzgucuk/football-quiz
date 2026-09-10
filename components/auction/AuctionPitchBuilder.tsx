@@ -21,6 +21,12 @@ import { AuctionSquadList } from "./AuctionSquadList";
 import { AuctionPlayerDetailModal } from "./AuctionPlayerDetailModal";
 import { CheckCircle2 } from "lucide-react";
 
+const FORMATION_GROUPS: Array<{ label: string; formations: FormationName[] }> = [
+  { label: "3'lü Taktikler", formations: ["3-1-4-2", "3-4-1-2", "3-4-2-1", "3-4-3", "3-5-2"] },
+  { label: "4'lü Taktikler", formations: ["4-1-2-1-2", "4-1-2-1-2(2)", "4-1-3-2", "4-1-4-1", "4-2-1-3", "4-2-2-2", "4-2-3-1", "4-2-3-1(2)", "4-2-4", "4-3-1-2", "4-3-2-1", "4-3-3", "4-3-3(2)", "4-3-3(3)", "4-3-3(4)", "4-4-1-1(2)", "4-4-2", "4-4-2(2)", "4-5-1", "4-5-1(2)"] },
+  { label: "5'li Taktikler", formations: ["5-2-1-2", "5-2-3", "5-3-2", "5-4-1"] },
+];
+
 interface AuctionPitchBuilderProps {
   userId: string;
   squad: AuctionPlayerCard[];
@@ -45,6 +51,7 @@ export function AuctionPitchBuilder({
   // Detay Modalı (Pozisyon İnceleme)
   const [inspectingPlayer, setInspectingPlayer] = useState<AuctionPlayerCard | null>(null);
   const [inspectingSlot, setInspectingSlot] = useState<SquadSlot | null>(null);
+  const [openFormationGroup, setOpenFormationGroup] = useState("4'lü Taktikler");
 
   // Sürükle-Bırak Durumu
   const [draggedPlayerId, setDraggedPlayerId] = useState<string | null>(null);
@@ -223,17 +230,8 @@ export function AuctionPitchBuilder({
           </span>
         </div>
 
-        {/* Hat Güçleri Sayaçları */}
+        {/* Takım Reytingi */}
         <div className="flex items-center gap-2 sm:gap-4 font-mono text-xs">
-          <span className="px-2.5 py-1 rounded-lg bg-red-950/40 border border-red-500/30 text-red-300">
-            FOR: <strong>{lineup.rawFwdPower}</strong>
-          </span>
-          <span className="px-2.5 py-1 rounded-lg bg-amber-950/40 border border-amber-500/30 text-amber-300">
-            ORT: <strong>{lineup.rawMidPower}</strong>
-          </span>
-          <span className="px-2.5 py-1 rounded-lg bg-blue-950/40 border border-blue-500/30 text-blue-300">
-            DEF: <strong>{lineup.rawDefPower}</strong>
-          </span>
           <span className="px-3 py-1 rounded-lg bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 font-black">
             GEN: {lineup.teamOvr}
           </span>
@@ -249,20 +247,18 @@ export function AuctionPitchBuilder({
             <span className="text-[11px] font-extrabold uppercase tracking-widest text-zinc-400 block mb-2.5">
               Diziliş Seçimi
             </span>
-            <div className="grid grid-cols-3 gap-2">
-              {(["4-3-3", "4-2-3-1", "5-4-1", "3-5-2", "4-4-2"] as FormationName[]).map((f) => (
-                <button
-                  key={f}
-                  onClick={() => handleFormationChange(f)}
-                  className={`py-2 px-2 rounded-xl text-xs font-mono font-bold border transition-all cursor-pointer ${
-                    formation === f
-                      ? "bg-emerald-600 text-white border-emerald-400 shadow-md shadow-emerald-950"
-                      : "bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:text-white"
-                  }`}
-                >
-                  {f}
-                </button>
-              ))}
+            <div className="flex flex-col gap-2">
+              {FORMATION_GROUPS.map((group) => {
+                const isOpen = openFormationGroup === group.label;
+                return <div key={group.label} className="rounded-xl border border-white/10 bg-black/25 overflow-hidden">
+                  <button type="button" onClick={() => setOpenFormationGroup(isOpen ? "" : group.label)} className="flex w-full items-center justify-between px-3 py-2.5 text-left text-xs font-black text-zinc-200 hover:bg-white/5">
+                    <span>{group.label}</span><span className="text-emerald-400">{isOpen ? "−" : "+"}</span>
+                  </button>
+                  {isOpen && <div className="grid grid-cols-2 gap-1.5 border-t border-white/10 p-2">
+                    {group.formations.map((f) => <button key={f} onClick={() => handleFormationChange(f)} className={`rounded-lg px-1 py-2 text-[11px] font-mono font-bold transition-all ${formation === f ? "bg-emerald-600 text-white shadow-md" : "bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white"}`}>{f}</button>)}
+                  </div>}
+                </div>;
+              })}
             </div>
           </div>
 

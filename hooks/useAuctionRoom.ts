@@ -24,6 +24,7 @@ export function useAuctionRoom({ roomId, userId, username }: UseAuctionRoomProps
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [roomClosedReason, setRoomClosedReason] = useState<string | null>(null);
+  const [isSpectator, setIsSpectator] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
 
   const sendMessage = useCallback((payload: object) => {
@@ -54,7 +55,7 @@ export function useAuctionRoom({ roomId, userId, username }: UseAuctionRoomProps
     socket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        handleIncomingMessage(data, setState, setErrorMessage, setToastMessage, setRoomClosedReason);
+        handleIncomingMessage(data, setState, setIsSpectator, setErrorMessage, setToastMessage, setRoomClosedReason);
       } catch (err) {
         console.error("[AuctionSocket] Parse hatası:", err);
       }
@@ -69,6 +70,33 @@ export function useAuctionRoom({ roomId, userId, username }: UseAuctionRoomProps
       wsRef.current = null;
     };
   }, [roomId, userId, username, sendMessage]);
+
+  useEffect(() => {
+    // Simülasyon dışında veya zaten bitmiş round'da timer başlatma
+    if (state.status !== "simulation") return;
+
+    // Round zaten 90'a ulaşmışsa (server STATE_SYNC ile 90 geldiyse) — timer gereksiz
+    if (state.currentRoundMinute >= 90) return;
+
+    // Her round başlangıcında (currentRoundIndex değişiminde) interval sıfırlanır.
+    // state.currentRoundMinute dependency'e eklenmez — aksi takdirde her 2 saniyede
+    // interval temizlenip yeniden başlatılır ve race condition oluşur.
+    const interval = window.setInterval(() => {
+      setState((previous) => {
+        // Closure içinde güncel state'e bak — stale capture riski yok
+        if (previous.status !== "simulation" || previous.currentRoundMinute >= 90) return previous;
+        const currentRoundMinute = Math.min(90, previous.currentRoundMinute + 6);
+        if (currentRoundMinute >= 90) {
+          sendMessage({ type: "AUCTION_ROUND_COMPLETE", userId });
+        }
+        return { ...previous, currentRoundMinute, currentSimMinute: currentRoundMinute };
+      });
+    }, 2000);
+
+    return () => window.clearInterval(interval);
+    // Intentionally omitting state.currentRoundMinute — interval must NOT restart on every tick
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.status, state.currentRoundIndex, sendMessage, userId]);
 
   const updateSettings = useCallback(
     (settings: Partial<AuctionLobbySettings>) => {
@@ -123,6 +151,7 @@ export function useAuctionRoom({ roomId, userId, username }: UseAuctionRoomProps
     toastMessage,
     clearToast: () => setToastMessage(null),
     roomClosedReason,
+    isSpectator,
     updateSettings,
     startGame,
     placeBid,
@@ -139,8 +168,7 @@ type ServerAuctionEvent = {
   type: string;
   state?: AuctionRoomState;
   secondsLeft?: number;
-  currentMinute?: number;
-  currentMatchIndex?: number;
+  viewerMode?: boolean;
   message?: string;
   username?: string;
   reason?: string;
@@ -149,20 +177,16 @@ type ServerAuctionEvent = {
 function handleIncomingMessage(
   data: ServerAuctionEvent,
   setState: React.Dispatch<React.SetStateAction<AuctionRoomState>>,
+  setIsSpectator: React.Dispatch<React.SetStateAction<boolean>>,
   setErrorMessage: (msg: string | null) => void,
   setToastMessage: (msg: string | null) => void,
   setRoomClosedReason: (msg: string | null) => void
 ) {
   if (data.type === "AUCTION_STATE_SYNC" && data.state) {
     setState(data.state);
+    if (typeof data.viewerMode === "boolean") setIsSpectator(data.viewerMode);
   } else if (data.type === "AUCTION_TIMER_TICK" && typeof data.secondsLeft === "number") {
     setState((prev) => ({ ...prev, secondsLeft: data.secondsLeft! }));
-  } else if (data.type === "AUCTION_SIM_TICK" && typeof data.currentMinute === "number") {
-    setState((prev) => ({
-      ...prev,
-      currentSimMinute: data.currentMinute!,
-      currentSimMatchIndex: data.currentMatchIndex ?? prev.currentSimMatchIndex,
-    }));
   } else if (data.type === "AUCTION_ERROR") {
     setErrorMessage(data.message || "İşlem gerçekleştirilemedi");
     setTimeout(() => setErrorMessage(null), 4000);

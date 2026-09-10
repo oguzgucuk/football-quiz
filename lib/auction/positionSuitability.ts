@@ -70,99 +70,22 @@ export function calculateSlotRating(
   return { effectiveRating: penalized, penalty: 20 };
 }
 
-/**
- * Dizilişteki tüm slotların ve hat güçlerinin hesaplanması.
- * effectiveAtkPower: En iyi forvet %45, geri kalan forvetlerin ortalaması %55 ağırlıklı
- * hesaplanır — böylece yıldız oyuncu düz ortalamaya gömülmez, gerçek etkisini gösterir.
- *
- * Örnek: Ronaldo (96) + iki 72 OVR forvet
- *   Eski (düz ortalama): (96+72+72)/3 = 80
- *   Yeni (star-weighted): 96*0.45 + 72*0.55 = 43.2 + 39.6 = 82.8
- */
+/** Diziliş slotlarını ve takım ortalamasını hesaplar. Hat etkileri maç içinde çözülür. */
 export function calculateLineupPowers(
   userId: string,
   formation: FormationName,
   slots: SquadSlot[]
 ): TeamLineup {
-  let midSum = 0;
-  let defSum = 0;
-  let allRatingSum = 0;
-
-  let midAtkContributionSum = 0;
-  let midDefContributionSum = 0;
-
-  const fwdSlots: SquadSlot[] = [];
-
-  for (const slot of slots) {
-    const eff = slot.effectiveRating;
-    allRatingSum += eff;
-    const pos = slot.targetPosition;
-
-    if (FWD_POSITIONS.includes(pos)) {
-      fwdSlots.push(slot);
-    } else if (MID_POSITIONS.includes(pos)) {
-      midSum += eff;
-      const { atkWeight, defWeight } = getMidfieldWeights(pos);
-      midAtkContributionSum += eff * atkWeight;
-      midDefContributionSum += eff * defWeight;
-    } else {
-      // GK ve Defans
-      defSum += eff;
-    }
-  }
-
-  const fwdCount = Math.max(1, fwdSlots.length);
-  const fwdSum = fwdSlots.reduce((s, sl) => s + sl.effectiveRating, 0);
-  const rawFwdPower = Math.round((fwdSum / fwdCount) * 10) / 10;
-  const rawMidPower = Math.round((midSum / 5) * 10) / 10;
-  const rawDefPower = Math.round((defSum / 6) * 10) / 10;
-
-  // Star-weighted forvet gücü hesabı
-  const sortedFwdSlots = [...fwdSlots].sort((a, b) => b.effectiveRating - a.effectiveRating);
-  const starSlot = sortedFwdSlots[0] ?? null;
-
-  let starAttackerRating = 0;
-  let starAttackerName = "Futbolcu";
-  let starWeightedFwdPower = rawFwdPower;
-
-  if (starSlot) {
-    starAttackerRating = starSlot.effectiveRating;
-    starAttackerName = starSlot.placedPlayer?.fullName ?? "Futbolcu";
-
-    if (fwdSlots.length === 1) {
-      starWeightedFwdPower = starSlot.effectiveRating;
-    } else {
-      const restSlots = sortedFwdSlots.slice(1);
-      const restAvg = restSlots.reduce((s, sl) => s + sl.effectiveRating, 0) / restSlots.length;
-      starWeightedFwdPower = starSlot.effectiveRating * 0.45 + restAvg * 0.55;
-    }
-  }
-
-  const effectiveAtkPower = Math.round((starWeightedFwdPower + midAtkContributionSum / 5) * 10) / 10;
-  const effectiveDefPower = Math.round((rawDefPower + midDefContributionSum / 5) * 10) / 10;
-  const teamOvr = Math.round(allRatingSum / 11);
+  const allRatingSum = slots.reduce((total, slot) => total + slot.effectiveRating, 0);
+  const teamOvr = Math.round(allRatingSum / Math.max(1, slots.length));
 
   return {
     userId,
     formation,
     slots,
     teamOvr,
-    rawDefPower,
-    rawMidPower,
-    rawFwdPower,
-    effectiveAtkPower,
-    effectiveDefPower,
-    starAttackerRating,
-    starAttackerName,
     isConfirmed: slots.every((s) => s.placedPlayer !== null),
   };
-}
-
-
-function getMidfieldWeights(pos: PitchPosition): { atkWeight: number; defWeight: number } {
-  if (pos === "CAM") return { atkWeight: 0.7, defWeight: 0.3 };
-  if (pos === "CDM") return { atkWeight: 0.3, defWeight: 0.7 };
-  return { atkWeight: 0.5, defWeight: 0.5 }; // CM, LM, RM
 }
 
 export interface PlayerPositionDetail {

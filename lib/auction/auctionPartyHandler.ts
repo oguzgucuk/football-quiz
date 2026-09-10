@@ -20,7 +20,7 @@ import {
 import { generateAuctionPool } from "./generateAuctionPool";
 import { createInitialSlotsForFormation } from "./formationTemplates";
 import { calculateLineupPowers, calculateSlotRating } from "./positionSuitability";
-import { generateLeagueFixtures, simulateEntireTournament, calculateStandings } from "./auctionTournament";
+import { generateRoundRobinSchedule, calculateStandings, collectCompletedRoundMatches } from "./auctionTournament";
 
 interface AuctionPartyRoom {
   roomId: string;
@@ -125,6 +125,10 @@ async function processAuctionMessage(
       handleSimReady(room, msg.userId);
       break;
     }
+    case "AUCTION_ROUND_COMPLETE": {
+      handleRoundComplete(room, msg.userId);
+      break;
+    }
     case "AUCTION_NEXT_SIM_MATCH": {
       handleNextSimMatch(room, msg.userId);
       break;
@@ -152,6 +156,11 @@ function handleJoin(room: AuctionPartyRoom, ws: WebSocket, userId: string, usern
 
   if (!room.state.hostUserId) {
     room.state.hostUserId = userId;
+  }
+
+  if (!room.state.participants[userId] && room.state.status !== "lobby") {
+    ws.send(JSON.stringify({ type: "AUCTION_STATE_SYNC", state: room.state, viewerMode: true }));
+    return;
   }
 
   if (!room.state.participants[userId]) {
@@ -187,7 +196,7 @@ async function handleStartGame(room: AuctionPartyRoom) {
 }
 
 function handleBid(room: AuctionPartyRoom, ws: WebSocket, userId: string, amount: number) {
-  if (room.state.status !== "auction") return;
+  if (room.state.status !== "auction" || !room.state.participants[userId]) return;
 
   const res = applyBid(room.state, userId, amount);
   if (!res.success) {
@@ -200,7 +209,7 @@ function handleBid(room: AuctionPartyRoom, ws: WebSocket, userId: string, amount
 }
 
 function handlePass(room: AuctionPartyRoom, userId: string) {
-  if (room.state.status !== "auction") return;
+  if (room.state.status !== "auction" || !room.state.participants[userId]) return;
   room.state = applyPass(room.state, userId);
 
   const activeBidders = Object.values(room.state.participants).filter((p) => p.squad.length < 11);
@@ -214,6 +223,7 @@ function handlePass(room: AuctionPartyRoom, userId: string) {
 }
 
 function handleConfirmLineup(room: AuctionPartyRoom, userId: string, lineup: TeamLineup) {
+  if (!room.state.participants[userId]) return;
   if (!room.state.confirmedLineupUserIds) {
     room.state.confirmedLineupUserIds = [];
   }
@@ -235,14 +245,17 @@ function handleConfirmLineup(room: AuctionPartyRoom, userId: string, lineup: Tea
 
 function startTournamentSimulation(room: AuctionPartyRoom) {
   const uids = Object.keys(room.state.participants).filter((id) => Boolean(id && id.trim()));
-  const fixtures = generateLeagueFixtures(uids);
-  const { matches } = simulateEntireTournament(
-    fixtures,
+  const rounds = generateRoundRobinSchedule(
+    uids,
     room.state.lineups,
     room.state.participants
   );
 
-  room.state.simulationMatches = matches;
+  room.state.simulationRounds = rounds;
+  room.state.byeUserIds = rounds.map((round) => round.byeUserId);
+  room.state.simulationMatches = rounds.flatMap((round) => round.matches);
+  room.state.currentRoundIndex = 0;
+  room.state.currentRoundMinute = 0;
   // Sıfır spoiler: Başlangıçta oynanmamış maçlar puan tablosuna eklenmez
   room.state.standings = calculateStandings(uids, room.state.participants, []);
   room.state.championUserId = null;
@@ -253,21 +266,38 @@ function startTournamentSimulation(room: AuctionPartyRoom) {
   room.state.secondsLeft = 30;
 
   broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
-  startSimTimer(room);
 }
 
-function updateStandingsAfterMatch(room: AuctionPartyRoom) {
+function updateStandingsAfterRound(room: AuctionPartyRoom) {
   const uids = Object.keys(room.state.participants).filter((id) => Boolean(id && id.trim()));
-  const completedMatches = room.state.simulationMatches.slice(0, room.state.currentSimMatchIndex + 1);
+  const completedMatches = collectCompletedRoundMatches(room.state.simulationRounds, room.state.currentRoundIndex + 1);
   room.state.standings = calculateStandings(uids, room.state.participants, completedMatches);
 
-  if (room.state.currentSimMatchIndex >= room.state.simulationMatches.length - 1) {
+  if (room.state.currentRoundIndex >= room.state.simulationRounds.length - 1) {
     room.state.championUserId = room.state.standings[0]?.userId || null;
   }
 }
 
+function handleRoundComplete(room: AuctionPartyRoom, userId: string) {
+  // Client'tan gelen "round bitti" bildirimi.
+  // Server currentRoundMinute'u hiç artırmıyor (client-side timer mimarisi);
+  // dolayısıyla >= 90 kontrolü her zaman false olur. Sadece status kontrolü yeterli.
+  if (!room.state.participants[userId] || room.state.status !== "simulation") return;
+
+  // İdempotent: birden fazla çağrıda güvenli
+  room.state.currentRoundMinute = 90;
+  room.state.currentSimMinute = 90;
+  updateStandingsAfterRound(room);
+  broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
+}
+
 function handleSimReady(room: AuctionPartyRoom, userId: string) {
-  if (room.state.status !== "simulation" || room.state.currentSimMinute < 90) return;
+  // currentRoundMinute < 90 kontrolü kaldırıldı: server minute'u artırmıyor,
+  // client gönderdiğinde server zaten 90'a setlemiş olacak (handleRoundComplete ile).
+  if (!room.state.participants[userId] || room.state.status !== "simulation") return;
+  // Round henüz bitmemişse hazır sayma (server 90'a setlemediyse)
+  if (room.state.currentRoundMinute < 90) return;
+
   if (!room.state.simReadyUserIds) {
     room.state.simReadyUserIds = [];
   }
@@ -284,7 +314,10 @@ function handleSimReady(room: AuctionPartyRoom, userId: string) {
 }
 
 function handleNextSimMatch(room: AuctionPartyRoom, userId?: string) {
-  if (room.state.status !== "simulation" || room.state.currentSimMinute < 90) return;
+  if (userId && !room.state.participants[userId]) return;
+  if (room.state.status !== "simulation") return;
+  // Round bitmeden geçiş yok (server minute 90 olmalı)
+  if (room.state.currentRoundMinute < 90) return;
 
   const activeUids = Object.keys(room.state.participants).filter((id) => Boolean(id && id.trim()));
   const isHost = !userId || userId === room.state.hostUserId;
@@ -293,13 +326,13 @@ function handleNextSimMatch(room: AuctionPartyRoom, userId?: string) {
   if (!isHost && !isAllReady) return;
 
   room.state.simReadyUserIds = [];
-  const nextIdx = room.state.currentSimMatchIndex + 1;
-  if (nextIdx < room.state.simulationMatches.length) {
-    room.state.currentSimMatchIndex = nextIdx;
+  const nextIdx = room.state.currentRoundIndex + 1;
+  if (nextIdx < room.state.simulationRounds.length) {
+    room.state.currentRoundIndex = nextIdx;
+    room.state.currentRoundMinute = 0;
     room.state.currentSimMinute = 0;
     room.state.secondsLeft = 30;
     broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
-    startSimTimer(room);
   } else {
     room.state.status = "finished";
     broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
@@ -328,38 +361,6 @@ function startTimer(room: AuctionPartyRoom) {
       }
     }
   }, 1000);
-}
-
-function startSimTimer(room: AuctionPartyRoom) {
-  if (room.timer) clearInterval(room.timer);
-
-  room.timer = setInterval(() => {
-    if (room.state.status !== "simulation") {
-      if (room.timer) clearInterval(room.timer);
-      return;
-    }
-
-    if (room.state.currentSimMinute < 90) {
-      room.state.currentSimMinute = Math.min(90, room.state.currentSimMinute + 6);
-      broadcast(room, {
-        type: "AUCTION_SIM_TICK",
-        currentMinute: room.state.currentSimMinute,
-        currentMatchIndex: room.state.currentSimMatchIndex,
-      });
-
-      if (room.state.currentSimMinute === 90) {
-        if (room.timer) clearInterval(room.timer);
-        updateStandingsAfterMatch(room);
-        broadcast(room, {
-          type: "AUCTION_SIM_MATCH_END",
-          currentMatchIndex: room.state.currentSimMatchIndex,
-        });
-        broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
-      }
-    } else {
-      if (room.timer) clearInterval(room.timer);
-    }
-  }, 1800); // Her ~1.8 saniyede bir pozisyon (~27-30 sn toplam maç süresi)
 }
 
 function autoConfirmLineups(room: AuctionPartyRoom) {

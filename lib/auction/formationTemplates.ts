@@ -1,93 +1,22 @@
-/**
- * Saha Diziliş Şablonları ve Koordinatları.
- * Pitch üzerindeki yüzde bazlı (x, y) slot pozisyonları.
- */
-
 import { FormationName, PitchPosition, SquadSlot } from "./auctionTypes";
 
-export interface FormationSlotDefinition {
-  slotId: string;
-  targetPosition: PitchPosition;
-  label: string;
-  xPercent: number; // 0 (sol) - 100 (sağ)
-  yPercent: number; // 0 (üst / kale) - 100 (alt / rakip kale)
-}
+export interface FormationSlotDefinition { slotId: string; targetPosition: PitchPosition; label: string; xPercent: number; yPercent: number; }
+type Line = PitchPosition[];
+const formation = (...lines: Line[]): FormationSlotDefinition[] => {
+  const slots: FormationSlotDefinition[] = [{ slotId: "s1", targetPosition: "GK", label: "KL", xPercent: 50, yPercent: 90 }];
+  const ys = lines.length === 2 ? [70, 30] : lines.length === 3 ? [72, 50, 24] : [74, 59, 41, 20];
+  let id = 2;
+  lines.forEach((line, row) => line.forEach((position, column) => slots.push({ slotId: `s${id++}`, targetPosition: position, label: position, xPercent: ((column + 1) * 100) / (line.length + 1), yPercent: ys[row] })));
+  return slots;
+};
+const back3: Line = ["CB", "CB", "CB"], back4: Line = ["LB", "CB", "CB", "RB"], back5: Line = ["LWB", "CB", "CB", "CB", "RWB"];
+const mid = (count: number): Line => Array.from({ length: count }, () => "CM");
+const fwd = (count: number): Line => Array.from({ length: count }, () => "ST");
 
 export const FORMATION_CONFIGS: Record<FormationName, FormationSlotDefinition[]> = {
-  "4-3-3": [
-    { slotId: "s1", targetPosition: "GK", label: "KL", xPercent: 50, yPercent: 90 },
-    { slotId: "s2", targetPosition: "LB", label: "SOL BEK", xPercent: 15, yPercent: 74 },
-    { slotId: "s3", targetPosition: "CB", label: "STOPER", xPercent: 38, yPercent: 76 },
-    { slotId: "s4", targetPosition: "CB", label: "STOPER", xPercent: 62, yPercent: 76 },
-    { slotId: "s5", targetPosition: "RB", label: "SAĞ BEK", xPercent: 85, yPercent: 74 },
-    { slotId: "s6", targetPosition: "CDM", label: "ÖN LİBERO", xPercent: 50, yPercent: 57 },
-    { slotId: "s7", targetPosition: "CM", label: "ORTA SAHA", xPercent: 28, yPercent: 48 },
-    { slotId: "s8", targetPosition: "CM", label: "ORTA SAHA", xPercent: 72, yPercent: 48 },
-    { slotId: "s9", targetPosition: "LW", label: "SOL KANAT", xPercent: 18, yPercent: 22 },
-    { slotId: "s10", targetPosition: "ST", label: "SANTRFOR", xPercent: 50, yPercent: 18 },
-    { slotId: "s11", targetPosition: "RW", label: "SAĞ KANAT", xPercent: 82, yPercent: 22 },
-  ],
-  "4-2-3-1": [
-    { slotId: "s1", targetPosition: "GK", label: "KL", xPercent: 50, yPercent: 90 },
-    { slotId: "s2", targetPosition: "LB", label: "SOL BEK", xPercent: 15, yPercent: 74 },
-    { slotId: "s3", targetPosition: "CB", label: "STOPER", xPercent: 38, yPercent: 76 },
-    { slotId: "s4", targetPosition: "CB", label: "STOPER", xPercent: 62, yPercent: 76 },
-    { slotId: "s5", targetPosition: "RB", label: "SAĞ BEK", xPercent: 85, yPercent: 74 },
-    { slotId: "s6", targetPosition: "CDM", label: "ÖN LİBERO", xPercent: 35, yPercent: 57 },
-    { slotId: "s7", targetPosition: "CDM", label: "ÖN LİBERO", xPercent: 65, yPercent: 57 },
-    { slotId: "s8", targetPosition: "CAM", label: "10 NUMARA", xPercent: 50, yPercent: 38 },
-    { slotId: "s9", targetPosition: "LM", label: "SOL KANAT", xPercent: 18, yPercent: 36 },
-    { slotId: "s10", targetPosition: "RM", label: "SAĞ KANAT", xPercent: 82, yPercent: 36 },
-    { slotId: "s11", targetPosition: "ST", label: "SANTRFOR", xPercent: 50, yPercent: 18 },
-  ],
-  "5-4-1": [
-    { slotId: "s1", targetPosition: "GK", label: "KL", xPercent: 50, yPercent: 90 },
-    { slotId: "s2", targetPosition: "LWB", label: "SOL KANAT BEK", xPercent: 12, yPercent: 70 },
-    { slotId: "s3", targetPosition: "CB", label: "SOL STOPER", xPercent: 30, yPercent: 76 },
-    { slotId: "s4", targetPosition: "CB", label: "MERKEZ STOPER", xPercent: 50, yPercent: 77 },
-    { slotId: "s5", targetPosition: "CB", label: "SAĞ STOPER", xPercent: 70, yPercent: 76 },
-    { slotId: "s6", targetPosition: "RWB", label: "SAĞ KANAT BEK", xPercent: 88, yPercent: 70 },
-    { slotId: "s7", targetPosition: "LM", label: "SOL ORTA", xPercent: 20, yPercent: 48 },
-    { slotId: "s8", targetPosition: "CM", label: "MERKEZ ORTA", xPercent: 40, yPercent: 50 },
-    { slotId: "s9", targetPosition: "CM", label: "MERKEZ ORTA", xPercent: 60, yPercent: 50 },
-    { slotId: "s10", targetPosition: "RM", label: "SAĞ ORTA", xPercent: 80, yPercent: 48 },
-    { slotId: "s11", targetPosition: "ST", label: "TEK FORVET", xPercent: 50, yPercent: 20 },
-  ],
-  "3-5-2": [
-    { slotId: "s1", targetPosition: "GK", label: "KL", xPercent: 50, yPercent: 90 },
-    { slotId: "s2", targetPosition: "CB", label: "SOL STOPER", xPercent: 28, yPercent: 76 },
-    { slotId: "s3", targetPosition: "CB", label: "MERKEZ STOPER", xPercent: 50, yPercent: 77 },
-    { slotId: "s4", targetPosition: "CB", label: "SAĞ STOPER", xPercent: 72, yPercent: 76 },
-    { slotId: "s5", targetPosition: "LM", label: "SOL KANAT", xPercent: 14, yPercent: 50 },
-    { slotId: "s6", targetPosition: "CDM", label: "ÖN LİBERO", xPercent: 38, yPercent: 58 },
-    { slotId: "s7", targetPosition: "CAM", label: "O. SAHA", xPercent: 50, yPercent: 42 },
-    { slotId: "s8", targetPosition: "CDM", label: "ÖN LİBERO", xPercent: 62, yPercent: 58 },
-    { slotId: "s9", targetPosition: "RM", label: "SAĞ KANAT", xPercent: 86, yPercent: 50 },
-    { slotId: "s10", targetPosition: "ST", label: "FORVET", xPercent: 36, yPercent: 20 },
-    { slotId: "s11", targetPosition: "ST", label: "FORVET", xPercent: 64, yPercent: 20 },
-  ],
-  "4-4-2": [
-    { slotId: "s1", targetPosition: "GK", label: "KL", xPercent: 50, yPercent: 90 },
-    { slotId: "s2", targetPosition: "LB", label: "SOL BEK", xPercent: 15, yPercent: 74 },
-    { slotId: "s3", targetPosition: "CB", label: "STOPER", xPercent: 38, yPercent: 76 },
-    { slotId: "s4", targetPosition: "CB", label: "STOPER", xPercent: 62, yPercent: 76 },
-    { slotId: "s5", targetPosition: "RB", label: "SAĞ BEK", xPercent: 85, yPercent: 74 },
-    { slotId: "s6", targetPosition: "LM", label: "SOL KANAT", xPercent: 16, yPercent: 48 },
-    { slotId: "s7", targetPosition: "CM", label: "ORTA SAHA", xPercent: 38, yPercent: 50 },
-    { slotId: "s8", targetPosition: "CM", label: "ORTA SAHA", xPercent: 62, yPercent: 50 },
-    { slotId: "s9", targetPosition: "RM", label: "SAĞ KANAT", xPercent: 84, yPercent: 48 },
-    { slotId: "s10", targetPosition: "ST", label: "FORVET", xPercent: 36, yPercent: 20 },
-    { slotId: "s11", targetPosition: "ST", label: "FORVET", xPercent: 64, yPercent: 20 },
-  ],
+  "3-1-4-2": formation(back3, ["CDM"], mid(4), fwd(2)), "3-4-1-2": formation(back3, mid(4), ["CAM"], fwd(2)), "3-4-2-1": formation(back3, mid(4), ["CAM", "CAM"], ["ST"]), "3-4-3": formation(back3, mid(4), ["LW", "ST", "RW"]), "3-5-2": formation(back3, ["LM", "CDM", "CAM", "CM", "RM"], fwd(2)),
+  "4-1-2-1-2": formation(back4, ["CDM"], ["CM", "CM"], ["CAM"], fwd(2)), "4-1-2-1-2(2)": formation(back4, ["CDM"], ["LM", "RM"], ["CAM"], fwd(2)), "4-1-3-2": formation(back4, ["CDM"], ["LM", "CAM", "RM"], fwd(2)), "4-1-4-1": formation(back4, ["CDM"], mid(4), ["ST"]), "4-2-1-3": formation(back4, ["CDM", "CDM"], ["CAM"], ["LW", "ST", "RW"]), "4-2-2-2": formation(back4, ["CDM", "CDM"], ["CAM", "CAM"], fwd(2)), "4-2-3-1": formation(back4, ["CDM", "CDM"], ["LM", "CAM", "RM"], ["ST"]), "4-2-3-1(2)": formation(back4, ["CM", "CM"], ["LW", "CAM", "RW"], ["ST"]), "4-2-4": formation(back4, ["CM", "CM"], ["LW", "ST", "ST", "RW"]), "4-3-1-2": formation(back4, mid(3), ["CAM"], fwd(2)), "4-3-2-1": formation(back4, mid(3), ["CAM", "CAM"], ["ST"]), "4-3-3": formation(back4, ["CDM", "CM", "CM"], ["LW", "ST", "RW"]), "4-3-3(2)": formation(back4, ["CM", "CDM", "CM"], ["LW", "ST", "RW"]), "4-3-3(3)": formation(back4, ["CM", "CM", "CAM"], ["LW", "ST", "RW"]), "4-3-3(4)": formation(back4, ["CDM", "CDM", "CAM"], ["LW", "ST", "RW"]), "4-4-1-1(2)": formation(back4, mid(4), ["CF"], ["ST"]), "4-4-2": formation(back4, ["LM", "CM", "CM", "RM"], fwd(2)), "4-4-2(2)": formation(back4, ["LM", "CDM", "CAM", "RM"], fwd(2)), "4-5-1": formation(back4, ["LM", "CM", "CDM", "CM", "RM"], ["ST"]), "4-5-1(2)": formation(back4, ["LM", "CM", "CAM", "CM", "RM"], ["ST"]),
+  "5-2-1-2": formation(back5, ["CM", "CM"], ["CAM"], fwd(2)), "5-2-3": formation(back5, ["CM", "CM"], ["LW", "ST", "RW"]), "5-3-2": formation(back5, mid(3), fwd(2)), "5-4-1": formation(back5, ["LM", "CM", "CM", "RM"], ["ST"]),
 };
 
-export function createInitialSlotsForFormation(formation: FormationName): SquadSlot[] {
-  const defs = FORMATION_CONFIGS[formation] || FORMATION_CONFIGS["4-3-3"];
-  return defs.map((d) => ({
-    slotId: d.slotId,
-    targetPosition: d.targetPosition,
-    placedPlayer: null,
-    effectiveRating: 0,
-    penalty: 0,
-  }));
-}
+export function createInitialSlotsForFormation(formationName: FormationName): SquadSlot[] { return FORMATION_CONFIGS[formationName].map((definition) => ({ slotId: definition.slotId, targetPosition: definition.targetPosition, placedPlayer: null, effectiveRating: 0, penalty: 0 })); }

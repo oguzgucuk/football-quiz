@@ -3,7 +3,7 @@
 /**
  * Müzayede Canlı Teklif Ekranı.
  * Kullanıcının çizdiği 2. taslağa tam sadık kalınarak:
- * - Sol taraf: Futbolcu vitrin kartı, "Mevcut Teklif [ X $ ]", [+1$] [+2$] [+3$] [...$] ve "Teklif Ver"
+ * - Sol taraf: Futbolcu vitrin kartı, "Mevcut Teklif [ X M $ ]", [+1M $] [+2M $] [+3M $] ve "Teklif Ver"
  * - Sağ taraf: Oyuncular listesi ([Oyuncu 1 ✓], [Oyuncu 2], [Oyuncu 3 ✓]), bütçe ve kadro sayaçları
  */
 
@@ -13,6 +13,7 @@ import { Timer, Check, X, ShieldAlert, Gavel, Gem, Sparkles } from "lucide-react
 import { getRatingTier } from "@/lib/game/playerRatingTiers";
 import { AuctionSoldNotification } from "./AuctionSoldNotification";
 import { AuctionParticipantSquad } from "./AuctionParticipantSquad";
+import { MySquadDrawer } from "./MySquadDrawer";
 
 interface AuctionBiddingStageProps {
   state: AuctionRoomState;
@@ -20,6 +21,7 @@ interface AuctionBiddingStageProps {
   errorMessage: string | null;
   onPlaceBid: (amount: number) => void;
   onPass: () => void;
+  isSpectator?: boolean;
 }
 
 export function AuctionBiddingStage({
@@ -28,6 +30,7 @@ export function AuctionBiddingStage({
   errorMessage,
   onPlaceBid,
   onPass,
+  isSpectator = false,
 }: AuctionBiddingStageProps) {
   const card = state.currentCard;
   const currentBid = state.currentHighestBid?.amount || 0;
@@ -75,7 +78,7 @@ export function AuctionBiddingStage({
         <div className="flex items-center gap-2">
           <Timer className="w-5 h-5 text-amber-400 animate-pulse" />
           <span className="text-xl font-mono font-black text-amber-400">
-            00:0{state.secondsLeft}
+            {String(Math.floor(state.secondsLeft / 60)).padStart(2, "0")}:{String(state.secondsLeft % 60).padStart(2, "0")}
           </span>
         </div>
       </div>
@@ -90,8 +93,9 @@ export function AuctionBiddingStage({
 
       {/* ANA PANEL: SOL (VİTRİN & TEKLİFLER) VS SAĞ (OYUNCULAR LİSTESİ) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {!isSpectator && <MySquadDrawer participant={myParticipant} />}
         {/* SOL BÖLGE (Çizimdeki Sol Vitrin) */}
-        <div className="lg:col-span-7 flex flex-col gap-4 p-5 rounded-3xl bg-black/50 border border-white/10 backdrop-blur-2xl shadow-2xl">
+        <div className={`${isSpectator ? "lg:col-span-7" : "lg:col-span-5"} flex flex-col gap-4 p-5 rounded-3xl bg-black/50 border border-white/10 backdrop-blur-2xl shadow-2xl`}>
 
           {/* Elmas Oyuncu Havuz Uyarısı */}
           {remainingDiamondCount > 0 && (
@@ -174,7 +178,7 @@ export function AuctionBiddingStage({
               Mevcut Teklif
             </span>
             <div className="flex items-center gap-2 px-8 py-2 rounded-xl bg-amber-950/40 border-2 border-amber-500/50 text-amber-400 font-mono font-black text-3xl shadow-[0_0_25px_rgba(245,158,11,0.2)]">
-              {currentBid} $
+              {currentBid}M $
             </div>
             <span className="text-[11px] text-zinc-400 font-medium mt-1.5">
               {isMyHighestBid
@@ -185,8 +189,12 @@ export function AuctionBiddingStage({
             </span>
           </div>
 
-          {/* TEKLİF BUTONLARI (+1$, +2$, +3$, [...$] ve Teklif Ver) */}
-          <div className="flex flex-col gap-3">
+          {/* TEKLİF BUTONLARI (+1M $, +2M $, +3M $, [...M $] ve Teklif Ver) */}
+          {isSpectator ? (
+            <div className="rounded-2xl border border-sky-400/30 bg-sky-950/30 p-4 text-center text-sm font-bold text-sky-200">
+              👁 Seyirci modundasınız; teklif veremezsiniz.
+            </div>
+          ) : <div className="flex flex-col gap-3">
             <div className="grid grid-cols-4 gap-2">
               <button
                 type="button"
@@ -194,7 +202,7 @@ export function AuctionBiddingStage({
                 onClick={() => handleQuickAdd(1)}
                 className="py-3 rounded-xl bg-white/10 hover:bg-emerald-600/40 border border-white/15 text-white font-mono font-black text-sm transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                +1 $
+                +1M $
               </button>
 
               <button
@@ -203,7 +211,7 @@ export function AuctionBiddingStage({
                 onClick={() => handleQuickAdd(2)}
                 className="py-3 rounded-xl bg-white/10 hover:bg-emerald-600/40 border border-white/15 text-white font-mono font-black text-sm transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                +2 $
+                +2M $
               </button>
 
               <button
@@ -212,13 +220,13 @@ export function AuctionBiddingStage({
                 onClick={() => handleQuickAdd(3)}
                 className="py-3 rounded-xl bg-white/10 hover:bg-emerald-600/40 border border-white/15 text-white font-mono font-black text-sm transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                +3 $
+                +3M $
               </button>
 
               <input
                 type="number"
                 min={currentBid + 1}
-                placeholder="... $"
+                placeholder="... M $"
                 disabled={isSquadFull || hasPassed || isMyHighestBid}
                 value={customBid}
                 onChange={(e) => setCustomBid(e.target.value)}
@@ -246,14 +254,14 @@ export function AuctionBiddingStage({
                 Pas Geç
               </button>
             </div>
-          </div>
+          </div>}
         </div>
 
         {/* SAĞ BÖLGE (Çizimdeki Oyuncular Listesi & Kadroları) */}
-        <div className="lg:col-span-5 flex flex-col gap-3 p-5 rounded-3xl bg-black/50 border border-white/10 backdrop-blur-2xl shadow-2xl max-h-[580px] overflow-y-auto">
+        <div className={`${isSpectator ? "lg:col-span-5" : "lg:col-span-4"} flex flex-col gap-3 p-5 rounded-3xl bg-black/50 border border-white/10 backdrop-blur-2xl shadow-2xl max-h-[580px] overflow-y-auto`}>
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-extrabold uppercase tracking-widest text-zinc-400">
-              Lobi Oyuncuları & Kadrolar
+              Rakip Kadrolar
             </span>
             <span className="text-[11px] text-zinc-500 font-mono">
               Hedef: 11
@@ -263,6 +271,8 @@ export function AuctionBiddingStage({
           <div className="flex flex-col gap-3">
             {Object.values(state.participants)
               .filter((p) => Boolean(p.userId && p.userId.trim()))
+              .filter((p) => isSpectator || p.userId !== currentUserId)
+              .sort((a, b) => Number(b.userId === currentBidderId) - Number(a.userId === currentBidderId))
               .map((p) => {
                 const holdsHighest = currentBidderId === p.userId;
                 const didPass = state.passedUserIds.includes(p.userId);
@@ -275,7 +285,7 @@ export function AuctionBiddingStage({
                       isAwaitingBid
                         ? "bg-emerald-950/40 border-emerald-500/70 shadow-md shadow-emerald-950/50 ring-1 ring-emerald-400/40"
                         : holdsHighest
-                        ? "bg-amber-950/25 border-amber-500/40"
+                        ? "bg-gradient-to-br from-amber-500/30 via-amber-950/45 to-black/50 border-2 border-amber-300 shadow-[0_0_28px_rgba(251,191,36,0.55)] ring-2 ring-amber-400/40"
                         : "bg-white/5 border-white/10 opacity-80"
                     }`}
                   >
@@ -289,8 +299,8 @@ export function AuctionBiddingStage({
                           )}
                         </span>
                         {holdsHighest && (
-                          <span className="px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-[10px] font-bold text-amber-300 font-mono">
-                            👑 Lider (${currentBid}M)
+                          <span className="animate-pulse px-2 py-1 rounded-lg bg-amber-400 text-[11px] font-black text-black font-mono shadow-[0_0_14px_rgba(251,191,36,0.8)]">
+                            👑 EN YÜKSEK TEKLİF · {currentBid}M $
                           </span>
                         )}
                         {isAwaitingBid && (
