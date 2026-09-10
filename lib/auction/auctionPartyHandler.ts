@@ -121,6 +121,10 @@ async function processAuctionMessage(
       }
       break;
     }
+    case "AUCTION_UNCONFIRM_LINEUP": {
+      handleUnconfirmLineup(room, msg.userId);
+      break;
+    }
     case "AUCTION_SIM_READY": {
       handleSimReady(room, msg.userId);
       break;
@@ -241,6 +245,16 @@ function handleConfirmLineup(room: AuctionPartyRoom, userId: string, lineup: Tea
   } else {
     broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
   }
+}
+
+function handleUnconfirmLineup(room: AuctionPartyRoom, userId: string) {
+  if (!room.state.participants[userId]) return;
+  if (room.state.status !== "tactics") return;
+  room.state.confirmedLineupUserIds = (room.state.confirmedLineupUserIds || []).filter((id) => id !== userId);
+  if (room.state.lineups[userId]) {
+    room.state.lineups[userId].isConfirmed = false;
+  }
+  broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
 }
 
 function startTournamentSimulation(room: AuctionPartyRoom) {

@@ -45,6 +45,7 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
     placeBid,
     passBid,
     confirmLineup,
+    unconfirmLineup,
     nextSimMatch,
     readyForNextSimMatch,
     returnToLobby,
@@ -99,12 +100,6 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
             {isSpectator && (
               <div className="px-3 py-1 rounded-xl bg-sky-950/60 border border-sky-400/30 text-sky-200 font-mono text-xs font-bold">
                 👁 İzliyorsunuz
-              </div>
-            )}
-            {myParticipant && (
-              <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-amber-950/40 border border-amber-500/30 text-amber-400 font-mono text-xs font-bold">
-                <span>Bütçe:</span>
-                <span className="text-sm font-black">${myParticipant.budget}M</span>
               </div>
             )}
 
@@ -162,6 +157,7 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
               Object.keys(state.participants).filter((id) => Boolean(id && id.trim())).length
             }
             onConfirmLineup={confirmLineup}
+            onUnconfirmLineup={unconfirmLineup}
           />
         )}
 

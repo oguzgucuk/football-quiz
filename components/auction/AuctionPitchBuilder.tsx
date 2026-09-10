@@ -20,7 +20,7 @@ import { calculateSlotRating, calculateLineupPowers } from "@/lib/auction/positi
 import { AuctionPitchSlot } from "./AuctionPitchSlot";
 import { AuctionSquadList } from "./AuctionSquadList";
 import { AuctionPlayerDetailModal } from "./AuctionPlayerDetailModal";
-import { CheckCircle2, Timer, ChevronDown } from "lucide-react";
+import { CheckCircle2, Timer, RotateCcw } from "lucide-react";
 
 const FORMATIONS: FormationName[] = [
   "3-5-2", "3-4-2-1", "3-4-3", "4-4-2(1)", "4-4-2(2)",
@@ -45,6 +45,7 @@ interface AuctionPitchBuilderProps {
   confirmedUserIds?: string[];
   totalParticipantCount?: number;
   onConfirmLineup: (lineup: TeamLineup) => void;
+  onUnconfirmLineup?: () => void;
 }
 
 export function AuctionPitchBuilder({
@@ -54,11 +55,14 @@ export function AuctionPitchBuilder({
   confirmedUserIds = [],
   totalParticipantCount = 1,
   onConfirmLineup,
+  onUnconfirmLineup,
 }: AuctionPitchBuilderProps) {
   const [formation, setFormation] = useState<FormationName>("4-2-3-1");
-  const [isFormationsOpen, setIsFormationsOpen] = useState(true);
   const [slots, setSlots] = useState<SquadSlot[]>(() => createInitialSlotsForFormation("4-2-3-1"));
   const [selectedPlayer, setSelectedPlayer] = useState<AuctionPlayerCard | null>(null);
+
+  // Kullanıcı hazırda mı? (Kadro kilitli)
+  const isConfirmed = confirmedUserIds.includes(userId);
 
   // Detay Modalı (Pozisyon İnceleme)
   const [inspectingPlayer, setInspectingPlayer] = useState<AuctionPlayerCard | null>(null);
@@ -83,6 +87,7 @@ export function AuctionPitchBuilder({
   );
 
   const handleFormationChange = (f: FormationName) => {
+    if (isConfirmed) return;
     setFormation(f);
     const newSlots = createInitialSlotsForFormation(f);
     const existingPlayers = slots.map((s) => s.placedPlayer).filter(Boolean) as AuctionPlayerCard[];
@@ -104,6 +109,7 @@ export function AuctionPitchBuilder({
     targetSlotIndex: number,
     sourceSlotIndex: number | null
   ) => {
+    if (isConfirmed) return;
     const player = squad.find((p) => p.id === playerId);
     if (!player) return;
 
@@ -164,6 +170,7 @@ export function AuctionPitchBuilder({
   };
 
   const handleSlotPositionChange = (slotIndex: number, targetPosition: PitchPosition) => {
+    if (isConfirmed) return;
     setSlots((currentSlots) => currentSlots.map((slot, index) => {
       if (index !== slotIndex) return slot;
       const rating = slot.placedPlayer
@@ -178,6 +185,15 @@ export function AuctionPitchBuilder({
     if (Date.now() - lastDragTimeRef.current < 250) return;
 
     const slot = slots[slotIndex];
+
+    if (isConfirmed) {
+      if (slot.placedPlayer) {
+        setInspectingPlayer(slot.placedPlayer);
+        setInspectingSlot(slot);
+      }
+      return;
+    }
+
     if (selectedPlayer) {
       handlePlayerDropOnSlot(selectedPlayer.id, slotIndex, null);
     } else if (slot.placedPlayer) {
@@ -188,6 +204,7 @@ export function AuctionPitchBuilder({
   };
 
   const handleRemovePlayerFromPitch = (playerId: string) => {
+    if (isConfirmed) return;
     const nextSlots = slots.map((s) =>
       s.placedPlayer?.id === playerId
         ? { ...s, placedPlayer: null, effectiveRating: 0, penalty: 0 }
@@ -201,6 +218,7 @@ export function AuctionPitchBuilder({
   };
 
   const handlePlacePlayerFromModal = (player: AuctionPlayerCard) => {
+    if (isConfirmed) return;
     // İlk boş slota yerleştir veya seçili yap
     const emptySlotIndex = slots.findIndex((s) => s.placedPlayer === null);
     if (emptySlotIndex !== -1) {
@@ -218,7 +236,7 @@ export function AuctionPitchBuilder({
   };
 
   const handleSlotDragStart = (e: React.DragEvent, slot: SquadSlot, index: number) => {
-    if (!slot.placedPlayer) return;
+    if (isConfirmed || !slot.placedPlayer) return;
     e.dataTransfer.setData("text/plain", slot.placedPlayer.id);
     e.dataTransfer.setData("application/source-slot", String(index));
     e.dataTransfer.effectAllowed = "move";
@@ -227,6 +245,7 @@ export function AuctionPitchBuilder({
   };
 
   const handleSlotDrop = (e: React.DragEvent, index: number) => {
+    if (isConfirmed) return;
     e.preventDefault();
     setDragOverSlotIndex(null);
     const pId = e.dataTransfer.getData("text/plain") || draggedPlayerId;
@@ -265,53 +284,10 @@ export function AuctionPitchBuilder({
         </div>
       </div>
 
-      {/* ANA İKİLİ IZGARA */}
+      {/* ANA ÜÇLÜ IZGARA: SOL (KADRO) - ORTA (SAHA) - SAĞ (DİZİLİŞ & ONAY) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-        {/* SOL KOLON: DİZİLİŞLER & OYUNCULARIM */}
-        <div className="lg:col-span-4 flex flex-col gap-3">
-          {/* 1. DİZİLİŞLER (Açılır / Kapanır) */}
-          <div className="p-3 sm:p-3.5 rounded-2xl bg-black/50 border border-white/10 backdrop-blur-xl transition-all">
-            <button
-              type="button"
-              onClick={() => setIsFormationsOpen(!isFormationsOpen)}
-              className="flex items-center justify-between w-full text-left cursor-pointer group"
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-extrabold uppercase tracking-widest text-zinc-300">
-                  Diziliş Seçimi
-                </span>
-                <span className="font-mono text-xs font-black text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-md border border-emerald-500/30">
-                  {formation}
-                </span>
-              </div>
-              <ChevronDown
-                className={`w-4 h-4 text-zinc-400 transition-transform duration-200 group-hover:text-white ${
-                  isFormationsOpen ? "rotate-180" : ""
-                }`}
-              />
-            </button>
-
-            {isFormationsOpen && (
-              <div className="grid grid-cols-2 gap-1.5 mt-3 pt-2.5 border-t border-white/10 animate-fadeIn">
-                {FORMATIONS.map((f) => (
-                  <button
-                    key={f}
-                    type="button"
-                    onClick={() => handleFormationChange(f)}
-                    className={`rounded-lg px-1 py-2 text-[11px] font-mono font-bold transition-all cursor-pointer ${
-                      formation === f
-                        ? "bg-emerald-600 text-white shadow-md font-black"
-                        : "bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white"
-                    }`}
-                  >
-                    {f}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* 2. OYUNCULARIM (Yedekler Paneli) */}
+        {/* 1. SOL KOLON: OYUNCULARIM (KADRO) */}
+        <div className="lg:col-span-3 xl:col-span-3 flex flex-col gap-3">
           <AuctionSquadList
             squad={squad}
             placedPlayerIds={placedPlayerIds}
@@ -323,6 +299,7 @@ export function AuctionPitchBuilder({
               setInspectingSlot(slots.find((s) => s.placedPlayer?.id === p.id) || null);
             }}
             onDragStart={(e, player) => {
+              if (isConfirmed) return;
               e.dataTransfer.setData("text/plain", player.id);
               e.dataTransfer.effectAllowed = "move";
               setDraggedPlayerId(player.id);
@@ -330,77 +307,143 @@ export function AuctionPitchBuilder({
             }}
             onDragEnd={resetDragState}
             onDropOnBench={handleRemovePlayerFromPitch}
+            disabled={isConfirmed}
           />
+        </div>
 
-          {/* Kadroyu Onayla Butonu */}
-          <div className="flex flex-col gap-1.5 w-full">
-            <button
-              onClick={() => onConfirmLineup(lineup)}
-              disabled={!lineup.isConfirmed || confirmedUserIds.includes(userId)}
-              className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2 ${
-                confirmedUserIds.includes(userId)
-                  ? "bg-zinc-800/90 text-emerald-400 border border-emerald-500/40 cursor-not-allowed shadow-none"
-                  : lineup.isConfirmed
-                  ? "bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 text-white cursor-pointer active:scale-98"
-                  : "bg-zinc-800 text-zinc-500 cursor-not-allowed border border-white/5"
-              }`}
-            >
-              <CheckCircle2
-                className={`w-4 h-4 ${confirmedUserIds.includes(userId) ? "text-emerald-400" : ""}`}
-              />
-              {confirmedUserIds.includes(userId)
-                ? "Kadronuz Onaylandı ✓"
-                : lineup.isConfirmed
-                ? "Kadroyu Onayla ➔"
-                : "11 Oyuncuyu Sahaya Yerleştirin"}
-            </button>
+        {/* 2. ORTA KOLON: FUTBOL SAHASI */}
+        <div className="lg:col-span-6 xl:col-span-6 flex flex-col items-center">
+          <div className="relative aspect-[3/4] sm:aspect-[7/9] max-h-[600px] xl:max-h-[640px] w-full rounded-3xl overflow-hidden border-2 border-emerald-500/30 bg-[#0d2a1a] shadow-2xl p-4 flex flex-col justify-between">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_50%,rgba(16,185,129,0.15)_0%,rgba(6,40,24,0.9)_100%)] pointer-events-none" />
+            <div className="absolute inset-4 border border-white/20 pointer-events-none rounded-xl" />
+            <div className="absolute top-1/2 inset-x-4 h-[1px] bg-white/20 pointer-events-none" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-24 rounded-full border border-white/20 pointer-events-none" />
+
+            {/* Takım Reytingi (Sahanın Sağ Üstünde - Sade & Düzgün) */}
+            <div className="absolute top-3.5 right-3.5 z-20 flex items-center gap-1.5 px-3 py-1 rounded-xl bg-black/75 border border-white/15 backdrop-blur-md shadow-md">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-400">GEN</span>
+              <span className="text-base font-mono font-black text-white tabular-nums">{lineup.teamOvr}</span>
+            </div>
+
+            {/* Sahadaki 11 Yuva */}
+            <div className="relative w-full h-full">
+              {slots.map((slot, index) => (
+                <AuctionPitchSlot
+                  key={slot.slotId}
+                  slot={slot}
+                  def={FORMATION_CONFIGS[formation][index]}
+                  index={index}
+                  isDragOver={dragOverSlotIndex === index}
+                  isAnyDragging={Boolean(draggedPlayerId)}
+                  onClick={() => handleSlotClick(index)}
+                  onRemove={
+                    slot.placedPlayer
+                      ? () => handleRemovePlayerFromPitch(slot.placedPlayer!.id)
+                      : undefined
+                  }
+                  changeablePositions={getChangeablePositions(slot.targetPosition)}
+                  onPositionChange={(position) => handleSlotPositionChange(index, position)}
+                  onDragStart={(e) => handleSlotDragStart(e, slot, index)}
+                  onDragEnd={resetDragState}
+                  onDragOver={(e) => {
+                    if (isConfirmed) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                    if (dragOverSlotIndex !== index) setDragOverSlotIndex(index);
+                  }}
+                  onDragLeave={() => {
+                    if (dragOverSlotIndex === index) setDragOverSlotIndex(null);
+                  }}
+                  onDrop={(e) => handleSlotDrop(e, index)}
+                  disabled={isConfirmed}
+                />
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* SAĞ KOLON: FUTBOL SAHASI */}
-        <div className="lg:col-span-8 relative aspect-[7/9] sm:aspect-[4/5] max-h-[580px] xl:max-h-[640px] w-full rounded-3xl overflow-hidden border-2 border-emerald-500/30 bg-[#0d2a1a] shadow-2xl p-4 flex flex-col justify-between">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_50%,rgba(16,185,129,0.15)_0%,rgba(6,40,24,0.9)_100%)] pointer-events-none" />
-          <div className="absolute inset-4 border border-white/20 pointer-events-none rounded-xl" />
-          <div className="absolute top-1/2 inset-x-4 h-[1px] bg-white/20 pointer-events-none" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-28 rounded-full border border-white/20 pointer-events-none" />
+        {/* 3. SAĞ KOLON: DİZİLİŞ SEÇİMİ & KADRO ONAYI */}
+        <div className="lg:col-span-3 xl:col-span-3 flex flex-col gap-3.5">
+          {/* Diziliş Seçimi (Doğrudan açık ve temiz ızgara) */}
+          <div className="p-3.5 rounded-2xl bg-black/50 border border-white/10 backdrop-blur-xl flex flex-col gap-3">
+            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+              <span className="text-xs font-black uppercase tracking-wider text-zinc-300">
+                Diziliş Seçimi
+              </span>
+              <span className="font-mono text-xs font-black text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-md border border-emerald-500/30">
+                {formation}
+              </span>
+            </div>
 
-          {/* Takım Reytingi (Sahanın Sağ Üstünde) */}
-          <div className="absolute top-5 right-5 z-20 flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-black/85 border-2 border-emerald-500/60 shadow-[0_0_25px_rgba(16,185,129,0.35)] backdrop-blur-md">
-            <span className="text-xs font-black uppercase tracking-wider text-emerald-400 font-sans">GEN</span>
-            <span className="text-2xl font-mono font-black text-white">{lineup.teamOvr}</span>
+            <div className="grid grid-cols-2 gap-1.5">
+              {FORMATIONS.map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  disabled={isConfirmed}
+                  onClick={() => handleFormationChange(f)}
+                  className={`py-2 px-2.5 rounded-xl font-mono text-xs font-bold transition-all border text-center ${
+                    formation === f
+                      ? "bg-emerald-500 border-emerald-400 text-black shadow-md font-black"
+                      : isConfirmed
+                      ? "bg-white/5 border-white/5 text-zinc-600 cursor-not-allowed"
+                      : "bg-white/5 border-white/10 text-zinc-300 hover:bg-white/10 hover:border-white/20 hover:text-white cursor-pointer active:scale-95"
+                  }`}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Sahadaki 11 Yuva */}
-          <div className="relative w-full h-full">
-            {slots.map((slot, index) => (
-              <AuctionPitchSlot
-                key={slot.slotId}
-                slot={slot}
-                def={FORMATION_CONFIGS[formation][index]}
-                index={index}
-                isDragOver={dragOverSlotIndex === index}
-                isAnyDragging={Boolean(draggedPlayerId)}
-                onClick={() => handleSlotClick(index)}
-                onRemove={
-                  slot.placedPlayer
-                    ? () => handleRemovePlayerFromPitch(slot.placedPlayer!.id)
-                    : undefined
-                }
-                changeablePositions={getChangeablePositions(slot.targetPosition)}
-                onPositionChange={(position) => handleSlotPositionChange(index, position)}
-                onDragStart={(e) => handleSlotDragStart(e, slot, index)}
-                onDragEnd={resetDragState}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.dataTransfer.dropEffect = "move";
-                  if (dragOverSlotIndex !== index) setDragOverSlotIndex(index);
-                }}
-                onDragLeave={() => {
-                  if (dragOverSlotIndex === index) setDragOverSlotIndex(null);
-                }}
-                onDrop={(e) => handleSlotDrop(e, index)}
-              />
-            ))}
+          {/* Kadro Onay & Kilit Paneli */}
+          <div className="p-3.5 rounded-2xl bg-black/50 border border-white/10 backdrop-blur-xl flex flex-col gap-2.5">
+            <span className="text-xs font-black uppercase tracking-wider text-zinc-300">
+              Kadro Onayı
+            </span>
+
+            {isConfirmed ? (
+              <div className="flex flex-col gap-2.5">
+                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs font-bold">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Kadronuz kilitlendi ve hazır! Diğer oyuncular bekleniyor...</span>
+                </div>
+
+                {onUnconfirmLineup && (
+                  <button
+                    type="button"
+                    onClick={onUnconfirmLineup}
+                    className="w-full py-2.5 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-white/15 text-zinc-200 hover:text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-98 shadow-sm"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Hazırı İptal Et (Düzenle)</span>
+                  </button>
+                )}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onConfirmLineup(lineup)}
+                disabled={!lineup.isConfirmed}
+                className={`w-full py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2 ${
+                  lineup.isConfirmed
+                    ? "bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 text-white cursor-pointer active:scale-98 shadow-[0_0_20px_rgba(34,197,94,0.3)]"
+                    : "bg-zinc-800 text-zinc-500 cursor-not-allowed border border-white/5"
+                }`}
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>
+                  {lineup.isConfirmed ? "Kadroyu Onayla ➔" : "11 Oyuncuyu Sahaya Yerleştir"}
+                </span>
+              </button>
+            )}
+
+            <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400 pt-1 border-t border-white/5">
+              <span>Hazır Oyuncular:</span>
+              <span className="font-bold text-white">
+                <span className="text-emerald-400">{confirmedUserIds.length}</span> / {Math.max(1, totalParticipantCount)}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -414,8 +457,8 @@ export function AuctionPitchBuilder({
           setInspectingPlayer(null);
           setInspectingSlot(null);
         }}
-        onRemoveFromPitch={handleRemovePlayerFromPitch}
-        onPlaceOnPitch={handlePlacePlayerFromModal}
+        onRemoveFromPitch={isConfirmed ? () => {} : handleRemovePlayerFromPitch}
+        onPlaceOnPitch={isConfirmed ? () => {} : handlePlacePlayerFromModal}
       />
     </div>
   );

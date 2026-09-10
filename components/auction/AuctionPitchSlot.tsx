@@ -29,6 +29,7 @@ interface AuctionPitchSlotProps {
   onDragOver: (e: React.DragEvent) => void;
   onDragLeave: () => void;
   onDrop: (e: React.DragEvent) => void;
+  disabled?: boolean;
 }
 
 export function AuctionPitchSlot({
@@ -46,6 +47,7 @@ export function AuctionPitchSlot({
   onDragOver,
   onDragLeave,
   onDrop,
+  disabled = false,
 }: AuctionPitchSlotProps) {
   const p = slot.placedPlayer;
   const pTier = p ? getRatingTier(slot.effectiveRating) : null;
@@ -53,6 +55,7 @@ export function AuctionPitchSlot({
   const alternativePositions = changeablePositions.filter((position) => position !== slot.targetPosition);
 
   const handleDragStartWrapper = (e: React.DragEvent) => {
+    if (disabled) return;
     isDraggingRef.current = true;
     onDragStart(e);
   };
@@ -72,18 +75,26 @@ export function AuctionPitchSlot({
   return (
     <div
       onClick={handleClickWrapper}
-      onDragOver={onDragOver}
+      onDragOver={(e) => {
+        if (disabled) return;
+        onDragOver(e);
+      }}
       onDragLeave={onDragLeave}
-      onDrop={onDrop}
+      onDrop={(e) => {
+        if (disabled) return;
+        onDrop(e);
+      }}
       style={{
         left: `${def?.xPercent || 50}%`,
         top: `${def?.yPercent || 50}%`,
       }}
-      className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center cursor-pointer group z-10 select-none"
+      className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group z-10 select-none ${
+        disabled ? "cursor-default" : "cursor-pointer"
+      }`}
     >
       {/* Slot Dairesi (Tutup Sürüklenebilir veya Üzerine Bırakılabilir) */}
       <div
-        draggable={Boolean(p)}
+        draggable={!disabled && Boolean(p)}
         onDragStart={handleDragStartWrapper}
         onDragEnd={handleDragEndWrapper}
         className={`relative flex size-12 sm:size-14 items-center justify-center rounded-2xl border-2 transition-all duration-200 shadow-xl ${
@@ -91,15 +102,15 @@ export function AuctionPitchSlot({
             ? "scale-115 ring-4 ring-cyan-400 border-cyan-300 bg-cyan-900/90 shadow-[0_0_25px_rgba(6,182,212,0.9)] z-30"
             : p && pTier
             ? slot.penalty > 0
-              ? "bg-amber-950/90 border-amber-500 text-amber-200 group-hover:scale-105 cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-amber-400/50"
-              : `${pTier.cardBorder} ${pTier.badgeSubtle} group-hover:scale-105 cursor-grab active:cursor-grabbing hover:ring-2 shadow-lg`
+              ? `bg-amber-950/90 border-amber-500 text-amber-200 ${disabled ? "" : "group-hover:scale-105 cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-amber-400/50"}`
+              : `${pTier.cardBorder} ${pTier.badgeSubtle} ${disabled ? "" : "group-hover:scale-105 cursor-grab active:cursor-grabbing hover:ring-2"} shadow-lg`
             : isAnyDragging
             ? "bg-black/60 border-emerald-400/60 border-dashed text-emerald-300 animate-pulse scale-105"
-            : "bg-black/50 border-white/30 text-zinc-400 hover:border-white/60 group-hover:scale-105"
+            : `bg-black/50 border-white/30 text-zinc-400 ${disabled ? "" : "hover:border-white/60 group-hover:scale-105"}`
         }`}
       >
         {/* Hızlı Sahadan Çıkar (X) Butonu */}
-        {p && onRemove && (
+        {p && onRemove && !disabled && (
           <button
             type="button"
             title="Kadro dışına çıkar"
@@ -113,7 +124,7 @@ export function AuctionPitchSlot({
           </button>
         )}
 
-        {alternativePositions.length > 0 && (
+        {alternativePositions.length > 0 && !disabled && (
           <div className="absolute -bottom-2.5 -right-2.5 z-30">
             <Popover>
               <PopoverTrigger asChild>
