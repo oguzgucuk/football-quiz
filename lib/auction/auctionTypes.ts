@@ -191,4 +191,5 @@ export interface AuctionRoomState {
   standings: StandingRow[];
   championUserId: string | null;
   lastSoldEvent?: AuctionSoldEvent | null;
+  salesHistory?: AuctionSoldEvent[];
 }

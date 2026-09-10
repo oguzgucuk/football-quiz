@@ -20,7 +20,7 @@ import { calculateSlotRating, calculateLineupPowers } from "@/lib/auction/positi
 import { AuctionPitchSlot } from "./AuctionPitchSlot";
 import { AuctionSquadList } from "./AuctionSquadList";
 import { AuctionPlayerDetailModal } from "./AuctionPlayerDetailModal";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Timer, ChevronDown } from "lucide-react";
 
 const FORMATIONS: FormationName[] = [
   "3-5-2", "3-4-2-1", "3-4-3", "4-4-2(1)", "4-4-2(2)",
@@ -56,6 +56,7 @@ export function AuctionPitchBuilder({
   onConfirmLineup,
 }: AuctionPitchBuilderProps) {
   const [formation, setFormation] = useState<FormationName>("4-2-3-1");
+  const [isFormationsOpen, setIsFormationsOpen] = useState(true);
   const [slots, setSlots] = useState<SquadSlot[]>(() => createInitialSlotsForFormation("4-2-3-1"));
   const [selectedPlayer, setSelectedPlayer] = useState<AuctionPlayerCard | null>(null);
 
@@ -238,47 +239,76 @@ export function AuctionPitchBuilder({
   };
 
   return (
-    <div className="w-full flex flex-col gap-5 select-none animate-fadeIn">
+    <div className="w-full flex flex-col gap-3.5 select-none animate-fadeIn">
       {/* Üst Bilgi Barı */}
-      <div className="flex flex-wrap items-center justify-between p-4 rounded-2xl bg-black/50 border border-white/10 backdrop-blur-xl gap-3">
+      <div className="relative flex items-center justify-between p-2.5 px-5 rounded-2xl bg-black/50 border border-white/10 backdrop-blur-xl min-h-[52px]">
         <div className="flex items-center gap-3">
-          <span className="text-xs font-black uppercase tracking-wider text-emerald-400 bg-emerald-950/60 px-2.5 py-1 rounded-full border border-emerald-500/30">
+          <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-emerald-400 bg-emerald-950/80 px-3 py-1 rounded-xl border border-emerald-500/40">
             Taktik Tahtası
-          </span>
-          <span className="text-xs text-zinc-400 font-medium">
-            Kalan Süre: <strong className="text-amber-400 font-mono">{secondsLeft}s</strong>
           </span>
         </div>
 
-        {/* Takım Reytingi */}
-        <div className="flex items-center gap-2 sm:gap-4 font-mono text-xs">
-          <span className="px-3 py-1 rounded-lg bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 font-black">
-            GEN: {lineup.teamOvr}
+        {/* Kalan Süre Ortada ve Belirgin */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 px-3.5 py-1 rounded-xl bg-black/60 border border-white/15 shadow-md">
+          <Timer className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 animate-pulse" />
+          <span className="text-xl sm:text-2xl font-mono font-black text-amber-400 tabular-nums">
+            {secondsLeft}s
           </span>
+        </div>
+
+        {/* Sağ: Onaylayan Kişi Sayacı */}
+        <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-zinc-300">
+          <span className="text-emerald-400 font-extrabold">{confirmedUserIds.length}</span>
+          <span className="text-zinc-500">/</span>
+          <span className="text-white font-extrabold">{Math.max(1, totalParticipantCount)}</span>
+          <span className="text-zinc-400 font-sans font-medium hidden sm:inline">Onaylandı</span>
         </div>
       </div>
 
       {/* ANA İKİLİ IZGARA */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
         {/* SOL KOLON: DİZİLİŞLER & OYUNCULARIM */}
-        <div className="lg:col-span-4 flex flex-col gap-4">
-          {/* 1. DİZİLİŞLER */}
-          <div className="p-4 rounded-2xl bg-black/50 border border-white/10 backdrop-blur-xl">
-            <span className="text-[11px] font-extrabold uppercase tracking-widest text-zinc-400 block mb-2.5">
-              Diziliş Seçimi
-            </span>
-            <div className="grid grid-cols-2 gap-1.5">
-              {FORMATIONS.map((f) => (
-                <button
-                  key={f}
-                  type="button"
-                  onClick={() => handleFormationChange(f)}
-                  className={`rounded-lg px-1 py-2 text-[11px] font-mono font-bold transition-all ${formation === f ? "bg-emerald-600 text-white shadow-md" : "bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white"}`}
-                >
-                  {f}
-                </button>
-              ))}
-            </div>
+        <div className="lg:col-span-4 flex flex-col gap-3">
+          {/* 1. DİZİLİŞLER (Açılır / Kapanır) */}
+          <div className="p-3 sm:p-3.5 rounded-2xl bg-black/50 border border-white/10 backdrop-blur-xl transition-all">
+            <button
+              type="button"
+              onClick={() => setIsFormationsOpen(!isFormationsOpen)}
+              className="flex items-center justify-between w-full text-left cursor-pointer group"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-extrabold uppercase tracking-widest text-zinc-300">
+                  Diziliş Seçimi
+                </span>
+                <span className="font-mono text-xs font-black text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-md border border-emerald-500/30">
+                  {formation}
+                </span>
+              </div>
+              <ChevronDown
+                className={`w-4 h-4 text-zinc-400 transition-transform duration-200 group-hover:text-white ${
+                  isFormationsOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {isFormationsOpen && (
+              <div className="grid grid-cols-2 gap-1.5 mt-3 pt-2.5 border-t border-white/10 animate-fadeIn">
+                {FORMATIONS.map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => handleFormationChange(f)}
+                    className={`rounded-lg px-1 py-2 text-[11px] font-mono font-bold transition-all cursor-pointer ${
+                      formation === f
+                        ? "bg-emerald-600 text-white shadow-md font-black"
+                        : "bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white"
+                    }`}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* 2. OYUNCULARIM (Yedekler Paneli) */}
@@ -324,22 +354,21 @@ export function AuctionPitchBuilder({
                 ? "Kadroyu Onayla ➔"
                 : "11 Oyuncuyu Sahaya Yerleştirin"}
             </button>
-
-            <div className="flex items-center justify-center gap-1.5 text-center font-mono text-[11px] font-bold text-zinc-400 py-1">
-              <span className="text-emerald-400 font-extrabold">{confirmedUserIds.length}</span>
-              <span>/</span>
-              <span className="text-white font-extrabold">{Math.max(1, totalParticipantCount)}</span>
-              <span className="text-zinc-400 font-sans font-medium">Kişi Onayladı</span>
-            </div>
           </div>
         </div>
 
         {/* SAĞ KOLON: FUTBOL SAHASI */}
-        <div className="lg:col-span-8 relative aspect-[7/9] sm:aspect-[4/5] max-h-[680px] xl:max-h-[740px] w-full rounded-3xl overflow-hidden border-2 border-emerald-500/30 bg-[#0d2a1a] shadow-2xl p-4 flex flex-col justify-between">
+        <div className="lg:col-span-8 relative aspect-[7/9] sm:aspect-[4/5] max-h-[580px] xl:max-h-[640px] w-full rounded-3xl overflow-hidden border-2 border-emerald-500/30 bg-[#0d2a1a] shadow-2xl p-4 flex flex-col justify-between">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_50%,rgba(16,185,129,0.15)_0%,rgba(6,40,24,0.9)_100%)] pointer-events-none" />
           <div className="absolute inset-4 border border-white/20 pointer-events-none rounded-xl" />
           <div className="absolute top-1/2 inset-x-4 h-[1px] bg-white/20 pointer-events-none" />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-28 rounded-full border border-white/20 pointer-events-none" />
+
+          {/* Takım Reytingi (Sahanın Sağ Üstünde) */}
+          <div className="absolute top-5 right-5 z-20 flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-black/85 border-2 border-emerald-500/60 shadow-[0_0_25px_rgba(16,185,129,0.35)] backdrop-blur-md">
+            <span className="text-xs font-black uppercase tracking-wider text-emerald-400 font-sans">GEN</span>
+            <span className="text-2xl font-mono font-black text-white">{lineup.teamOvr}</span>
+          </div>
 
           {/* Sahadaki 11 Yuva */}
           <div className="relative w-full h-full">

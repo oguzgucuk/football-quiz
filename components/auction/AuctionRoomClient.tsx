@@ -108,13 +108,21 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
               </div>
             )}
 
-            <div className="flex items-center gap-1.5">
+            <div
+              className={`flex items-center gap-2 px-3 py-1 rounded-xl border ${
+                isConnected
+                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                  : "bg-red-500/10 border-red-500/30 text-red-400"
+              }`}
+            >
               <span
-                className={`size-2 rounded-full ${
-                  isConnected ? "bg-emerald-400 animate-pulse" : "bg-red-500"
+                className={`size-2.5 rounded-full ${
+                  isConnected
+                    ? "bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]"
+                    : "bg-red-500"
                 }`}
               />
-              <span className="text-[11px] font-mono text-zinc-400">
+              <span className="text-xs sm:text-sm font-mono font-bold">
                 {isConnected ? "Canlı" : "Bağlanıyor..."}
               </span>
             </div>
@@ -123,7 +131,7 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
       </header>
 
       {/* Aşama İçeriği */}
-      <div className="relative z-10 flex-1 flex flex-col w-full px-4 sm:px-8 lg:px-12 py-4 sm:py-6">
+      <div className="relative z-10 flex-1 flex flex-col w-full px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
         {state.status === "lobby" && (
           <AuctionLobbyView
             state={state}

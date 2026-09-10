@@ -161,16 +161,19 @@ export function AuctionPitchSlot({
         )}
 
         {p && pTier ? (
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center justify-center leading-none">
+            <span className="text-[9px] font-mono font-black tracking-wider uppercase text-white/70 mb-0.5">
+              {slot.targetPosition}
+            </span>
             <span
-              className={`font-mono font-black text-sm sm:text-base leading-none ${
+              className={`font-mono font-black text-xs sm:text-sm leading-none ${
                 slot.penalty > 0 ? "text-amber-200" : pTier.accentText
               }`}
             >
               {slot.effectiveRating}
             </span>
             {slot.penalty > 0 && (
-              <span className="text-[9px] font-bold text-red-400 font-mono -mt-0.5">
+              <span className="text-[8px] font-bold text-red-400 font-mono">
                 -{slot.penalty}
               </span>
             )}
@@ -182,9 +185,9 @@ export function AuctionPitchSlot({
         )}
       </div>
 
-      {/* Oyuncu Adı Etiketi */}
+      {/* Oyuncu Adı ve Mevki Etiketi */}
       <span
-        className={`mt-1 px-2 py-0.5 rounded-md border text-[10px] sm:text-[11px] font-bold max-w-[90px] truncate text-center shadow-md transition-colors ${
+        className={`mt-1 px-2 py-0.5 rounded-md border text-[10px] sm:text-[11px] font-bold max-w-[105px] truncate text-center shadow-md transition-colors ${
           p
             ? "bg-black/85 border-white/15 text-white group-hover:border-emerald-400/60"
             : isDragOver
@@ -192,7 +195,14 @@ export function AuctionPitchSlot({
             : "bg-black/60 border-white/10 text-zinc-300"
         }`}
       >
-        {p ? p.fullName.split(" ").slice(-1)[0] : slot.targetPosition}
+        {p ? (
+          <>
+            <span className="font-mono text-emerald-400/90 mr-1 text-[9px]">{slot.targetPosition}</span>
+            <span>{p.fullName.split(" ").slice(-1)[0]}</span>
+          </>
+        ) : (
+          slot.targetPosition
+        )}
       </span>
     </div>
   );

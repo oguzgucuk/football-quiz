@@ -11,9 +11,9 @@ import React, { useState } from "react";
 import { AuctionRoomState } from "@/lib/auction/auctionTypes";
 import { Timer, ShieldAlert, Gavel, Gem } from "lucide-react";
 import { getRatingTier } from "@/lib/game/playerRatingTiers";
-import { AuctionSoldNotification } from "./AuctionSoldNotification";
 import { MySquadDrawer } from "./MySquadDrawer";
 import { AuctionBiddingOpponentCard } from "./AuctionBiddingOpponentCard";
+import { AuctionSalesHistoryDropdown } from "./AuctionSalesHistoryDropdown";
 
 interface AuctionBiddingStageProps {
   state: AuctionRoomState;
@@ -43,6 +43,14 @@ export function AuctionBiddingStage({
     (p) => getRatingTier(p.overallPrime).tier === "diamond"
   ).length;
 
+  // Tüm satış geçmişi (ters kronolojik sıra)
+  const sales =
+    state.salesHistory && state.salesHistory.length > 0
+      ? [...state.salesHistory].reverse()
+      : state.lastSoldEvent
+      ? [state.lastSoldEvent]
+      : [];
+
   const [customBid, setCustomBid] = useState<string>("");
   const isMyHighestBid = currentBidderId === currentUserId;
   const hasPassed = state.passedUserIds.includes(currentUserId);
@@ -64,22 +72,32 @@ export function AuctionBiddingStage({
 
   return (
     <div className="relative w-full flex flex-col gap-5 select-none animate-fadeIn">
-      {/* 2 Saniyelik Oyuncu Satıldı Bildirimi */}
-      <AuctionSoldNotification soldEvent={state.lastSoldEvent} />
-
-      {/* Üst Bilgi Çubuğu & Sayaç */}
-      <div className="flex items-center justify-between p-3 px-5 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-black uppercase tracking-wider text-emerald-400 bg-emerald-950/60 px-2.5 py-1 rounded-full border border-emerald-500/30">
+      {/* Üst Bilgi Çubuğu: Tur & Elmas Sayısı (Sol) + Ortalanmış Sayaç (Orta) + Son Satış Dropdown (Sağ) */}
+      <div className="relative flex items-center justify-between p-3 px-5 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-md gap-4 min-h-[58px]">
+        {/* Sol Taraf: Tur Sayısı ve Kalan Elmas Oyuncu İbaresi */}
+        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+          <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-emerald-400 bg-emerald-950/80 px-3 py-1.5 rounded-xl border border-emerald-500/40 shrink-0">
             Açık Artırma Turu: {state.currentCardIndex + 1} / {state.pool.length}
+          </span>
+          {remainingDiamondCount > 0 && (
+            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-950/80 border border-cyan-400/50 text-cyan-200 text-xs sm:text-sm font-black shadow-[0_0_15px_rgba(56,189,248,0.25)] shrink-0 animate-pulse">
+              <Gem className="w-4 h-4 text-cyan-300" />
+              <span>{remainingDiamondCount} Elmas Havuzda</span>
+            </span>
+          )}
+        </div>
+
+        {/* Orta: Saniye (Ortalanmış) */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-1 rounded-xl bg-black/60 border border-white/15 shadow-md">
+          <Timer className="w-5 h-5 text-amber-400 animate-pulse" />
+          <span className="text-2xl font-mono font-black text-amber-400 tabular-nums">
+            {String(Math.floor(state.secondsLeft / 60)).padStart(2, "0")}:{String(state.secondsLeft % 60).padStart(2, "0")}
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Timer className="w-5 h-5 text-amber-400 animate-pulse" />
-          <span className="text-xl font-mono font-black text-amber-400">
-            {String(Math.floor(state.secondsLeft / 60)).padStart(2, "0")}:{String(state.secondsLeft % 60).padStart(2, "0")}
-          </span>
+        {/* Sağ Taraf: Son Satış Bilgisi + Dropdown */}
+        <div className="flex items-center justify-end flex-1 min-w-0">
+          <AuctionSalesHistoryDropdown sales={sales} />
         </div>
       </div>
 
@@ -93,19 +111,14 @@ export function AuctionBiddingStage({
 
       {/* ANA PANEL: SOL (KADROM) VS ORTA (VİTRİN) VS SAĞ (RAKİP KADROLAR) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        {!isSpectator && <MySquadDrawer participant={myParticipant} />}
+        {!isSpectator && (
+          <MySquadDrawer
+            participant={myParticipant}
+            isMyHighestBid={isMyHighestBid}
+          />
+        )}
         {/* ORTA BÖLGE (Vitrin & Teklifler) */}
         <div className={`${isSpectator ? "lg:col-span-5" : "lg:col-span-4"} flex flex-col gap-4 p-5 rounded-3xl bg-black/50 border border-white/10 backdrop-blur-2xl shadow-2xl`}>
-
-          {/* Elmas Oyuncu Havuz Uyarısı */}
-          {remainingDiamondCount > 0 && (
-            <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-cyan-950/60 border border-cyan-400/50 shadow-[0_0_18px_rgba(56,189,248,0.2)] animate-pulse-slow">
-              <Gem className="w-5 h-5 text-cyan-300 shrink-0" />
-              <span className="text-sm font-black text-cyan-200 tracking-wide">
-                {remainingDiamondCount} Elmas Oyuncu Havuzda !!
-              </span>
-            </div>
-          )}
 
           {/* Futbolcu Kartı */}
           {card ? (() => {
@@ -180,13 +193,24 @@ export function AuctionBiddingStage({
             <div className="flex items-center gap-2 px-10 py-3 rounded-2xl bg-amber-950/40 border-2 border-amber-500/50 text-amber-400 font-mono font-black text-4xl sm:text-5xl shadow-[0_0_30px_rgba(245,158,11,0.25)]">
               {currentBid}M $
             </div>
-            <span className="text-xs text-zinc-400 font-medium mt-2">
-              {isMyHighestBid
-                ? "👑 En yüksek teklif sende! Karşı tarafın hamlesi bekleniyor..."
-                : state.currentHighestBid
-                ? `En son teklif: ${state.currentHighestBid.bidderUsername}`
-                : "Teklif bekleniyor..."}
-            </span>
+
+            <div className="mt-3 flex items-center justify-center text-center">
+              {isMyHighestBid ? (
+                <div className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-amber-400/20 border border-amber-400/60 text-amber-300 font-black text-sm sm:text-base animate-pulse shadow-[0_0_15px_rgba(251,191,36,0.25)]">
+                  <span>👑 En Yüksek Teklif Sende! Karşı tarafın hamlesi bekleniyor...</span>
+                </div>
+              ) : state.currentHighestBid ? (
+                <div className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-white/10 border border-white/15 text-zinc-200 font-bold text-sm sm:text-base flex-wrap justify-center">
+                  <span className="text-zinc-400 font-medium">Lider Teklif Sahibi:</span>
+                  <span className="text-white font-black">{state.currentHighestBid.bidderUsername}</span>
+                  <span className="font-mono text-amber-400 font-black">({currentBid}M $)</span>
+                </div>
+              ) : (
+                <span className="text-sm font-bold text-zinc-500 tracking-wide">
+                  Henüz teklif verilmedi (Açılış bekleniyor)
+                </span>
+              )}
+            </div>
           </div>
 
           {/* TEKLİF BUTONLARI (+1M $, +2M $, +3M $, [...M $] ve Teklif Ver) */}
