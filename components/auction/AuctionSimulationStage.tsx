@@ -67,7 +67,6 @@ export function AuctionSimulationStage({
   // Bye oyuncusu — bu turda oynamayan kişi
   const byeUserId = currentRound?.byeUserId ?? null;
   const byeUsername = byeUserId ? state.participants[byeUserId]?.username : null;
-  const viewedMatch = currentRound?.matches.find((match) => match.homeUserId === currentUserId || match.awayUserId === currentUserId) || currentRound?.matches[0];
 
   // Puan tablosu: sadece tamamlanmış turlar dahil (spoiler yok)
   const currentStandings = useMemo(() => {
@@ -161,15 +160,6 @@ export function AuctionSimulationStage({
         </div>
       </div>
 
-      {viewedMatch && <MatchLineupDrawer
-        homeName={viewedMatch.homeUsername}
-        homeLineup={state.lineups[viewedMatch.homeUserId]}
-        awayName={viewedMatch.awayUsername}
-        awayLineup={state.lineups[viewedMatch.awayUserId]}
-        currentUserId={currentUserId}
-        homeUserId={viewedMatch.homeUserId}
-      />}
-
       {/* ── Eş Zamanlı Maç Kartları ── */}
       {currentRound ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -179,6 +169,7 @@ export function AuctionSimulationStage({
               match={match}
               currentMinute={currentRoundMinute}
               currentUserId={currentUserId}
+              lineups={state.lineups}
             />
           ))}
         </div>
@@ -266,9 +257,10 @@ interface LiveMatchCardProps {
   match: MatchSimulationResult;
   currentMinute: number;
   currentUserId: string;
+  lineups: AuctionRoomState["lineups"];
 }
 
-function LiveMatchCard({ match, currentMinute, currentUserId }: LiveMatchCardProps) {
+function LiveMatchCard({ match, currentMinute, currentUserId, lineups }: LiveMatchCardProps) {
   // Görünen eventler: sadece bu dakikaya kadar olanlar (kronolojik ters sıra — en yeni üstte)
   const visibleEvents = match.events
     .filter((e) => e.minute <= currentMinute)
@@ -305,7 +297,7 @@ function LiveMatchCard({ match, currentMinute, currentUserId }: LiveMatchCardPro
         </div>
 
         {/* Skor */}
-        <div className="col-span-1 flex items-center justify-center">
+        <div className="col-span-1 flex flex-col items-center justify-center">
           <div className={`flex items-center gap-1.5 px-3 py-1 rounded-xl border font-mono font-black text-xl transition-all ${
             latestGoal
               ? "bg-amber-950/60 border-amber-500/40 text-amber-300 scale-110"
@@ -315,6 +307,15 @@ function LiveMatchCard({ match, currentMinute, currentUserId }: LiveMatchCardPro
             <span className="text-zinc-600">-</span>
             <span>{awayGoals.length}</span>
           </div>
+          <MatchLineupDrawer
+            homeName={match.homeUsername}
+            homeLineup={lineups[match.homeUserId]}
+            awayName={match.awayUsername}
+            awayLineup={lineups[match.awayUserId]}
+            currentUserId={currentUserId}
+            homeUserId={match.homeUserId}
+            awayUserId={match.awayUserId}
+          />
         </div>
 
         {/* Deplasman */}
