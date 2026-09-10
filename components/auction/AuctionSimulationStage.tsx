@@ -105,8 +105,15 @@ export function AuctionSimulationStage({
             ŞAMPİYON: {state.standings[0]?.username || "Kazanan"} 🏆
           </h2>
 
-          <div className="w-full max-w-xl mt-6">
-            <StandingsTable standings={state.standings} currentUserId={currentUserId} />
+          <div className="mt-6 grid w-full max-w-4xl gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,1fr)]">
+            <div className="rounded-2xl border border-white/10 bg-black/25 p-3">
+              <p className="mb-2 text-left text-[10px] font-black uppercase tracking-widest text-zinc-400">Puan durumu</p>
+              <StandingsTable standings={state.standings} currentUserId={currentUserId} />
+            </div>
+            <TournamentPlayerLeaders
+              matches={rounds.flatMap((round) => round.matches)}
+              participants={state.participants}
+            />
           </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-xl mt-8">
@@ -482,6 +489,86 @@ function StandingsTable({
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function TournamentPlayerLeaders({
+  matches,
+  participants,
+}: {
+  matches: MatchSimulationResult[];
+  participants: AuctionRoomState["participants"];
+}) {
+  const playerTotals = new Map<string, { playerName: string; teamUserId: string; goals: number; assists: number }>();
+
+  for (const match of matches) {
+    for (const stat of Object.values(match.playerStats || {})) {
+      const key = `${stat.teamUserId}:${stat.playerName}`;
+      const current = playerTotals.get(key) || {
+        playerName: stat.playerName,
+        teamUserId: stat.teamUserId,
+        goals: 0,
+        assists: 0,
+      };
+      current.goals += stat.goals;
+      current.assists += stat.assists;
+      playerTotals.set(key, current);
+    }
+  }
+
+  const leaders = [...playerTotals.values()];
+  const goalLeaders = leaders.filter((player) => player.goals > 0).sort((a, b) => b.goals - a.goals || b.assists - a.assists || a.playerName.localeCompare(b.playerName));
+  const assistLeaders = leaders.filter((player) => player.assists > 0).sort((a, b) => b.assists - a.assists || b.goals - a.goals || a.playerName.localeCompare(b.playerName));
+
+  return (
+    <section className="rounded-2xl border border-amber-500/25 bg-black/30 p-3 text-left shadow-lg shadow-black/20">
+      <p className="mb-3 text-[10px] font-black uppercase tracking-widest text-amber-300">Oyuncu istatistikleri</p>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+        <LeaderTable title="Gol krallığı" icon="⚽" valueLabel="GOL" players={goalLeaders} valueKey="goals" participants={participants} />
+        <LeaderTable title="Asist krallığı" icon="🎯" valueLabel="AST" players={assistLeaders} valueKey="assists" participants={participants} />
+      </div>
+    </section>
+  );
+}
+
+function LeaderTable({
+  title,
+  icon,
+  valueLabel,
+  players,
+  valueKey,
+  participants,
+}: {
+  title: string;
+  icon: string;
+  valueLabel: string;
+  players: Array<{ playerName: string; teamUserId: string; goals: number; assists: number }>;
+  valueKey: "goals" | "assists";
+  participants: AuctionRoomState["participants"];
+}) {
+  return (
+    <div className="rounded-xl border border-white/8 bg-black/20 p-2">
+      <div className="mb-1.5 flex items-center justify-between">
+        <p className="text-[10px] font-black uppercase tracking-wide text-white">{icon} {title}</p>
+        <span className="text-[8px] font-black text-zinc-500">{valueLabel}</span>
+      </div>
+      {players.length ? (
+        <ol className="custom-scrollbar max-h-64 space-y-1 overflow-y-auto pr-1">
+          {players.map((player, index) => (
+            <li key={`${player.teamUserId}:${player.playerName}`} className="grid grid-cols-[16px_minmax(0,1fr)_24px] items-center gap-1 rounded-md px-1 py-1 text-[10px] odd:bg-white/[0.03]">
+              <span className={`font-mono font-black ${index === 0 ? "text-amber-300" : "text-zinc-500"}`}>{index + 1}.</span>
+              <span className="min-w-0">
+                <span className="block truncate font-bold text-zinc-200">{player.playerName}</span>
+                <span className="block truncate text-[8px] text-zinc-500">{participants[player.teamUserId]?.username || "Takım"}</span>
+              </span>
+              <span className="text-right font-mono text-xs font-black text-emerald-300">{player[valueKey]}</span>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="py-2 text-center text-[10px] text-zinc-600">Henüz veri yok</p>
+      )}
     </div>
   );
 }
