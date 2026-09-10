@@ -5,7 +5,6 @@ import { AuctionParticipant } from "@/lib/auction/auctionTypes";
 import { AuctionParticipantSquad } from "./AuctionParticipantSquad";
 
 export function MySquadDrawer({ participant }: { participant?: AuctionParticipant }) {
-  const [isOpen, setIsOpen] = useState(false);
   if (!participant) return null;
 
   const avgRating =
@@ -18,25 +17,25 @@ export function MySquadDrawer({ participant }: { participant?: AuctionParticipan
 
   return (
     <aside className="lg:col-span-3 lg:sticky lg:top-4 z-10 flex flex-col">
-      <div className="rounded-3xl border border-emerald-500/25 bg-black/55 p-5 shadow-2xl backdrop-blur-2xl max-h-[calc(100vh-210px)] min-h-[580px] overflow-y-auto">
-        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+      <div className="rounded-3xl border border-emerald-500/25 bg-black/60 p-5 sm:p-6 shadow-2xl backdrop-blur-2xl">
+        <div className="flex items-center justify-between border-b border-white/15 pb-4">
           <div>
-            <div className="flex items-center gap-2">
-              <p className="text-xs font-black uppercase tracking-widest text-emerald-300">Kadrom</p>
+            <div className="flex items-center gap-2.5">
+              <p className="text-sm font-black uppercase tracking-widest text-emerald-400">KADROM</p>
               {avgRating && (
-                <span className="text-[10px] font-mono font-black px-2 py-0.5 rounded-md bg-emerald-950/80 border border-emerald-500/40 text-emerald-300">
+                <span className="text-xs font-mono font-black px-2.5 py-0.5 rounded-lg bg-emerald-950/90 border border-emerald-500/50 text-emerald-300 shadow-sm">
                   Ort. {avgRating}
                 </span>
               )}
             </div>
-            <p className="mt-1 text-sm font-bold text-white">{participant.username}</p>
+            <p className="mt-1 text-base sm:text-lg font-black text-white">{participant.username}</p>
           </div>
           <div className="text-right font-mono">
-            <p className="text-base font-black text-amber-400">${participant.budget}M</p>
-            <p className="text-xs text-zinc-400 font-bold">{participant.squad.length}/11 Oyuncu</p>
+            <p className="text-xl sm:text-2xl font-black text-amber-400">${participant.budget}M</p>
+            <p className="text-xs sm:text-sm text-zinc-300 font-bold">{participant.squad.length}/11 Oyuncu</p>
           </div>
         </div>
-        <AuctionParticipantSquad squad={participant.squad} />
+        <AuctionParticipantSquad squad={participant.squad} variant="large" />
       </div>
     </aside>
   );

@@ -119,8 +119,8 @@ export function AuctionBiddingOpponentCard({
         </div>
       )}
 
-      {/* 3. SATIR: Katılımcının Kadrosundaki Futbolcular */}
-      <AuctionParticipantSquad squad={participant.squad} />
+      {/* 3. SATIR: Katılımcının Kadrosundaki Futbolcular (Kompakt) */}
+      <AuctionParticipantSquad squad={participant.squad} variant="compact" />
     </div>
   );
 }

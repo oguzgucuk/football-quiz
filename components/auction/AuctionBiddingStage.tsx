@@ -91,11 +91,11 @@ export function AuctionBiddingStage({
         </div>
       )}
 
-      {/* ANA PANEL: SOL (VİTRİN & TEKLİFLER) VS SAĞ (OYUNCULAR LİSTESİ) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      {/* ANA PANEL: SOL (KADROM) VS ORTA (VİTRİN) VS SAĞ (RAKİP KADROLAR) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {!isSpectator && <MySquadDrawer participant={myParticipant} />}
-        {/* SOL BÖLGE (Çizimdeki Sol Vitrin) */}
-        <div className={`${isSpectator ? "lg:col-span-7" : "lg:col-span-5"} flex flex-col gap-4 p-5 rounded-3xl bg-black/50 border border-white/10 backdrop-blur-2xl shadow-2xl`}>
+        {/* ORTA BÖLGE (Vitrin & Teklifler) */}
+        <div className={`${isSpectator ? "lg:col-span-5" : "lg:col-span-4"} flex flex-col gap-4 p-5 rounded-3xl bg-black/50 border border-white/10 backdrop-blur-2xl shadow-2xl`}>
 
           {/* Elmas Oyuncu Havuz Uyarısı */}
           {remainingDiamondCount > 0 && (
@@ -257,8 +257,8 @@ export function AuctionBiddingStage({
           </div>}
         </div>
 
-        {/* SAĞ BÖLGE (Çizimdeki Oyuncular Listesi & Kadroları) */}
-        <div className={`${isSpectator ? "lg:col-span-5" : "lg:col-span-4"} flex flex-col gap-3 p-5 rounded-3xl bg-black/50 border border-white/10 backdrop-blur-2xl shadow-2xl max-h-[calc(100vh-210px)] min-h-[580px] overflow-y-auto pr-1`}>
+        {/* SAĞ BÖLGE (Rakip Kadrolar - Scrollsüz 2'li Izgara) */}
+        <div className={`${isSpectator ? "lg:col-span-7" : "lg:col-span-5"} flex flex-col gap-3 p-5 rounded-3xl bg-black/50 border border-white/10 backdrop-blur-2xl shadow-2xl`}>
           <div className="flex items-center justify-between mb-1 pb-2 border-b border-white/10">
             <span className="text-xs font-black uppercase tracking-widest text-zinc-400">
               Rakip Kadrolar
@@ -268,7 +268,7 @@ export function AuctionBiddingStage({
             </span>
           </div>
 
-          <div className="flex flex-col gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {Object.values(state.participants)
               .filter((p) => Boolean(p.userId && p.userId.trim()))
               .filter((p) => isSpectator || p.userId !== currentUserId)
