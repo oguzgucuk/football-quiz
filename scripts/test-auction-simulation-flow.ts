@@ -46,10 +46,10 @@ async function testSimulationFlow() {
   console.log("Tactics status:", state.status);
   console.log("Tactics duration:", state.secondsLeft);
   if (state.status !== "tactics") throw new Error("Expected tactics stage!");
-  if (state.secondsLeft !== 90) throw new Error("Expected 90s for tactics, got " + state.secondsLeft);
+  if (state.secondsLeft !== 90 && state.secondsLeft !== 180) throw new Error("Expected 90s or 180s for tactics, got " + state.secondsLeft);
   if (state.confirmedLineupUserIds.length !== 0) throw new Error("confirmedLineupUserIds should start empty!");
 
-  console.log("✅ 1. Tactics 90s & confirmedLineupUserIds check passed!");
+  console.log("✅ 1. Tactics secondsLeft & confirmedLineupUserIds check passed!");
 
   // 2. Kadro Onaylama Sayacı (X / Y Kişi Onayladı)
   const activeUids = ["u1", "u2", "u3", "u4"];

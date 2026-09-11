@@ -147,19 +147,41 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
           />
         )}
 
-        {state.status === "tactics" && !isSpectator && (
-          <AuctionPitchBuilder
-            userId={currentUserId}
-            squad={myParticipant?.squad || []}
-            secondsLeft={state.secondsLeft}
-            confirmedUserIds={state.confirmedLineupUserIds || []}
-            totalParticipantCount={
-              Object.keys(state.participants).filter((id) => Boolean(id && id.trim())).length
-            }
-            onConfirmLineup={confirmLineup}
-            onUnconfirmLineup={unconfirmLineup}
-          />
-        )}
+        {state.status === "tactics" && !isSpectator && (() => {
+          const myLineup = state.lineups[currentUserId];
+          const roundIdx = state.currentRoundIndex ?? 0;
+          const currentRound = state.simulationRounds?.[roundIdx];
+          const myMatch = currentRound?.matches.find(
+            (m) => m.homeUserId === currentUserId || m.awayUserId === currentUserId
+          );
+          const opponentId = myMatch
+            ? myMatch.homeUserId === currentUserId
+              ? myMatch.awayUserId
+              : myMatch.homeUserId
+            : null;
+          const opponentLineup = opponentId ? state.lineups[opponentId] : undefined;
+          const opponentParticipant = opponentId ? state.participants[opponentId] : undefined;
+          const nextOpponent =
+            opponentId && opponentParticipant
+              ? { username: opponentParticipant.username, lineup: opponentLineup }
+              : undefined;
+
+          return (
+            <AuctionPitchBuilder
+              userId={currentUserId}
+              squad={myParticipant?.squad || []}
+              secondsLeft={state.secondsLeft}
+              confirmedUserIds={state.confirmedLineupUserIds || []}
+              totalParticipantCount={
+                Object.keys(state.participants).filter((id) => Boolean(id && id.trim())).length
+              }
+              initialLineup={myLineup}
+              nextOpponent={nextOpponent}
+              onConfirmLineup={confirmLineup}
+              onUnconfirmLineup={unconfirmLineup}
+            />
+          );
+        })()}
 
         {state.status === "tactics" && isSpectator && (
           <div className="mx-auto max-w-md rounded-3xl border border-sky-400/30 bg-slate-950/70 p-8 text-center shadow-2xl backdrop-blur-xl">

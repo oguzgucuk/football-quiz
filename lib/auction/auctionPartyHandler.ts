@@ -241,7 +241,15 @@ function handleConfirmLineup(room: AuctionPartyRoom, userId: string, lineup: Tea
     activeUids.length > 0 && activeUids.every((uid) => room.state.confirmedLineupUserIds.includes(uid));
 
   if (allConfirmed) {
-    startTournamentSimulation(room);
+    if (!room.state.simulationRounds || room.state.simulationRounds.length === 0) {
+      startTournamentSimulation(room);
+    } else {
+      room.state.status = "simulation";
+      room.state.currentRoundMinute = 0;
+      room.state.currentSimMinute = 0;
+      room.state.confirmedLineupUserIds = [];
+      broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
+    }
   } else {
     broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
   }
@@ -345,7 +353,9 @@ function handleNextSimMatch(room: AuctionPartyRoom, userId?: string) {
     room.state.currentRoundIndex = nextIdx;
     room.state.currentRoundMinute = 0;
     room.state.currentSimMinute = 0;
-    room.state.secondsLeft = 30;
+    room.state.status = "tactics";
+    room.state.secondsLeft = 120; // 2 dakikalık analiz ve taktik süresi
+    room.state.confirmedLineupUserIds = [];
     broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
   } else {
     room.state.status = "finished";
@@ -367,8 +377,17 @@ function startTimer(room: AuctionPartyRoom) {
       }
     } else if (room.state.status === "tactics") {
       if (room.state.secondsLeft <= 1) {
-        autoConfirmLineups(room);
-        startTournamentSimulation(room);
+        if (!room.state.simulationRounds || room.state.simulationRounds.length === 0) {
+          autoConfirmLineups(room);
+          startTournamentSimulation(room);
+        } else {
+          autoConfirmLineups(room);
+          room.state.status = "simulation";
+          room.state.currentRoundMinute = 0;
+          room.state.currentSimMinute = 0;
+          room.state.confirmedLineupUserIds = [];
+          broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
+        }
       } else {
         room.state.secondsLeft--;
         broadcast(room, { type: "AUCTION_TIMER_TICK", secondsLeft: room.state.secondsLeft });

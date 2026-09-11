@@ -80,11 +80,21 @@ export interface SquadSlot {
   penalty: number;
 }
 
+export type PitchCorridor = "left" | "center" | "right";
+
+export interface TeamTactics {
+  tempo: "slow" | "balanced" | "fast";
+  buildUp: "short_pass" | "balanced" | "long_ball";
+  pressing: "park_bus" | "balanced" | "high_press";
+  attackDirection: "left" | "center" | "right" | "balanced";
+}
+
 export interface TeamLineup {
   userId: string;
   formation: FormationName;
   slots: SquadSlot[];
   teamOvr: number;
+  tactics?: TeamTactics;
   isConfirmed: boolean;
 }
 

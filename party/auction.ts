@@ -249,7 +249,15 @@ export default class AuctionPartyServer implements Party.Server {
       activeUids.length > 0 && activeUids.every((uid) => this.state.confirmedLineupUserIds.includes(uid));
 
     if (allConfirmed) {
-      this.startTournamentSimulation();
+      if (!this.state.simulationRounds || this.state.simulationRounds.length === 0) {
+        this.startTournamentSimulation();
+      } else {
+        this.state.status = "simulation";
+        this.state.currentRoundMinute = 0;
+        this.state.currentSimMinute = 0;
+        this.state.confirmedLineupUserIds = [];
+        this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
+      }
     } else {
       this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
     }
@@ -382,7 +390,9 @@ export default class AuctionPartyServer implements Party.Server {
       this.state.currentRoundIndex = nextRoundIdx;
       this.state.currentRoundMinute = 0;
       this.state.currentSimMinute = 0; // geriye dönük uyum
-      this.state.secondsLeft = 30;
+      this.state.status = "tactics";
+      this.state.secondsLeft = 120; // 2 dakikalık analiz ve taktik süresi
+      this.state.confirmedLineupUserIds = [];
 
       // Eski alan güncelle — bu turun ilk maçı
       const roundStartMatchIndex = this.state.simulationRounds
@@ -416,8 +426,17 @@ export default class AuctionPartyServer implements Party.Server {
         }
       } else if (this.state.status === "tactics") {
         if (this.state.secondsLeft <= 1) {
-          this.autoConfirmLineups();
-          this.startTournamentSimulation();
+          if (!this.state.simulationRounds || this.state.simulationRounds.length === 0) {
+            this.autoConfirmLineups();
+            this.startTournamentSimulation();
+          } else {
+            this.autoConfirmLineups();
+            this.state.status = "simulation";
+            this.state.currentRoundMinute = 0;
+            this.state.currentSimMinute = 0;
+            this.state.confirmedLineupUserIds = [];
+            this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
+          }
         } else {
           this.state.secondsLeft--;
           this.broadcast({ type: "AUCTION_TIMER_TICK", secondsLeft: this.state.secondsLeft });

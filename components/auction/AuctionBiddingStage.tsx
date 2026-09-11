@@ -296,7 +296,6 @@ export function AuctionBiddingStage({
             {Object.values(state.participants)
               .filter((p) => Boolean(p.userId && p.userId.trim()))
               .filter((p) => isSpectator || p.userId !== currentUserId)
-              .sort((a, b) => Number(b.userId === currentBidderId) - Number(a.userId === currentBidderId))
               .map((p) => {
                 const didPass = state.passedUserIds.includes(p.userId);
                 return (
