@@ -295,7 +295,7 @@ export function AuctionSimulationStage({
         {/* ============================================================ */}
         {/* KOLON 1: BENİM KADROM (DİKEY MİNİ SAHA + TAKTİKLERİM)        */}
         {/* ============================================================ */}
-        <div className="flex flex-col gap-2 rounded-2xl bg-black/40 border border-white/10 p-2.5 backdrop-blur-xl h-full overflow-hidden">
+        <div className="min-w-0 flex flex-col gap-2 rounded-2xl bg-black/40 border border-white/10 p-2.5 backdrop-blur-xl h-full overflow-hidden">
           <div className="flex items-center justify-between px-1">
             <span className="text-xs font-black uppercase tracking-wider text-emerald-400 truncate max-w-[150px]">
               {isUserPlaying ? "Benim Kadrom" : leftUsername}
@@ -315,7 +315,7 @@ export function AuctionSimulationStage({
         {/* ============================================================ */}
         {/* KOLON 2: RAKİBİN KADROSU (DİKEY MİNİ SAHA + TAKTİKLERİ)      */}
         {/* ============================================================ */}
-        <div className="flex flex-col gap-2 rounded-2xl bg-black/40 border border-white/10 p-2.5 backdrop-blur-xl h-full overflow-hidden">
+        <div className="min-w-0 flex flex-col gap-2 rounded-2xl bg-black/40 border border-white/10 p-2.5 backdrop-blur-xl h-full overflow-hidden">
           <div className="flex items-center justify-between px-1">
             <span className="text-xs font-black uppercase tracking-wider text-cyan-400 truncate max-w-[150px]">
               {isUserPlaying ? `Rakip: ${rightUsername}` : rightUsername}
@@ -335,7 +335,7 @@ export function AuctionSimulationStage({
         {/* ============================================================ */}
         {/* KOLON 3: MAÇ MERKEZİ (SKOR/DK + SPİKER + GOL KRALLIĞI)       */}
         {/* ============================================================ */}
-        <div className="flex flex-col gap-2 h-full min-h-0 overflow-hidden">
+        <div className="min-w-0 flex flex-col gap-2 h-full min-h-0 overflow-hidden">
           {/* ÜST: SKOR - DAKİKA */}
           <div className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-black/50 border border-white/10 backdrop-blur-xl shrink-0">
             <div className="flex items-center justify-between w-full px-2 text-xs font-bold text-zinc-300">
@@ -416,7 +416,7 @@ export function AuctionSimulationStage({
         {/* ============================================================ */}
         {/* KOLON 4: LİG PANELİ (DİĞER MAÇLAR + PUAN DURUMU + ASİST)     */}
         {/* ============================================================ */}
-        <div className="flex flex-col gap-2 h-full min-h-0 overflow-hidden">
+        <div className="min-w-0 flex flex-col gap-2 h-full min-h-0 overflow-hidden">
           {/* ÜST: DİĞER MAÇLAR (Kompakt Skor Kartları) */}
           <div className="rounded-2xl bg-black/50 border border-white/10 p-2.5 backdrop-blur-xl shrink-0 flex flex-col gap-1.5">
             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">

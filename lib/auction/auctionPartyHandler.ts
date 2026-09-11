@@ -20,6 +20,7 @@ import {
 import { generateAuctionPool } from "./generateAuctionPool";
 import { createInitialSlotsForFormation } from "./formationTemplates";
 import { calculateLineupPowers, calculateSlotRating } from "./positionSuitability";
+import { autoAssignSquadToFormation } from "./autoSquadArranger";
 import { generateRoundRobinSchedule, calculateStandings, collectCompletedRoundMatches } from "./auctionTournament";
 
 interface AuctionPartyRoom {
@@ -400,16 +401,18 @@ function autoConfirmLineups(room: AuctionPartyRoom) {
   for (const [uid, p] of Object.entries(room.state.participants)) {
     if (!room.state.lineups[uid]?.isConfirmed) {
       const defaultFormation: FormationName = "4-2-3-1";
-      const slots = createInitialSlotsForFormation(defaultFormation);
-      p.squad.forEach((player, i) => {
-        if (slots[i]) {
-          const { effectiveRating, penalty } = calculateSlotRating(player, slots[i].targetPosition);
-          slots[i].placedPlayer = player;
-          slots[i].effectiveRating = effectiveRating;
-          slots[i].penalty = penalty;
-        }
-      });
-      room.state.lineups[uid] = calculateLineupPowers(uid, defaultFormation, slots);
+      const existingSlots = room.state.lineups[uid]?.slots;
+      // Akıllı dizilim: GK'yi mutlaka kaleye, defansı defansa koyar, sahada elle konmuş oyuncuları korur
+      const slots = autoAssignSquadToFormation(p.squad, defaultFormation, existingSlots);
+      const lineup = calculateLineupPowers(uid, defaultFormation, slots);
+      lineup.tactics = room.state.lineups[uid]?.tactics || {
+        tempo: "balanced",
+        buildUp: "balanced",
+        pressing: "balanced",
+        attackDirection: "balanced",
+      };
+      lineup.isConfirmed = true;
+      room.state.lineups[uid] = lineup;
     }
   }
   const activeUids = Object.keys(room.state.participants).filter((id) => Boolean(id && id.trim()));

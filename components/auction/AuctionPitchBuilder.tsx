@@ -19,6 +19,7 @@ import {
 } from "@/lib/auction/auctionTypes";
 import { FORMATION_CONFIGS, createInitialSlotsForFormation } from "@/lib/auction/formationTemplates";
 import { calculateSlotRating, calculateLineupPowers } from "@/lib/auction/positionSuitability";
+import { autoAssignSquadToFormation } from "@/lib/auction/autoSquadArranger";
 import { AuctionPitchSlot } from "./AuctionPitchSlot";
 import { AuctionSquadList } from "./AuctionSquadList";
 import { AuctionPlayerDetailModal } from "./AuctionPlayerDetailModal";
@@ -96,6 +97,23 @@ export function AuctionPitchBuilder({
       setIsLocallyUnconfirmed(false);
     }
   }, [serverConfirmed]);
+
+  // Süre bittiğinde (secondsLeft <= 1) eğer kullanıcı henüz onaylamadıysa:
+  // Sahada yerleştirilmiş oyuncuları koruyarak kalan boş yuvaları akıllıca doldur ve otomatik onayla!
+  const hasAutoConfirmedRef = useRef(false);
+  useEffect(() => {
+    if (secondsLeft > 5) {
+      hasAutoConfirmedRef.current = false;
+    }
+    if (secondsLeft <= 1 && !isConfirmed && !hasAutoConfirmedRef.current) {
+      hasAutoConfirmedRef.current = true;
+      const finalSlots = autoAssignSquadToFormation(squad, formation, slots);
+      const computedLineup = calculateLineupPowers(userId, formation, finalSlots);
+      computedLineup.tactics = tactics;
+      computedLineup.isConfirmed = true;
+      onConfirmLineup(computedLineup);
+    }
+  }, [secondsLeft, isConfirmed, squad, formation, slots, tactics, userId, onConfirmLineup]);
 
   // Rakip Analizi Modalı
   const [showOpponentModal, setShowOpponentModal] = useState(false);

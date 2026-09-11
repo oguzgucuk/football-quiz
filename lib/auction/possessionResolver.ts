@@ -36,7 +36,9 @@ export function resolveShooterVsGoalkeeper(
   const shotQuality = clamp((breakthroughChance - 0.5) * 2, 0, 1);
   const shooterCurve = ratingCurve(shooterRating);
   const gkCurve = ratingCurve(gkEffectiveRating);
-  const goalChance = clamp(0.43 + (shooterCurve - gkCurve) * 0.65 + shotQuality * 0.15, 0.06, 0.90);
+  // Kalecileri devleştiren dengeli gol/kurtarış formülü:
+  // Taban gol şansı %33 (kaleciler şutların %67-%75'ini çıkarır, kalede devleşir).
+  const goalChance = clamp(0.33 + (shooterCurve - gkCurve) * 0.45 + shotQuality * 0.12, 0.05, 0.75);
   const isGoal = Math.random() < goalChance;
   return { isGoal, goalChance, gkSaveChance: 1 - goalChance };
 }
@@ -123,7 +125,7 @@ export function resolvePossession(
   // 3. SAFHA 2: Ceza Sahasını Delme (Hücumcular vs Savunmacılar)
   const atkPower = calculateCorridorAttackPower(attacking, attackCorridor);
   const defPower = calculateCorridorDefensePower(defending, defenseCorridor);
-  const breakthroughChance = clamp(atkPower / Math.max(0.001, atkPower + defPower), 0.05, 0.90);
+  const breakthroughChance = clamp(atkPower / Math.max(0.001, atkPower + defPower * 1.15), 0.05, 0.82);
   const defenseBeaten = Math.random() < breakthroughChance;
 
   if (!defenseBeaten) {
