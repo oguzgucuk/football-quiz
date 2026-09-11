@@ -91,19 +91,25 @@ function calculateSlotDefense(slot: SquadSlot, defC: PitchCorridor, f: Formation
   const slotC = getSlotCorridor(slot.slotId, slot.targetPosition, f);
 
   if (slot.targetPosition === "CB") {
-    if (defC === "center") return curve * 1.5;
-    return slotC === defC ? curve * 1.5 * (back3 ? 0.70 : 0.35) : curve * 0.30;
+    if (defC === "center") return curve * 1.85;
+    // Stoperlerin kanata kademeye girme gücü (eskiden %30'du, şimdi %55-%85)
+    return slotC === defC ? curve * (back3 ? 0.85 : 0.60) : curve * 0.45;
   }
   if (DEF_POSITIONS.includes(slot.targetPosition) && slotC === defC) {
-    return curve * 1.4 * (tac.buildUp === "short_pass" ? 0.75 : 1.0);
+    // Beklerin kanat birebir savunma direnci (eskiden 1.4'tü, şimdi 1.75)
+    return curve * 1.75 * (tac.buildUp === "short_pass" ? 0.90 : 1.0);
   }
   if (MID_POSITIONS.includes(slot.targetPosition)) {
     let support = 0;
-    if (defC === "center" && (slotC === "center" || ["CM", "CDM", "CAM"].includes(slot.targetPosition))) support = 0.6;
-    else if (slotC === defC) support = ["LM", "RM"].includes(slot.targetPosition) ? 0.6 : (multiMid ? 0.36 : 0.12);
+    const isDMC = slot.targetPosition === "CDM";
+    if (defC === "center" && (slotC === "center" || ["CM", "CDM", "CAM"].includes(slot.targetPosition))) {
+      support = isDMC ? 0.85 : 0.65;
+    } else if (slotC === defC) {
+      support = ["LM", "RM"].includes(slot.targetPosition) ? 0.70 : (multiMid ? 0.45 : 0.20);
+    }
     if (support > 0) {
-      if (tac.buildUp === "short_pass") support *= 0.75;
-      else if (tac.buildUp === "long_ball") support *= 0.20;
+      if (tac.buildUp === "short_pass") support *= 0.85;
+      else if (tac.buildUp === "long_ball") support *= 0.25;
       return curve * support;
     }
   }

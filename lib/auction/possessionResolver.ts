@@ -125,7 +125,8 @@ export function resolvePossession(
   // 3. SAFHA 2: Ceza Sahasını Delme (Hücumcular vs Savunmacılar)
   const atkPower = calculateCorridorAttackPower(attacking, attackCorridor);
   const defPower = calculateCorridorDefensePower(defending, defenseCorridor);
-  const breakthroughChance = clamp(atkPower / Math.max(0.001, atkPower + defPower * 1.15), 0.05, 0.82);
+  // Savunma direnci güçlendirildi: atakların ~%60-%65'i stoperler ve bekler tarafından kesilir
+  const breakthroughChance = clamp(atkPower / Math.max(0.001, atkPower + defPower * 1.55), 0.05, 0.75);
   const defenseBeaten = Math.random() < breakthroughChance;
 
   if (!defenseBeaten) {
