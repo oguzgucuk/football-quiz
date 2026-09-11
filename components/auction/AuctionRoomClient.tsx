@@ -15,6 +15,7 @@ import { AuctionPitchBuilder } from "./AuctionPitchBuilder";
 import { AuctionSimulationStage } from "./AuctionSimulationStage";
 import { StadiumBackground } from "@/components/ui/StadiumBackground";
 import { Loader2, ArrowLeft, AlertTriangle, AlertCircle } from "lucide-react";
+import { generateLeagueSchedule, getOpponentForUserInRound } from "@/lib/auction/auctionTournament";
 
 interface AuctionRoomClientProps {
   roomId: string;
@@ -150,20 +151,31 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
         {state.status === "tactics" && !isSpectator && (() => {
           const myLineup = state.lineups[currentUserId];
           const roundIdx = state.currentRoundIndex ?? 0;
+          let opponentId: string | null = null;
+
           const currentRound = state.simulationRounds?.[roundIdx];
           const myMatch = currentRound?.matches.find(
             (m) => m.homeUserId === currentUserId || m.awayUserId === currentUserId
           );
-          const opponentId = myMatch
-            ? myMatch.homeUserId === currentUserId
-              ? myMatch.awayUserId
-              : myMatch.homeUserId
-            : null;
+
+          if (myMatch) {
+            opponentId = myMatch.homeUserId === currentUserId ? myMatch.awayUserId : myMatch.homeUserId;
+          } else {
+            // İlk maçta (simulationRounds henüz oluşmadıysa) fikstür eşleşmesini doğrudan hesapla
+            const activeUids = Object.keys(state.participants).filter((id) => Boolean(id && id.trim()));
+            const schedule = generateLeagueSchedule(activeUids);
+            opponentId = getOpponentForUserInRound(schedule, roundIdx, currentUserId);
+          }
+
           const opponentLineup = opponentId ? state.lineups[opponentId] : undefined;
           const opponentParticipant = opponentId ? state.participants[opponentId] : undefined;
           const nextOpponent =
             opponentId && opponentParticipant
-              ? { username: opponentParticipant.username, lineup: opponentLineup }
+              ? {
+                  username: opponentParticipant.username,
+                  lineup: opponentLineup,
+                  squad: opponentParticipant.squad,
+                }
               : undefined;
 
           return (

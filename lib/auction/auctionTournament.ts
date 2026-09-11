@@ -22,6 +22,72 @@ export interface FixturePair {
 // Yeni: Circle/Berger Round-Robin Algoritması
 // ---------------------------------------------------------------------------
 
+export interface RoundScheduleItem {
+  roundNumber: number;
+  pairings: Array<{ homeUserId: string; awayUserId: string }>;
+  byeUserId: string | null;
+}
+
+/**
+ * Berger circle algoritmasıyla tüm ligin eşleşmelerini üretir (taktiklerden bağımsız, saf eşleşme).
+ */
+export function generateLeagueSchedule(userIds: string[]): RoundScheduleItem[] {
+  const validIds = userIds.filter((id) => Boolean(id && id.trim()));
+  const hasBye = validIds.length % 2 !== 0;
+  const BYE_ID = "__BYE__";
+  const ids = hasBye ? [...validIds, BYE_ID] : [...validIds];
+  const n = ids.length;
+  if (n < 2) return [];
+
+  const totalRounds = n - 1;
+  const circle = ids.slice(1);
+  const schedule: RoundScheduleItem[] = [];
+
+  for (let r = 0; r < totalRounds; r++) {
+    const fixed = ids[0];
+    const rotatedCorrect: string[] = [];
+    for (let i = 0; i < circle.length; i++) {
+      rotatedCorrect.push(circle[(r + i) % circle.length]);
+    }
+
+    const half = n / 2;
+    const pairings: Array<{ homeUserId: string; awayUserId: string }> = [];
+    let byeUserId: string | null = null;
+
+    const pairs: Array<[string, string]> = [[fixed, rotatedCorrect[half - 1]]];
+    for (let i = 0; i < half - 1; i++) {
+      pairs.push([rotatedCorrect[i], rotatedCorrect[n - 2 - i]]);
+    }
+
+    for (const [home, away] of pairs) {
+      if (home === BYE_ID || away === BYE_ID) {
+        byeUserId = home === BYE_ID ? away : home;
+        continue;
+      }
+      pairings.push({ homeUserId: home, awayUserId: away });
+    }
+
+    schedule.push({ roundNumber: r + 1, pairings, byeUserId });
+  }
+
+  return schedule;
+}
+
+/**
+ * Belirtilen turda bir oyuncunun rakibini bulur. Bye ise null döner.
+ */
+export function getOpponentForUserInRound(
+  schedule: RoundScheduleItem[],
+  roundIndex: number,
+  userId: string
+): string | null {
+  const round = schedule[roundIndex];
+  if (!round) return null;
+  const match = round.pairings.find((p) => p.homeUserId === userId || p.awayUserId === userId);
+  if (!match) return null;
+  return match.homeUserId === userId ? match.awayUserId : match.homeUserId;
+}
+
 /**
  * Berger circle yöntemiyle round-robin fikstür üretir.
  * Çift sayı N oyuncu → N-1 tur, her turda N/2 eş zamanlı maç.

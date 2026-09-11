@@ -49,7 +49,7 @@ interface AuctionPitchBuilderProps {
   confirmedUserIds?: string[];
   totalParticipantCount?: number;
   initialLineup?: TeamLineup;
-  nextOpponent?: { username: string; lineup?: TeamLineup };
+  nextOpponent?: { username: string; lineup?: TeamLineup; squad?: AuctionPlayerCard[] };
   onConfirmLineup: (lineup: TeamLineup) => void;
   onUnconfirmLineup?: () => void;
 }
@@ -639,9 +639,51 @@ export function AuctionPitchBuilder({
                   })}
                 </div>
               </div>
+            ) : nextOpponent.squad && nextOpponent.squad.length > 0 ? (
+              <div className="flex flex-col gap-2.5">
+                <div className="flex items-center justify-between bg-white/5 p-3 rounded-2xl border border-white/10">
+                  <span className="text-xs text-zinc-400 font-bold uppercase">Durum</span>
+                  <span className="text-xs font-mono font-bold text-amber-300">
+                    İlk 11 & Taktik Seçimi Bekleniyor
+                  </span>
+                </div>
+
+                <div className="flex flex-col gap-1.5 max-h-64 overflow-y-auto pr-1">
+                  <span className="text-[10px] uppercase font-black tracking-wider text-zinc-400 mb-0.5">
+                    Satın Alınan Kadro ({nextOpponent.squad.length} Oyuncu)
+                  </span>
+                  {nextOpponent.squad.map((player) => {
+                    const tier = getRatingTier(player.overallPrime);
+                    const posList =
+                      player.positions && player.positions.length > 0
+                        ? player.positions
+                        : [player.primaryPosition || "CM"];
+                    return (
+                      <div
+                        key={player.id}
+                        className="flex items-center justify-between p-1.5 px-2.5 rounded-xl bg-white/5 border border-white/5 text-xs"
+                      >
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <span
+                            className={`size-6 rounded flex items-center justify-center font-mono text-[10px] font-black shrink-0 ${tier.badgeClass}`}
+                          >
+                            {player.overallPrime}
+                          </span>
+                          <span className="font-bold text-white truncate">
+                            {player.fullName}
+                          </span>
+                        </div>
+                        <span className="font-mono font-bold text-zinc-400 bg-white/10 px-1.5 py-0.5 rounded text-[10px]">
+                          {posList.slice(0, 3).join("/")}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             ) : (
               <div className="py-8 text-center text-zinc-400 text-xs font-bold">
-                Rakibin henüz kaydedilmiş bir ilk 11 verisi bulunmuyor.
+                Rakibin henüz oyuncu verisi bulunmuyor.
               </div>
             )}
           </div>
