@@ -51,12 +51,7 @@ export function calculateCorridorMidfieldScore(lineup: TeamLineup, corridor: Pit
     const slotCorridor = getSlotCorridor(slot.slotId, slot.targetPosition, lineup.formation);
     const mult = getMidfieldCorridorMultiplier(slot.targetPosition, slotCorridor, corridor, isMultiMid);
     if (mult > 0) {
-      let slotContribution = ratingCurve(slot.effectiveRating) * baseWeight * mult;
-      // Yüksek pres taktiğinde öndeki hücum oyuncularının presi ekstra %50 artar
-      if (tactics.pressing === "high_press" && ["ST", "CF", "LW", "RW"].includes(slot.targetPosition)) {
-        slotContribution *= 1.50;
-      }
-      totalScore += slotContribution;
+      totalScore += ratingCurve(slot.effectiveRating) * baseWeight * mult;
       hasPlayer = true;
     }
   }
