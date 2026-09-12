@@ -59,7 +59,10 @@ export function AuctionSalesHistoryDropdown({ sales }: AuctionSalesHistoryDropdo
   }
 
   return (
-    <div ref={containerRef} className="relative inline-block text-left select-none">
+    <div
+      ref={containerRef}
+      className={`relative inline-block text-left select-none ${isOpen ? "z-50" : "z-10"}`}
+    >
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}

@@ -73,7 +73,7 @@ export function AuctionBiddingStage({
   return (
     <div className="relative w-full flex flex-col gap-5 select-none animate-fadeIn">
       {/* Üst Bilgi Çubuğu: Tur & Elmas Sayısı (Sol) + Ortalanmış Sayaç (Orta) + Son Satış Dropdown (Sağ) */}
-      <div className="relative flex items-center justify-between p-3 px-5 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-md gap-4 min-h-[58px]">
+      <div className="relative z-30 flex items-center justify-between p-3 px-5 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-md gap-4 min-h-[58px]">
         {/* Sol Taraf: Tur Sayısı ve Kalan Elmas Oyuncu İbaresi */}
         <div className="flex items-center gap-2.5 flex-1 min-w-0">
           <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-emerald-400 bg-emerald-950/80 px-3 py-1.5 rounded-xl border border-emerald-500/40 shrink-0">
@@ -96,7 +96,7 @@ export function AuctionBiddingStage({
         </div>
 
         {/* Sağ Taraf: Son Satış Bilgisi + Dropdown */}
-        <div className="flex items-center justify-end flex-1 min-w-0">
+        <div className="relative z-40 flex items-center justify-end flex-1 min-w-0">
           <AuctionSalesHistoryDropdown sales={sales} />
         </div>
       </div>
