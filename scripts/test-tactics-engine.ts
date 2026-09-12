@@ -74,17 +74,17 @@ async function runTacticsTests() {
   const longAtk = calculateCorridorAttackPower(longBallTeam, "left");
 
   console.log(`Standart Hücum Gücü: ${baseAtk.toFixed(3)}`);
-  console.log(`Kısa Pas Hücum Gücü (Bek ve Orta Saha +%25): ${shortAtk.toFixed(3)}`);
-  console.log(`Uzun Pas Hücum Gücü (Orta Saha Baypas -%80): ${longAtk.toFixed(3)}`);
+  console.log(`Kısa Pas Hücum Gücü (Forvetler Nerf: 0.85x, Orta Saha Buff): ${shortAtk.toFixed(3)}`);
+  console.log(`Uzun Pas Hücum Gücü (Orta Saha Baypas: 0.30x, Forvet Buff): ${longAtk.toFixed(3)}`);
 
-  if (shortAtk <= baseAtk) throw new Error("Kısa pas hücum gücünü artırmalıydı!");
+  if (shortAtk >= baseAtk) throw new Error("Kısa pasta direkt bitirici hücum gücü nerf yemeliydi!");
   if (longAtk >= baseAtk) throw new Error("Uzun pasta orta saha hücuma katılmadığı için delme gücü düşmeliydi!");
 
   const baseDef = calculateCorridorDefensePower(baseTeam, "left");
   const shortDef = calculateCorridorDefensePower(shortPassTeam, "left");
   console.log(`Standart Defans Gücü: ${baseDef.toFixed(3)}`);
-  console.log(`Kısa Pas Defans Gücü (Önde Yakalanma -%25): ${shortDef.toFixed(3)}`);
-  if (shortDef >= baseDef) throw new Error("Kısa pas savunma gücünü düşürmeliydi!");
+  console.log(`Kısa Pas Defans Gücü (Savunma Tam Korunur): ${shortDef.toFixed(3)}`);
+  if (shortDef < baseDef) throw new Error("Oyun kurma taktiği savunmayı zayıflatmamalı!");
 
   console.log("\n==========================================");
   console.log("🧪 3. PRES SEVİYESİ GÜÇ TRANSFERİ TESTLERİ");
@@ -99,7 +99,7 @@ async function runTacticsTests() {
 
   console.log(`Standart Orta Saha: ${normalMid.toFixed(3)}`);
   console.log(`Önde Pres Orta Saha (+%25): ${pressMid.toFixed(3)}`);
-  console.log(`Otobüsü Park Et Orta Saha (-%25): ${busMid.toFixed(3)}`);
+  console.log(`Otobüsü Park Et Orta Saha (-%30): ${busMid.toFixed(3)}`);
 
   if (pressMid <= normalMid) throw new Error("Yüksek pres orta saha gücünü artırmalıydı!");
   if (busMid >= normalMid) throw new Error("Park bus orta saha gücünü düşürmeliydi!");
@@ -110,7 +110,7 @@ async function runTacticsTests() {
 
   console.log(`Standart Defans: ${normalDef.toFixed(3)}`);
   console.log(`Önde Pres Defans (Arkada Boşluk -%25): ${pressDef.toFixed(3)}`);
-  console.log(`Otobüsü Park Et Defans (+%25): ${busDef.toFixed(3)}`);
+  console.log(`Otobüsü Park Et Defans (+%40): ${busDef.toFixed(3)}`);
 
   if (pressDef >= normalDef) throw new Error("Yüksek pres defans gücünü düşürmeliydi!");
   if (busDef <= normalDef) throw new Error("Park bus defans gücünü artırmalıydı!");

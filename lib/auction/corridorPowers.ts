@@ -16,10 +16,10 @@ const CENTRAL_POSITIONS: PitchPosition[] = ["CB", "CDM", "CM", "CAM", "ST", "CF"
  */
 function getMidfieldCorridorMultiplier(pos: PitchPosition, slotC: PitchCorridor, c: PitchCorridor, multiMid: boolean): number {
   if (c === "center") {
-    // Merkez koridorda merkez oyuncuları tam güç, kanatlar merkeze daralarak %50 destek verir
+    // Merkez koridorda merkez oyuncuları tam güç, kanatlar merkeze daralarak %30 destek verir
     if (CENTRAL_POSITIONS.includes(pos)) return 1.0;
-    if (WIDE_POSITIONS.includes(pos)) return 0.50;
-    return 0.50;
+    if (WIDE_POSITIONS.includes(pos)) return 0.30;
+    return 0.30;
   }
 
   // Kanat koridorları ("left" veya "right")
@@ -30,7 +30,7 @@ function getMidfieldCorridorMultiplier(pos: PitchPosition, slotC: PitchCorridor,
     if (["CM", "CDM"].includes(pos)) return multiMid ? 0.60 : 0.20;
     if (pos === "CAM") return 0.35;
     if (["CB", "ST", "CF"].includes(pos)) return 0.15;
-    return 0.50;
+    return 0.30;
   }
 
   // Ters kanat: o kanadın mücadelesine yetişemez
@@ -61,8 +61,9 @@ export function calculateCorridorMidfieldScore(lineup: TeamLineup, corridor: Pit
     if (fallback) totalScore += ratingCurve(fallback.effectiveRating) * 0.10;
   }
 
+  // Takım Presi Taktik Çarpanları
   if (tactics.pressing === "high_press") totalScore *= 1.25;
-  else if (tactics.pressing === "park_bus") totalScore *= 0.85;
+  else if (tactics.pressing === "park_bus") totalScore *= 0.70; // Park the bus: tüm takımın orta saha gücü %30 düşer
 
   return Math.max(0.01, totalScore);
 }
@@ -78,7 +79,7 @@ function calculateSlotAttack(slot: SquadSlot, c: PitchCorridor, f: FormationName
   if (c === "center") {
     if (CENTRAL_POSITIONS.includes(slot.targetPosition)) corridorMult = 1.0;
     else if (["LW", "RW"].includes(slot.targetPosition)) corridorMult = 0.70; // kanat forvet içeri kat eder
-    else corridorMult = 0.40;
+    else corridorMult = 0.30; // kanat oyuncusu merkeze %30 destek
   } else {
     // Kanat koridoru
     if (slotC === c) {
@@ -93,12 +94,15 @@ function calculateSlotAttack(slot: SquadSlot, c: PitchCorridor, f: FormationName
 
   let power = curve * baseWeight * corridorMult;
 
-  // Oyun kurma taktiği çarpanları
+  // Oyun kurma taktiği çarpanları (Hücum)
   if (tac.buildUp === "short_pass") {
-    if (["CM", "CAM", "CDM", "LB", "RB"].includes(slot.targetPosition)) power *= 1.20;
+    // Kısa pas: Orta sahalar ve pasör bekler bufflanır (+%20), hücumcular/forvetler direkt hızlı vuruş yapamadığı için hafif nerf yer (-%15)
+    if (["CM", "CAM", "CDM", "LM", "RM", "LB", "RB"].includes(slot.targetPosition)) power *= 1.20;
+    else if (["ST", "CF", "LW", "RW"].includes(slot.targetPosition)) power *= 0.85;
   } else if (tac.buildUp === "long_ball") {
+    // Uzun top: Santrforlar hava hakimiyetiyle bufflanır (+%30), tüm orta sahalar (LM, CM, CDM, CAM, RM) baypas edildiği için nerf yer (%70 düşüş: 0.30x)
     if (["ST", "CF"].includes(slot.targetPosition)) power *= 1.30;
-    else if (["CM", "CDM"].includes(slot.targetPosition)) power *= 0.30;
+    else if (["LM", "RM", "CM", "CDM", "CAM"].includes(slot.targetPosition)) power *= 0.30;
   }
 
   return power;
@@ -114,7 +118,8 @@ export function calculateCorridorAttackPower(lineup: TeamLineup, corridor: Pitch
     if (!slot.placedPlayer || slot.targetPosition === "GK") continue;
     power += calculateSlotAttack(slot, corridor, lineup.formation, isSingleSt, isMultiMid, tactics);
   }
-  if (tactics.pressing === "park_bus") power *= 0.85;
+  // Park the bus: tüm takımın hücum gücü %10 düşer
+  if (tactics.pressing === "park_bus") power *= 0.90;
   return Math.max(0.01, power);
 }
 
@@ -128,34 +133,26 @@ function calculateSlotDefense(slot: SquadSlot, defC: PitchCorridor, f: Formation
   let corridorMult = 0;
   if (defC === "center") {
     if (CENTRAL_POSITIONS.includes(slot.targetPosition)) corridorMult = 1.0;
-    else if (["LB", "RB", "LWB", "RWB"].includes(slot.targetPosition)) corridorMult = 0.40; // bek merkeze kademeye daralır
-    else corridorMult = 0.25;
+    else if (["LB", "RB", "LWB", "RWB"].includes(slot.targetPosition)) corridorMult = 0.30; // bek merkeze daralma %30
+    else corridorMult = 0.20;
   } else {
     // Kanat savunması
     if (slotC === defC) {
       if (["LB", "RB", "LWB", "RWB"].includes(slot.targetPosition)) corridorMult = 1.0;
       else if (["LM", "RM"].includes(slot.targetPosition)) corridorMult = 1.0;
-      else if (slot.targetPosition === "CB") corridorMult = back3 ? 0.60 : 0.40; // stoper kanat kademesi
+      else if (slot.targetPosition === "CB") corridorMult = back3 ? 0.60 : 0.40;
       else if (["CDM", "CM"].includes(slot.targetPosition)) corridorMult = multiMid ? 0.50 : 0.25;
-      else if (["LW", "RW"].includes(slot.targetPosition)) corridorMult = 0.50; // kanat forvet geriye koşusu
+      else if (["LW", "RW"].includes(slot.targetPosition)) corridorMult = 0.50;
       else corridorMult = 0.15;
     } else if (slot.targetPosition === "CB") {
-      corridorMult = 0.25; // ters taraftaki stoper yine de merkez yayını tutar
+      corridorMult = 0.25;
     }
   }
 
   if (corridorMult <= 0) return 0;
 
-  let power = curve * baseWeight * corridorMult;
-
-  // Taktiksel savunma etkileri
-  if (tac.buildUp === "short_pass" && ["LB", "RB", "CDM", "CM"].includes(slot.targetPosition)) {
-    power *= 0.90; // hücum desteğine çıktığı için hafif açık kalır
-  } else if (tac.buildUp === "long_ball" && ["CDM", "CM", "CAM"].includes(slot.targetPosition)) {
-    power *= 0.40; // orta saha baypas edildiği için geriye direnci azalır
-  }
-
-  return power;
+  // Savunmada oyun kurma (buildUp) taktiği savunmaya nerf vermez! Savunma direnci tam korunur.
+  return curve * baseWeight * corridorMult;
 }
 
 export function calculateCorridorDefensePower(lineup: TeamLineup, defendingCorridor: PitchCorridor): number {
@@ -169,7 +166,9 @@ export function calculateCorridorDefensePower(lineup: TeamLineup, defendingCorri
     power += calculateSlotDefense(slot, defendingCorridor, lineup.formation, is3or5Back, isMultiMid, tactics);
   }
   if (tactics.pressing === "high_press") power *= 0.75;
-  else if (tactics.pressing === "park_bus") power *= 1.30;
+  // Park the bus: tüm takımın defans gücü %40 artar
+  else if (tactics.pressing === "park_bus") power *= 1.40;
   return Math.max(0.01, power);
 }
+
 
