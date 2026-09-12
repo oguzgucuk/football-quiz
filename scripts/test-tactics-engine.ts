@@ -83,8 +83,8 @@ async function runTacticsTests() {
   const baseDef = calculateCorridorDefensePower(baseTeam, "left");
   const shortDef = calculateCorridorDefensePower(shortPassTeam, "left");
   console.log(`Standart Defans Gücü: ${baseDef.toFixed(3)}`);
-  console.log(`Kısa Pas Defans Gücü (Savunma Tam Korunur): ${shortDef.toFixed(3)}`);
-  if (shortDef < baseDef) throw new Error("Oyun kurma taktiği savunmayı zayıflatmamalı!");
+  console.log(`Kısa Pas Defans Gücü (%5 Takım Nerf'ü): ${shortDef.toFixed(3)}`);
+  if (Math.abs(shortDef - baseDef * 0.95) > 0.001) throw new Error("Kısa pas savunma gücüne %5 nerf uygulanmalı!");
 
   console.log("\n==========================================");
   console.log("🧪 3. PRES SEVİYESİ GÜÇ TRANSFERİ TESTLERİ");

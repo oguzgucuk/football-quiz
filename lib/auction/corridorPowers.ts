@@ -168,6 +168,10 @@ export function calculateCorridorDefensePower(lineup: TeamLineup, defendingCorri
   if (tactics.pressing === "high_press") power *= 0.75;
   // Park the bus: tüm takımın defans gücü %40 artar
   else if (tactics.pressing === "park_bus") power *= 1.40;
+
+  // Kısa pas taktiği: takım öne açılıp pas istasyonu kurduğu için tüm takımın defans gücüne %5 nerf (0.95x)
+  if (tactics.buildUp === "short_pass") power *= 0.95;
+
   return Math.max(0.01, power);
 }
 
