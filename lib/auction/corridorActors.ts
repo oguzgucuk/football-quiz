@@ -1,11 +1,12 @@
 /**
  * Koridor Tabanlı Oyuncu ve Aktör Seçici Modülü.
- * Pozisyon içindeki şutör, asistçi ve savunmacıyı koridor ağırlıklarına göre belirler.
+ * matchWeights.ts tablosundaki TEK DOĞRULUK KAYNAĞI ağırlıkları referans alarak
+ * pozisyon içindeki şutör, asistçi ve savunmacıyı belirler.
  */
 
 import { PitchCorridor, SquadSlot, TeamLineup } from "./auctionTypes";
 import { DEFAULT_TACTICS, getSlotCorridor } from "./corridorEngine";
-import { ratingCurve } from "./matchWeights";
+import { ASSIST_WEIGHTS, ATK_WEIGHTS, DEF_WEIGHTS, ratingCurve } from "./matchWeights";
 
 function weightedPick<T>(candidates: { item: T; weight: number }[]): T | undefined {
   const valid = candidates.filter((c) => c.weight > 0);
@@ -21,7 +22,7 @@ function weightedPick<T>(candidates: { item: T; weight: number }[]): T | undefin
 
 /**
  * Atak koridoruna göre şut çekecek oyuncuyu seçer.
- * Santrfor (ST/CF) her koridorda bitiricidir; kanat forvetler kendi koridorlarında şutör olur.
+ * ATK_WEIGHTS taban gücü ve koridor yakınlığına göre ağırlıklandırılır.
  */
 export function pickCorridorShooter(lineup: TeamLineup, corridor: PitchCorridor): SquadSlot | undefined {
   const tactics = lineup.tactics || DEFAULT_TACTICS;
@@ -30,21 +31,17 @@ export function pickCorridorShooter(lineup: TeamLineup, corridor: PitchCorridor)
   for (const slot of lineup.slots) {
     if (!slot.placedPlayer || slot.targetPosition === "GK") continue;
     const curve = ratingCurve(slot.effectiveRating);
+    const baseAtk = ATK_WEIGHTS[slot.targetPosition] ?? 0.2;
     const slotCorridor = getSlotCorridor(slot.slotId, slot.targetPosition, lineup.formation);
 
-    let weight = 0;
-    if (slot.targetPosition === "ST" || slot.targetPosition === "CF") {
-      weight = curve * 2.0;
-      // Uzun pas taktiğinde forvetin şutör olma şansı iki katına çıkar
-      if (tactics.buildUp === "long_ball") weight *= 2.0;
-    } else if ((slot.targetPosition === "LW" || slot.targetPosition === "RW") && slotCorridor === corridor) {
-      weight = curve * 1.8;
-    } else if (slot.targetPosition === "CAM" && (corridor === "center" || slotCorridor === corridor)) {
-      weight = curve * 1.3;
-    } else if ((slot.targetPosition === "LM" || slot.targetPosition === "RM") && slotCorridor === corridor) {
-      weight = curve * 0.9;
-    } else if (slotCorridor === corridor) {
-      weight = curve * 0.3;
+    let weight = curve * baseAtk;
+    // Kendi koridorunda veya santrfor merkezdeyse şutör olma şansı yükselir
+    if (slotCorridor === corridor || (corridor === "center" && ["ST", "CF"].includes(slot.targetPosition))) {
+      weight *= 1.4;
+    }
+    // Uzun pas taktiğinde forvetin şutör olma şansı katlanır
+    if (tactics.buildUp === "long_ball" && ["ST", "CF"].includes(slot.targetPosition)) {
+      weight *= 1.8;
     }
 
     if (weight > 0) {
@@ -57,7 +54,7 @@ export function pickCorridorShooter(lineup: TeamLineup, corridor: PitchCorridor)
 
 /**
  * Gol pozisyonunu hazırlayan asistçiyi seçer.
- * Uzun pasta stoper (CB) de doğrudan savunma arkasına uzun topla asist yapabilir!
+ * ASSIST_WEIGHTS taban gücü ve koridor yakınlığına göre belirlenir.
  */
 export function pickCorridorAssist(
   lineup: TeamLineup,
@@ -72,23 +69,16 @@ export function pickCorridorAssist(
     if (slot.placedPlayer.fullName === scorerName) continue;
 
     const curve = ratingCurve(slot.effectiveRating);
+    const baseAssist = ASSIST_WEIGHTS[slot.targetPosition] ?? 0.5;
     const slotCorridor = getSlotCorridor(slot.slotId, slot.targetPosition, lineup.formation);
-    let weight = 0;
 
-    // Kanatlar ve orta sahalar
-    if (slotCorridor === corridor && ["LM", "RM", "LW", "RW"].includes(slot.targetPosition)) {
-      weight = curve * 2.0;
-    } else if (slot.targetPosition === "CAM" || slot.targetPosition === "CM") {
-      weight = curve * 1.6;
-    } else if (slotCorridor === corridor && ["LB", "RB", "LWB", "RWB"].includes(slot.targetPosition)) {
-      // Bek bindirmesinden gelen orta
-      weight = curve * 1.2;
-    } else if (tactics.buildUp === "long_ball" && slot.targetPosition === "CB") {
-      // Uzun pasta stoperin defans arkasına uzun pası
-      weight = curve * 1.5;
-    } else if (slot.targetPosition === "ST" || slot.targetPosition === "CF") {
-      // Çift forvette forvet arkadaşına indirme
-      weight = curve * 1.0;
+    let weight = curve * baseAssist;
+    if (slotCorridor === corridor) {
+      weight *= 1.35;
+    }
+    // Uzun pasta stoperin defans arkasına uzun top atarak asist yapma şansı
+    if (tactics.buildUp === "long_ball" && slot.targetPosition === "CB") {
+      weight *= 2.0;
     }
 
     if (weight > 0) {
@@ -100,7 +90,7 @@ export function pickCorridorAssist(
 }
 
 /**
- * Atağı kesen savunmacıyı seçer (kademeye giren stoper veya kanadı kapatan bek).
+ * Atağı kesen savunmacıyı seçer (DEF_WEIGHTS taban ağırlıklarına göre).
  */
 export function pickCorridorDefender(lineup: TeamLineup, defendingCorridor: PitchCorridor): string | undefined {
   const candidates: { item: string; weight: number }[] = [];
@@ -108,15 +98,12 @@ export function pickCorridorDefender(lineup: TeamLineup, defendingCorridor: Pitc
   for (const slot of lineup.slots) {
     if (!slot.placedPlayer || slot.targetPosition === "GK") continue;
     const curve = ratingCurve(slot.effectiveRating);
+    const baseDef = DEF_WEIGHTS[slot.targetPosition] ?? 0.2;
     const slotCorridor = getSlotCorridor(slot.slotId, slot.targetPosition, lineup.formation);
-    let weight = 0;
 
-    if (slot.targetPosition === "CB") {
-      weight = curve * 1.8;
-    } else if (slotCorridor === defendingCorridor && ["LB", "RB", "LWB", "RWB"].includes(slot.targetPosition)) {
-      weight = curve * 1.7;
-    } else if (slotCorridor === defendingCorridor && ["CDM", "CM", "LM", "RM"].includes(slot.targetPosition)) {
-      weight = curve * 0.9;
+    let weight = curve * baseDef;
+    if (slotCorridor === defendingCorridor) {
+      weight *= 1.4;
     }
 
     if (weight > 0) {
@@ -126,3 +113,4 @@ export function pickCorridorDefender(lineup: TeamLineup, defendingCorridor: Pitc
 
   return weightedPick(candidates);
 }
+
