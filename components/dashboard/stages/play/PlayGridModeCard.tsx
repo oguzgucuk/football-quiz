@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Globe, HelpCircle, Zap, Users } from "lucide-react";
+import { Globe, HelpCircle, Zap, Users, Trophy } from "lucide-react";
 
 export type NationTeamSubMode = "casual" | "custom";
 
@@ -38,15 +38,15 @@ export function PlayGridModeCard({
   return (
     <div
       onClick={onSelect}
-      className={`relative flex flex-col items-center justify-between p-6 lg:p-7 rounded-[28px] cursor-pointer overflow-hidden border-2 transition-all duration-300 ease-out h-[470px] w-full ${
+      className={`relative flex flex-col items-center justify-between p-6 lg:p-7 rounded-[28px] cursor-pointer overflow-hidden border-2 transition-[border-color,background-color,box-shadow,opacity] duration-200 ease-out h-[470px] w-full ${
         isSelected
-          ? "bg-[#0c1612]/95 backdrop-blur-xl border-emerald-500 shadow-[0_0_40px_rgba(34,197,94,0.3),inset_0_1px_1px_rgba(255,255,255,0.2)] ring-1 ring-emerald-500/50 scale-[1.04] z-20"
-          : "bg-[#0a120e]/65 backdrop-blur-md border-white/10 hover:border-white/20 hover:bg-[#0a120e]/80 shadow-xs opacity-75 hover:opacity-95 scale-[0.96] hover:scale-[0.98] z-10"
+          ? "bg-[#0c1612]/95 backdrop-blur-xl border-emerald-500 shadow-[0_4px_30px_rgba(0,0,0,0.8)] ring-1 ring-emerald-500/40 z-20"
+          : "bg-[#0a120e]/65 backdrop-blur-md border-white/10 hover:border-white/20 hover:bg-[#0a120e]/80 shadow-xs opacity-80 hover:opacity-100 z-10"
       }`}
     >
-      {/* Üst Vurgu Çizgisi */}
+      {/* Üst Zarif Kenarlık Vurgusu */}
       <div
-        className={`absolute top-0 inset-x-12 h-[3px] bg-gradient-to-r from-transparent via-emerald-400 to-transparent transition-opacity duration-200 pointer-events-none ${
+        className={`absolute top-0 inset-x-8 h-[1px] bg-emerald-400/50 transition-opacity duration-200 pointer-events-none ${
           isSelected ? "opacity-100" : "opacity-0"
         }`}
       />
@@ -63,7 +63,7 @@ export function PlayGridModeCard({
             onOpenGuide();
           }}
           title="Nasıl Oynanır?"
-          className="flex size-7 items-center justify-center rounded-full bg-white/10 text-zinc-300 hover:bg-emerald-600 hover:text-white transition-all shadow-2xs cursor-pointer"
+          className="flex size-7 items-center justify-center rounded-full bg-white/10 text-zinc-300 hover:bg-emerald-600 hover:text-white transition-colors shadow-2xs cursor-pointer"
         >
           <HelpCircle className="size-4" />
         </button>
@@ -97,7 +97,7 @@ export function PlayGridModeCard({
         {/* 1. Slot: Dereceli Düello (Yakında) */}
         <div className="w-full h-[44px] flex items-center justify-between px-3.5 rounded-xl border border-white/5 bg-black/20 text-zinc-500 select-none cursor-not-allowed">
           <div className="flex items-center gap-2.5">
-            <span className="size-4 flex items-center justify-center text-zinc-600 font-black text-xs">🏆</span>
+            <Trophy className="size-4 text-zinc-600" />
             <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">
               Dereceli Düello
             </span>

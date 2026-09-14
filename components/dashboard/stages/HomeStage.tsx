@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import {
   Trophy,
   Play,
@@ -27,8 +28,8 @@ export function HomeStage({ onGoToPlay }: HomeStageProps) {
 
       <div className="relative z-10 max-w-4xl mx-auto w-full space-y-8 my-auto py-4">
         {/* 1. Üst Tanıtım Kartı */}
-        <div className="relative rounded-3xl bg-[#0c1612]/90 backdrop-blur-xl border border-white/10 p-8 sm:p-10 shadow-[0_0_40px_rgba(34,197,94,0.15)] text-center overflow-hidden">
-          <div className="absolute top-0 inset-x-12 h-[3px] bg-gradient-to-r from-transparent via-emerald-400 to-transparent pointer-events-none" />
+        <div className="relative rounded-3xl bg-[#0c1612]/90 backdrop-blur-xl border border-white/10 p-8 sm:p-10 shadow-[0_4px_30px_rgba(0,0,0,0.7)] text-center overflow-hidden">
+          <div className="absolute top-0 inset-x-8 h-[1px] bg-emerald-400/30 pointer-events-none" />
 
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/30 text-emerald-400 text-xs font-black uppercase tracking-wider mb-4 shadow-xs">
             <Clock className="size-3.5 text-emerald-400" />
@@ -44,15 +45,27 @@ export function HomeStage({ onGoToPlay }: HomeStageProps) {
             Şu an yaptığınız maçlar ve kazandığınız ELO puanları güvenle kaydedilmektedir.
           </p>
 
-          <div className="flex items-center justify-center gap-3">
-            <button
-              onClick={onGoToPlay}
-              className="h-13 px-8 rounded-xl bg-gradient-to-b from-[#168841] to-[#126d34] hover:from-[#15803d] hover:to-[#0f5c2b] text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-emerald-900/50 active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 cursor-pointer border border-emerald-400/50"
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href="/"
+              onClick={(e) => {
+                if (!e.ctrlKey && !e.metaKey && e.button === 0) {
+                  e.preventDefault();
+                  onGoToPlay();
+                }
+              }}
+              className="h-13 px-8 rounded-xl bg-gradient-to-b from-[#168841] to-[#126d34] hover:from-[#15803d] hover:to-[#0f5c2b] text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-emerald-900/50 active:translate-y-[1px] transition-[background-color,border-color,box-shadow,transform] duration-150 flex items-center justify-center gap-2.5 cursor-pointer border border-emerald-400/50"
             >
               <Play className="size-4 fill-white" />
               <span>HEMEN MAÇA BAŞLA</span>
               <ChevronRight className="size-4 stroke-[2.5]" />
-            </button>
+            </Link>
+            <Link
+              href="/players"
+              className="h-13 px-6 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white text-xs font-bold uppercase tracking-wider transition-colors duration-150 flex items-center justify-center gap-2 border border-white/10"
+            >
+              <span>18.000+ FUTBOLCU GEZGİNİ</span>
+            </Link>
           </div>
         </div>
 

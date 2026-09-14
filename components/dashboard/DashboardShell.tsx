@@ -18,7 +18,17 @@ import { useMatchmaking } from "@/hooks/useMatchmaking";
 import { MatchmakingModal } from "@/components/game/MatchmakingModal";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { StadiumBackground } from "@/components/ui/StadiumBackground";
+import { ClientStatusBar } from "./ClientStatusBar";
 import { GameMode } from "@/types/game";
+
+const TAB_PATHS: Record<DashboardTab, string> = {
+  play: "/",
+  home: "/dashboard",
+  profile: "/profile",
+  store: "/store",
+  settings: "/settings",
+  players: "/players",
+};
 
 interface DashboardShellProps {
   initialTab?: DashboardTab;
@@ -30,6 +40,38 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
   const { friends, pendingRequests } = useFriends();
   const [activeTab, setActiveTab] = useState<DashboardTab>(initialTab);
   const [isSocialOpen, setIsSocialOpen] = useState(false);
+
+  // Sekme değiştiğinde tarayıcı URL'sini yumuşakça (pushState ile) güncelle
+  const handleTabChange = (tab: DashboardTab, updateHistory = true) => {
+    setActiveTab(tab);
+    if (updateHistory && typeof window !== "undefined") {
+      const targetPath = TAB_PATHS[tab];
+      if (window.location.pathname !== targetPath) {
+        window.history.pushState({ tab }, "", targetPath);
+      }
+    }
+  };
+
+  // initialTab değişirse (örn: doğrudan link ile sayfa geçişinde) senkronize et
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
+  // Tarayıcının Geri / İleri tuşlarına basıldığında sekmeyi URL ile senkronize et
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      const matchingTab = (Object.keys(TAB_PATHS) as DashboardTab[]).find(
+        (key) => TAB_PATHS[key] === path
+      );
+      if (matchingTab) {
+        setActiveTab(matchingTab);
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   const onlineFriendsCount = friends.filter(
     (f) => f.status === "çevrimiçi" || f.status === "oyunda"
@@ -122,7 +164,7 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
         {/* Üst Navigasyon Barı */}
         <TopBar
           activeTab={activeTab}
-          onTabChange={setActiveTab}
+          onTabChange={handleTabChange}
           onOpenAuthModal={handleOpenAuthModal}
           isSocialOpen={isSocialOpen}
           onToggleSocial={() => setIsSocialOpen((prev) => !prev)}
@@ -133,38 +175,41 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
         {/* Merkezde Değişen Sahne (Main Stage İçeriği - Dikey Kaydırma Destekli) */}
         <div className="flex-1 min-h-0 relative overflow-y-auto overflow-x-hidden">
           {activeTab === "home" && (
-            <HomeStage onGoToPlay={() => setActiveTab("play")} />
+            <HomeStage onGoToPlay={() => handleTabChange("play")} />
           )}
 
           {activeTab === "play" && (
             <PlayStage
               onStartRanked={handleOpenRankedModal}
               onStartCasual={handleOpenCasualModal}
-              onGoToPlayers={() => setActiveTab("players")}
+              onGoToPlayers={() => handleTabChange("players")}
               onOpenAuthModal={handleOpenAuthModal}
             />
           )}
 
           {activeTab === "profile" && (
             <ProfileStage
-              onGoToPlay={() => setActiveTab("play")}
+              onGoToPlay={() => handleTabChange("play")}
               onOpenAuthModal={handleOpenAuthModal}
             />
           )}
 
           {activeTab === "store" && (
             <StoreStage
-              onGoToPlay={() => setActiveTab("play")}
+              onGoToPlay={() => handleTabChange("play")}
               onOpenAuthModal={handleOpenAuthModal}
             />
           )}
 
           {activeTab === "players" && (
-            <PlayersStage onBackToPlay={() => setActiveTab("play")} />
+            <PlayersStage onBackToPlay={() => handleTabChange("play")} />
           )}
 
           {activeTab === "settings" && <SettingsStage />}
         </div>
+
+        {/* 3. LoL / Riot Tarzı Alt Durum Çubuğu (Ft2 Inline Single Line - Hallmark Uyumlu) */}
+        <ClientStatusBar onTabChange={handleTabChange} />
       </div>
 
       {/* Sağ Kenar Yüzen Açma Düğmesi (Sidebar kapalıyken hızlı erişim) */}

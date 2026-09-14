@@ -89,14 +89,12 @@ export function DuelLobbyView({
       {/* 1. Üst Başlık & Oda Kodu */}
       <div className="flex flex-col sm:flex-row items-center justify-between w-full border-b border-white/10 pb-4 gap-3">
         <div className="flex items-center gap-3">
-          <Link href="/">
-            <button
-              type="button"
-              className="p-2 rounded-xl bg-black/40 hover:bg-white/10 border border-white/10 text-zinc-400 hover:text-white transition-all cursor-pointer"
-              title="Ana Sayfaya Dön"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
+          <Link
+            href="/"
+            className="p-2 rounded-xl bg-black/40 hover:bg-white/10 border border-white/10 text-zinc-400 hover:text-white transition-colors duration-150 cursor-pointer inline-flex items-center justify-center"
+            title="Ana Sayfaya Dön"
+          >
+            <ArrowLeft className="w-4 h-4" />
           </Link>
           <div>
             <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-950/60 px-2.5 py-1 rounded-full border border-emerald-500/30">
@@ -111,7 +109,7 @@ export function DuelLobbyView({
         <button
           type="button"
           onClick={handleCopyCode}
-          className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-black/40 border border-white/10 hover:border-emerald-500/40 text-xs font-mono text-zinc-300 transition-all cursor-pointer shadow-lg"
+          className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-black/40 border border-white/10 hover:border-emerald-500/40 text-xs font-mono text-zinc-300 transition-colors duration-150 cursor-pointer shadow-lg"
         >
           <span>Oda Kodu: <strong className="text-emerald-400 font-bold">{state.roomId}</strong></span>
           {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-zinc-400" />}
@@ -244,9 +242,9 @@ export function DuelLobbyView({
               type="button"
               onClick={handleStart}
               disabled={!canStart || isStarting}
-              className={`w-full sm:w-80 h-14 rounded-2xl font-black text-base uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2.5 ${
+              className={`w-full sm:w-80 h-14 rounded-2xl font-black text-base uppercase tracking-widest transition-[background-color,border-color,box-shadow,transform] duration-150 shadow-xl flex items-center justify-center gap-2.5 ${
                 canStart && !isStarting
-                  ? "bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white shadow-emerald-950/50 cursor-pointer active:scale-98"
+                  ? "bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white shadow-emerald-950/50 cursor-pointer active:translate-y-[1px]"
                   : "bg-zinc-800 text-zinc-500 cursor-not-allowed border border-white/5"
               }`}
             >
@@ -270,7 +268,7 @@ export function DuelLobbyView({
               <button
                 type="button"
                 onClick={onAddBot}
-                className="px-4 h-14 rounded-2xl bg-cyan-950/50 hover:bg-cyan-900/60 border border-cyan-500/40 text-cyan-300 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="px-4 h-14 rounded-2xl bg-cyan-950/50 hover:bg-cyan-900/60 border border-cyan-500/40 text-cyan-300 text-xs font-bold transition-colors duration-150 flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Bot className="w-4 h-4 text-cyan-400" />
                 <span>Bot Rakip Ekle (Hızlı Başla)</span>

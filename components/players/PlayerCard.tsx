@@ -47,7 +47,7 @@ export function PlayerCard({ player }: { player: PlayerCardData }) {
 
   return (
     <div
-      className={`group relative flex flex-col justify-between rounded-2xl border ${tier.cardBorder} bg-gradient-to-b ${tier.glowGradient} backdrop-blur-md p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl`}
+      className={`group relative flex flex-col justify-between rounded-2xl border ${tier.cardBorder} bg-gradient-to-b ${tier.glowGradient} backdrop-blur-md p-4 transition-[transform,border-color,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-xl`}
     >
       {/* Üst Kısım: Reyting Rozeti + Tier + Ülke */}
       <div className="flex items-start justify-between gap-2">
@@ -115,7 +115,7 @@ export function PlayerCard({ player }: { player: PlayerCardData }) {
             player.teams.slice(0, 4).map((t) => (
               <div
                 key={t.id}
-                className="relative size-6 shrink-0 rounded-md bg-white/5 border border-white/10 p-0.5 flex items-center justify-center overflow-hidden hover:scale-110 transition-transform"
+                className="relative size-6 shrink-0 rounded-md bg-white/5 border border-white/10 p-0.5 flex items-center justify-center overflow-hidden hover:border-white/30 transition-colors"
                 title={t.name}
               >
                 {t.logoUrl ? (

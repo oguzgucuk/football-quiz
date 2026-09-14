@@ -55,7 +55,7 @@ export function SocialAddFriendInput({ onAddFriend }: SocialAddFriendInputProps)
         <button
           type="submit"
           disabled={isSubmitting || !input.trim()}
-          className="h-9 px-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:pointer-events-none shrink-0 cursor-pointer shadow-md shadow-emerald-950/50 border border-emerald-400/30 active:scale-95"
+          className="h-9 px-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-[background-color,border-color,box-shadow,transform] duration-150 disabled:opacity-40 disabled:pointer-events-none shrink-0 cursor-pointer shadow-md shadow-emerald-950/50 border border-emerald-400/30 active:translate-y-[1px]"
           title="Arkadaş Ekle"
         >
           {isSubmitting ? (

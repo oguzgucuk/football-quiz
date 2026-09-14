@@ -54,12 +54,12 @@ export function PlayerFiltersBar({
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="İsimle ara (örn: Henry, Messi, Arda Güler, Ronaldinho)..."
-            className="w-full rounded-xl border border-white/10 bg-black/40 pl-10 pr-9 py-2.5 text-sm text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all font-medium"
+            className="w-full rounded-xl border border-white/10 bg-black/40 pl-10 pr-9 py-2.5 text-sm text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors duration-150 font-medium"
           />
           {search && (
             <button
               onClick={() => onSearchChange("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white p-0.5 rounded-full hover:bg-white/10 transition-all cursor-pointer"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white p-0.5 rounded-full hover:bg-white/10 transition-colors duration-150 cursor-pointer"
             >
               <X className="size-3.5" />
             </button>
@@ -77,12 +77,12 @@ export function PlayerFiltersBar({
               aria-label="Oyuncuları Sırala"
               className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer w-full sm:w-auto"
             >
-              <option value="rating_desc" className="bg-zinc-900 text-white">🏆 Reyting (En Yüksek)</option>
-              <option value="rating_asc" className="bg-zinc-900 text-white">📉 Reyting (En Düşük)</option>
-              <option value="age_asc" className="bg-zinc-900 text-white">⚡ Yaş (En Genç)</option>
-              <option value="age_desc" className="bg-zinc-900 text-white">👴 Yaş (En Yaşlı / Efsane)</option>
-              <option value="name_asc" className="bg-zinc-900 text-white">🔤 İsim (A - Z)</option>
-              <option value="name_desc" className="bg-zinc-900 text-white">🔡 İsim (Z - A)</option>
+              <option value="rating_desc" className="bg-zinc-900 text-white">Reyting (En Yüksek)</option>
+              <option value="rating_asc" className="bg-zinc-900 text-white">Reyting (En Düşük)</option>
+              <option value="age_asc" className="bg-zinc-900 text-white">Yaş (En Genç)</option>
+              <option value="age_desc" className="bg-zinc-900 text-white">Yaş (En Deneyimli / Efsane)</option>
+              <option value="name_asc" className="bg-zinc-900 text-white">İsim (A - Z)</option>
+              <option value="name_desc" className="bg-zinc-900 text-white">İsim (Z - A)</option>
             </select>
           </div>
         </div>
@@ -96,7 +96,7 @@ export function PlayerFiltersBar({
             <button
               key={tab.id}
               onClick={() => onPositionGroupChange(tab.id)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors duration-150 cursor-pointer whitespace-nowrap ${
                 positionGroup === tab.id
                   ? "bg-emerald-600 text-white shadow-xs"
                   : "bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white"
@@ -110,7 +110,7 @@ export function PlayerFiltersBar({
         {/* Sadece Prime Filtresi */}
         <button
           onClick={onOnlyPrimeToggle}
-          className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer border ${
+          className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors duration-150 cursor-pointer border ${
             onlyPrime
               ? "bg-amber-500/15 border-amber-500/40 text-amber-300"
               : "bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10"

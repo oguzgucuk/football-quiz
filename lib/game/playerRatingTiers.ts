@@ -23,15 +23,15 @@ const DIAMOND_STYLE: RatingTierStyle = {
   tier: "diamond",
   tierName: "ELMAS",
   badgeClass:
-    "bg-gradient-to-br from-cyan-200 via-sky-300 to-blue-500 text-slate-950 font-black shadow-[0_0_22px_rgba(56,189,248,0.6)] border-2 border-cyan-200",
+    "bg-cyan-950/90 border-2 border-cyan-400/70 text-cyan-200 font-black shadow-[0_2px_14px_rgba(56,189,248,0.25)]",
   badgeSubtle:
-    "bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 shadow-[0_0_10px_rgba(56,189,248,0.3)]",
+    "bg-cyan-500/20 text-cyan-300 border border-cyan-400/40",
   cardBorder:
-    "border-cyan-400/50 hover:border-cyan-300 shadow-[0_0_25px_rgba(56,189,248,0.25)]",
-  glowGradient: "from-cyan-950/80 via-sky-950/40 to-black/80",
-  ambientBlur: "bg-cyan-400/25 shadow-[0_0_90px_rgba(56,189,248,0.5)]",
+    "border-cyan-400/40 hover:border-cyan-300 shadow-[0_4px_20px_rgba(0,0,0,0.7)]",
+  glowGradient: "from-cyan-950/30 via-[#0c1612]/90 to-[#0c1612]",
+  ambientBlur: "bg-cyan-400/10 shadow-[0_0_30px_rgba(56,189,248,0.15)]",
   pillClass:
-    "bg-gradient-to-r from-cyan-500/25 to-sky-500/25 text-cyan-200 border border-cyan-400/40 shadow-[0_0_8px_rgba(56,189,248,0.3)]",
+    "bg-cyan-950/60 text-cyan-200 border border-cyan-400/40",
   accentText: "text-cyan-300",
   iconColor: "text-cyan-300",
 };
@@ -40,15 +40,15 @@ const GOLD_STYLE: RatingTierStyle = {
   tier: "gold",
   tierName: "ALTIN",
   badgeClass:
-    "bg-gradient-to-br from-amber-300 via-yellow-400 to-amber-600 text-amber-950 font-black shadow-[0_0_18px_rgba(251,191,36,0.5)] border-2 border-amber-300",
+    "bg-amber-950/90 border-2 border-amber-400/70 text-amber-200 font-black shadow-[0_2px_14px_rgba(251,191,36,0.25)]",
   badgeSubtle:
-    "bg-amber-500/20 text-amber-300 border border-amber-400/40 shadow-[0_0_10px_rgba(251,191,36,0.25)]",
+    "bg-amber-500/20 text-amber-300 border border-amber-400/40",
   cardBorder:
-    "border-amber-400/45 hover:border-amber-300 shadow-[0_0_18px_rgba(251,191,36,0.2)]",
-  glowGradient: "from-amber-950/70 via-yellow-950/35 to-black/80",
-  ambientBlur: "bg-amber-400/20 shadow-[0_0_75px_rgba(251,191,36,0.4)]",
+    "border-amber-400/40 hover:border-amber-300 shadow-[0_4px_20px_rgba(0,0,0,0.7)]",
+  glowGradient: "from-amber-950/30 via-[#0c1612]/90 to-[#0c1612]",
+  ambientBlur: "bg-amber-400/10 shadow-[0_0_30px_rgba(251,191,36,0.15)]",
   pillClass:
-    "bg-gradient-to-r from-amber-500/25 to-yellow-500/25 text-amber-200 border border-amber-400/40 shadow-[0_0_8px_rgba(251,191,36,0.25)]",
+    "bg-amber-950/60 text-amber-200 border border-amber-400/40",
   accentText: "text-amber-300",
   iconColor: "text-amber-400",
 };
@@ -57,15 +57,15 @@ const SILVER_STYLE: RatingTierStyle = {
   tier: "silver",
   tierName: "GÜMÜŞ",
   badgeClass:
-    "bg-gradient-to-br from-slate-100 via-zinc-200 to-slate-400 text-zinc-900 font-black shadow-[0_0_12px_rgba(226,232,240,0.4)] border-2 border-slate-200",
+    "bg-slate-900 border-2 border-slate-300/70 text-slate-100 font-black shadow-[0_2px_12px_rgba(226,232,240,0.2)]",
   badgeSubtle:
-    "bg-slate-400/20 text-slate-200 border border-slate-300/40 shadow-[0_0_8px_rgba(226,232,240,0.2)]",
+    "bg-slate-400/20 text-slate-200 border border-slate-300/40",
   cardBorder:
-    "border-slate-400/35 hover:border-slate-300 shadow-[0_0_12px_rgba(226,232,240,0.15)]",
-  glowGradient: "from-slate-900/70 via-zinc-900/40 to-black/80",
-  ambientBlur: "bg-slate-300/15 shadow-[0_0_60px_rgba(226,232,240,0.3)]",
+    "border-slate-400/35 hover:border-slate-300 shadow-[0_4px_20px_rgba(0,0,0,0.7)]",
+  glowGradient: "from-slate-900/30 via-[#0c1612]/90 to-[#0c1612]",
+  ambientBlur: "bg-slate-300/10 shadow-[0_0_24px_rgba(226,232,240,0.1)]",
   pillClass:
-    "bg-gradient-to-r from-slate-500/20 to-zinc-500/20 text-slate-200 border border-slate-400/35",
+    "bg-slate-900 text-slate-200 border border-slate-400/35",
   accentText: "text-slate-200",
   iconColor: "text-slate-300",
 };
@@ -74,15 +74,15 @@ const BRONZE_STYLE: RatingTierStyle = {
   tier: "bronze",
   tierName: "BRONZ",
   badgeClass:
-    "bg-gradient-to-br from-amber-700 via-orange-800 to-amber-950 text-amber-100 font-black shadow-[0_0_10px_rgba(180,83,9,0.35)] border-2 border-amber-600/70",
+    "bg-[#241407] border-2 border-amber-700/70 text-amber-200 font-black shadow-[0_2px_12px_rgba(180,83,9,0.2)]",
   badgeSubtle:
-    "bg-amber-900/30 text-amber-300 border border-amber-700/40 shadow-[0_0_6px_rgba(180,83,9,0.2)]",
+    "bg-amber-900/30 text-amber-300 border border-amber-700/40",
   cardBorder:
-    "border-amber-800/40 hover:border-amber-700 shadow-[0_0_10px_rgba(180,83,9,0.15)]",
-  glowGradient: "from-amber-950/80 via-stone-950/50 to-black/80",
-  ambientBlur: "bg-amber-800/15 shadow-[0_0_50px_rgba(180,83,9,0.25)]",
+    "border-amber-800/40 hover:border-amber-700 shadow-[0_4px_20px_rgba(0,0,0,0.7)]",
+  glowGradient: "from-[#241407]/30 via-[#0c1612]/90 to-[#0c1612]",
+  ambientBlur: "bg-amber-800/10 shadow-[0_0_20px_rgba(180,83,9,0.1)]",
   pillClass:
-    "bg-gradient-to-r from-amber-900/30 to-orange-950/30 text-amber-200 border border-amber-800/40",
+    "bg-[#241407] text-amber-200 border border-amber-800/40",
   accentText: "text-amber-400",
   iconColor: "text-amber-500",
 };

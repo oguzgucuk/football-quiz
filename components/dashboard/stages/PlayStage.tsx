@@ -175,7 +175,7 @@ export function PlayStage({
               {/* 1. OYUN KUR */}
               <button
                 onClick={handleCreateGame}
-                className="flex-1 h-full rounded-xl bg-gradient-to-b from-[#168841] to-[#126d34] hover:from-[#15803d] hover:to-[#0f5c2b] text-white font-black text-sm tracking-[0.14em] uppercase border border-emerald-400/50 shadow-md shadow-emerald-900/40 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="flex-1 h-full rounded-xl bg-gradient-to-b from-[#168841] to-[#126d34] hover:from-[#15803d] hover:to-[#0f5c2b] text-white font-black text-sm tracking-[0.14em] uppercase border border-emerald-400/50 shadow-md shadow-emerald-900/40 active:translate-y-[1px] transition-[background-color,border-color,box-shadow,transform] duration-150 flex items-center justify-center gap-2 cursor-pointer"
               >
                 <span>OYUN KUR</span>
                 <ChevronRight className="size-4 stroke-[2.5]" />
@@ -184,7 +184,7 @@ export function PlayStage({
               {/* 2. OYUNA KATIL */}
               <button
                 onClick={handleJoinGame}
-                className="flex-1 h-full rounded-xl bg-black/60 hover:bg-black/80 text-zinc-200 hover:text-white font-black text-sm tracking-[0.14em] uppercase border border-white/20 hover:border-emerald-400/50 backdrop-blur-xl shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="flex-1 h-full rounded-xl bg-black/60 hover:bg-black/80 text-zinc-200 hover:text-white font-black text-sm tracking-[0.14em] uppercase border border-white/20 hover:border-emerald-400/50 backdrop-blur-xl shadow-md active:translate-y-[1px] transition-[background-color,border-color,box-shadow,transform] duration-150 flex items-center justify-center gap-2 cursor-pointer"
               >
                 <span>OYUNA KATIL</span>
               </button>
@@ -192,7 +192,7 @@ export function PlayStage({
           ) : selectedModeId !== "training" || selectedTrainingSubMode === "players" ? (
             <button
               onClick={handleConfirm}
-              className="w-full h-full rounded-xl bg-gradient-to-b from-[#168841] to-[#126d34] hover:from-[#15803d] hover:to-[#0f5c2b] text-white font-black text-base tracking-[0.18em] uppercase border border-emerald-400/50 shadow-md shadow-emerald-900/40 active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 cursor-pointer"
+              className="w-full h-full rounded-xl bg-gradient-to-b from-[#168841] to-[#126d34] hover:from-[#15803d] hover:to-[#0f5c2b] text-white font-black text-base tracking-[0.18em] uppercase border border-emerald-400/50 shadow-md shadow-emerald-900/40 active:translate-y-[1px] transition-[background-color,border-color,box-shadow,transform] duration-150 flex items-center justify-center gap-2.5 cursor-pointer"
             >
               <span>{getButtonLabel()}</span>
               <ChevronRight className="size-5 stroke-[2.5]" />

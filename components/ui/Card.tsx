@@ -23,7 +23,7 @@ export function Card({
     <div
       className={twMerge(
         clsx(
-          "rounded-2xl border p-6 transition-all duration-300",
+          "rounded-2xl border p-6 transition-[color,background-color,border-color,box-shadow] duration-200",
           variantStyles[variant],
           className
         )

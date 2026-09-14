@@ -11,7 +11,7 @@
 import React, { useState } from "react";
 import { AuctionParticipant, AuctionPlayerCard } from "@/lib/auction/auctionTypes";
 import { getRatingTier } from "@/lib/game/playerRatingTiers";
-import { Info, UserCheck, Shield } from "lucide-react";
+import { Info, UserCheck, Shield, Crown } from "lucide-react";
 import { AuctionPlayerDetailModal } from "./AuctionPlayerDetailModal";
 
 interface MySquadDrawerProps {
@@ -35,15 +35,16 @@ export function MySquadDrawer({ participant, isMyHighestBid = false }: MySquadDr
     <>
       <aside className="lg:col-span-3 lg:sticky lg:top-4 z-10 flex flex-col select-none">
         <div
-          className={`rounded-3xl border-2 transition-all duration-300 p-4 sm:p-5 shadow-2xl backdrop-blur-2xl flex flex-col ${
+          className={`rounded-3xl border-2 transition-colors duration-200 p-4 sm:p-5 shadow-2xl backdrop-blur-2xl flex flex-col ${
             isMyHighestBid
               ? "border-amber-400 bg-gradient-to-b from-amber-500/20 via-amber-950/35 to-black/80 shadow-[0_0_35px_rgba(251,191,36,0.35)] ring-2 ring-amber-400/50"
               : "border-emerald-500/25 bg-black/60"
           }`}
         >
           {isMyHighestBid && (
-            <div className="mb-2.5 flex items-center justify-center gap-1.5 py-1 px-3 rounded-xl bg-amber-400 text-black font-mono font-black text-xs shadow-[0_0_16px_rgba(251,191,36,0.7)] animate-pulse">
-              <span>👑 EN YÜKSEK TEKLİF SENDE!</span>
+            <div className="mb-2.5 flex items-center justify-center gap-1.5 py-1 px-3 rounded-xl bg-amber-400 text-black font-mono font-black text-xs shadow-md shadow-amber-950/40">
+              <Crown className="size-3.5 fill-black text-black" />
+              <span>EN YÜKSEK TEKLİF SENDE!</span>
             </div>
           )}
 

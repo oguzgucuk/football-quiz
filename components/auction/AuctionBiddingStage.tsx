@@ -9,7 +9,7 @@
 
 import React, { useState } from "react";
 import { AuctionRoomState } from "@/lib/auction/auctionTypes";
-import { Timer, ShieldAlert, Gavel, Gem } from "lucide-react";
+import { Timer, ShieldAlert, Gavel, Gem, Crown } from "lucide-react";
 import { getRatingTier } from "@/lib/game/playerRatingTiers";
 import { MySquadDrawer } from "./MySquadDrawer";
 import { AuctionBiddingOpponentCard } from "./AuctionBiddingOpponentCard";
@@ -196,8 +196,9 @@ export function AuctionBiddingStage({
 
             <div className="mt-3 flex items-center justify-center text-center">
               {isMyHighestBid ? (
-                <div className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-amber-400/20 border border-amber-400/60 text-amber-300 font-black text-sm sm:text-base animate-pulse shadow-[0_0_15px_rgba(251,191,36,0.25)]">
-                  <span>👑 En Yüksek Teklif Sende! Karşı tarafın hamlesi bekleniyor...</span>
+                <div className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-amber-400/20 border border-amber-400/60 text-amber-300 font-black text-sm sm:text-base shadow-xs">
+                  <Crown className="size-4 fill-amber-400 text-amber-400 shrink-0" />
+                  <span>En Yüksek Teklif Sende! Karşı tarafın hamlesi bekleniyor...</span>
                 </div>
               ) : state.currentHighestBid ? (
                 <div className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-white/10 border border-white/15 text-zinc-200 font-bold text-sm sm:text-base flex-wrap justify-center">

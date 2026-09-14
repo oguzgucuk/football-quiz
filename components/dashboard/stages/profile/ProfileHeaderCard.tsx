@@ -79,7 +79,7 @@ export function ProfileHeaderCard({ user, onEditProfile }: ProfileHeaderCardProp
         <button
           type="button"
           onClick={onEditProfile}
-          className="flex items-center justify-center gap-2 px-4 py-3 sm:py-3.5 rounded-2xl border border-emerald-500/40 bg-emerald-950/50 text-emerald-400 hover:bg-emerald-900/60 hover:border-emerald-400 font-extrabold text-xs transition-all cursor-pointer shadow-xs active:scale-95 shrink-0"
+          className="flex items-center justify-center gap-2 px-4 py-3 sm:py-3.5 rounded-2xl border border-emerald-500/40 bg-emerald-950/50 text-emerald-400 hover:bg-emerald-900/60 hover:border-emerald-400 font-extrabold text-xs transition-[background-color,border-color,transform] duration-150 cursor-pointer shadow-xs active:translate-y-[1px] shrink-0"
           title="Profili Düzenle"
         >
           <Pencil className="size-4" />

@@ -9,7 +9,7 @@
 import React from "react";
 import { AuctionParticipant } from "@/lib/auction/auctionTypes";
 import { AuctionParticipantSquad } from "./AuctionParticipantSquad";
-import { Check, X, Crown, Sparkles } from "lucide-react";
+import { Check, X, Crown, Sparkles, Zap } from "lucide-react";
 
 interface AuctionBiddingOpponentCardProps {
   participant: AuctionParticipant;
@@ -106,8 +106,9 @@ export function AuctionBiddingOpponentCard({
           )}
 
           {isAwaitingBid && (
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/50 text-[11px] font-bold text-emerald-300 animate-pulse">
-              <span>⚡ Sıra Onda — Teklif Bekleniyor</span>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/50 text-[11px] font-bold text-emerald-300">
+              <Zap className="size-3 text-emerald-400 shrink-0" />
+              <span>Sıra Onda — Teklif Bekleniyor</span>
             </div>
           )}
 

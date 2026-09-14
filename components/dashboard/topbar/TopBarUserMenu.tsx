@@ -49,7 +49,7 @@ export function TopBarUserMenu({
       <div className="flex items-center gap-2">
         <button
           onClick={() => onOpenAuthModal?.("login")}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-emerald-500/30 bg-emerald-950/50 text-emerald-400 text-xs font-bold hover:bg-emerald-900/60 transition-all cursor-pointer"
+          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-emerald-500/30 bg-emerald-950/50 text-emerald-400 text-xs font-bold hover:bg-emerald-900/60 transition-colors duration-150 cursor-pointer"
         >
           <LogIn className="size-3.5" />
           <span>Giriş Yap</span>
@@ -57,7 +57,7 @@ export function TopBarUserMenu({
 
         <button
           onClick={() => onOpenAuthModal?.("register")}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all cursor-pointer shadow-sm shadow-emerald-950/50"
+          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors duration-150 cursor-pointer shadow-sm shadow-emerald-950/50"
         >
           <UserPlus className="size-3.5" />
           <span>Kayıt Ol</span>
@@ -73,9 +73,9 @@ export function TopBarUserMenu({
         <TooltipTrigger asChild>
           <div
             onClick={() => onTabChange("store")}
-            className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/10 bg-black/40 hover:border-amber-400/50 hover:bg-amber-500/10 transition-all cursor-pointer group"
+            className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/10 bg-black/40 hover:border-amber-400/50 hover:bg-amber-500/10 transition-colors duration-150 cursor-pointer group"
           >
-            <div className="flex size-5 items-center justify-center rounded-full bg-amber-500/20 text-amber-400 group-hover:scale-110 transition-transform">
+            <div className="flex size-5 items-center justify-center rounded-full bg-amber-500/20 text-amber-400">
               <Coins className="size-3 fill-amber-400 text-amber-400" />
             </div>
             <span className="text-xs font-black font-mono text-white tracking-tight">
@@ -93,9 +93,9 @@ export function TopBarUserMenu({
         <TooltipTrigger asChild>
           <div
             onClick={() => onTabChange("store")}
-            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border border-emerald-500/40 bg-gradient-to-r from-emerald-500/15 to-teal-500/15 hover:border-emerald-400 hover:shadow-emerald-500/20 transition-all cursor-pointer group"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border border-emerald-500/40 bg-gradient-to-r from-emerald-500/15 to-teal-500/15 hover:border-emerald-400 hover:shadow-emerald-500/20 transition-[border-color,box-shadow] duration-150 cursor-pointer group"
           >
-            <div className="flex size-5 items-center justify-center rounded-full bg-emerald-500 text-white font-black text-[9px] shadow-sm group-hover:scale-110 transition-transform">
+            <div className="flex size-5 items-center justify-center rounded-full bg-emerald-500 text-white font-black text-[9px] shadow-sm">
               AC
             </div>
             <span className="text-xs font-black font-mono text-emerald-400 tracking-tight">
@@ -116,7 +116,7 @@ export function TopBarUserMenu({
         <TooltipTrigger asChild>
           <div
             onClick={() => onTabChange("profile")}
-            className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/10 bg-black/40 hover:border-emerald-500/40 hover:bg-emerald-950/30 transition-all cursor-pointer"
+            className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/10 bg-black/40 hover:border-emerald-500/40 hover:bg-emerald-950/30 transition-colors duration-150 cursor-pointer"
           >
             <div className="flex size-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
               <Gem className="size-3 fill-emerald-400/20 text-emerald-400" />
@@ -134,7 +134,7 @@ export function TopBarUserMenu({
       {/* Kullanıcı Avatarı ve Dropdown Profil Menüsü */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="flex items-center gap-1.5 rounded-xl p-0.5 hover:ring-2 hover:ring-emerald-500/40 transition-all cursor-pointer outline-none focus:ring-2 focus:ring-emerald-400">
+          <button className="flex items-center gap-1.5 rounded-xl p-0.5 hover:ring-2 hover:ring-emerald-500/40 transition-colors duration-150 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-emerald-400">
             <Avatar className="h-8 w-8 border border-emerald-500/40 shadow-sm shadow-emerald-950/50">
               <AvatarFallback className="bg-gradient-to-br from-emerald-600 to-emerald-950 text-white font-black text-xs">
                 {user.username ? user.username.substring(0, 2).toUpperCase() : "OY"}
@@ -180,7 +180,7 @@ export function TopBarUserMenu({
           <TooltipTrigger asChild>
             <button
               onClick={onToggleSocial}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all cursor-pointer shadow-xs active:scale-95 ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-[background-color,border-color,color,transform] duration-150 cursor-pointer shadow-xs active:translate-y-[1px] ${
                 isSocialOpen
                   ? "bg-emerald-700 text-white border-emerald-400 shadow-md shadow-emerald-950/50"
                   : "border-white/15 bg-black/40 text-zinc-300 hover:border-emerald-500/40 hover:text-white hover:bg-white/5"

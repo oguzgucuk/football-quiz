@@ -24,9 +24,9 @@ export function ProfileMetricsGrid({
 }: ProfileMetricsGridProps) {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-      <div className="p-5 rounded-2xl bg-[#0c1612]/85 backdrop-blur-xl border border-white/10 hover:border-emerald-500/30 transition-all shadow-lg text-white group">
+      <div className="p-5 rounded-2xl bg-[#0c1612]/85 backdrop-blur-xl border border-white/10 hover:border-emerald-500/30 transition-colors duration-150 shadow-lg text-white group">
         <div className="flex items-center gap-2 text-zinc-400 mb-2">
-          <div className="p-1.5 rounded-lg bg-emerald-950/70 border border-emerald-500/30 text-emerald-400 group-hover:scale-110 transition-transform">
+          <div className="p-1.5 rounded-lg bg-emerald-950/70 border border-emerald-500/30 text-emerald-400">
             <Swords className="size-3.5" />
           </div>
           <span className="text-xs font-bold uppercase tracking-wider">Toplam Maç</span>
@@ -35,9 +35,9 @@ export function ProfileMetricsGrid({
         <span className="text-[11px] text-zinc-400 mt-1 block font-medium">Tüm sezon boyunca</span>
       </div>
 
-      <div className="p-5 rounded-2xl bg-[#0c1612]/85 backdrop-blur-xl border border-white/10 hover:border-emerald-500/30 transition-all shadow-lg text-white group">
+      <div className="p-5 rounded-2xl bg-[#0c1612]/85 backdrop-blur-xl border border-white/10 hover:border-emerald-500/30 transition-colors duration-150 shadow-lg text-white group">
         <div className="flex items-center gap-2 text-zinc-400 mb-2">
-          <div className="p-1.5 rounded-lg bg-emerald-950/70 border border-emerald-500/30 text-emerald-400 group-hover:scale-110 transition-transform">
+          <div className="p-1.5 rounded-lg bg-emerald-950/70 border border-emerald-500/30 text-emerald-400">
             <Percent className="size-3.5" />
           </div>
           <span className="text-xs font-bold uppercase tracking-wider">Kazanma Oranı</span>
@@ -48,9 +48,9 @@ export function ProfileMetricsGrid({
         </span>
       </div>
 
-      <div className="p-5 rounded-2xl bg-[#0c1612]/85 backdrop-blur-xl border border-white/10 hover:border-orange-500/30 transition-all shadow-lg text-white group">
+      <div className="p-5 rounded-2xl bg-[#0c1612]/85 backdrop-blur-xl border border-white/10 hover:border-orange-500/30 transition-colors duration-150 shadow-lg text-white group">
         <div className="flex items-center gap-2 text-zinc-400 mb-2">
-          <div className="p-1.5 rounded-lg bg-orange-950/70 border border-orange-500/30 text-orange-400 group-hover:scale-110 transition-transform">
+          <div className="p-1.5 rounded-lg bg-orange-950/70 border border-orange-500/30 text-orange-400">
             <Flame className="size-3.5" />
           </div>
           <span className="text-xs font-bold uppercase tracking-wider">Galibiyet Serisi</span>
@@ -59,9 +59,9 @@ export function ProfileMetricsGrid({
         <span className="text-[11px] text-zinc-400 mt-1 block font-medium">En iyi: {bestStreak} maç</span>
       </div>
 
-      <div className="p-5 rounded-2xl bg-[#0c1612]/85 backdrop-blur-xl border border-white/10 hover:border-cyan-500/30 transition-all shadow-lg text-white group">
+      <div className="p-5 rounded-2xl bg-[#0c1612]/85 backdrop-blur-xl border border-white/10 hover:border-cyan-500/30 transition-colors duration-150 shadow-lg text-white group">
         <div className="flex items-center gap-2 text-zinc-400 mb-2">
-          <div className="p-1.5 rounded-lg bg-cyan-950/70 border border-cyan-500/30 text-cyan-400 group-hover:scale-110 transition-transform">
+          <div className="p-1.5 rounded-lg bg-cyan-950/70 border border-cyan-500/30 text-cyan-400">
             <Trophy className="size-3.5" />
           </div>
           <span className="text-xs font-bold uppercase tracking-wider">En İyi Seri</span>
