@@ -172,7 +172,7 @@ export function MatchFinishedView({
         )}
 
         <div className="flex flex-col gap-3 w-full mt-6">
-          <Link href="/?tab=play" onClick={handleFinishMatch} className="w-full">
+          <Link href="/" onClick={handleFinishMatch} className="w-full">
             <Button
               size="lg"
               className="w-full bg-gradient-to-b from-[#168841] to-[#126d34] hover:from-[#15803d] hover:to-[#0f5c2b] text-white font-extrabold shadow-lg shadow-emerald-950/50 cursor-pointer"

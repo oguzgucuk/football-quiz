@@ -19,7 +19,7 @@ export function Navbar() {
             <Swords className="w-5 h-5" />
           </div>
           <span className="font-bold text-lg tracking-tight text-white">
-            Futbol<span className="text-emerald-400">Quiz</span>
+            Alim<span className="text-emerald-400">BALL</span>
           </span>
         </Link>
 

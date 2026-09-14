@@ -13,6 +13,10 @@ export async function generateMetadata({ params }: PlayPageProps): Promise<Metad
   return {
     title: `Oda #${roomId} — 1v1 Futbol Quiz Düellosu`,
     description: "Takımını seç, ortak futbolcuyu en hızlı yazarak turu kazan!",
+    robots: {
+      index: false,
+      follow: false,
+    },
   };
 }
 

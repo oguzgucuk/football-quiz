@@ -34,6 +34,8 @@ import {
   Swords,
   Flame,
   Award,
+  Target,
+  Compass,
 } from "lucide-react";
 
 interface AuctionSimulationStageProps {
@@ -162,7 +164,7 @@ export function AuctionSimulationStage({
             Müzayede Ligi Tamamlandı
           </span>
           <h2 className="text-3xl font-black text-white tracking-tight">
-            ŞAMPİYON: {state.standings[0]?.username || "Kazanan"} 🏆
+            ŞAMPİYON: {state.standings[0]?.username || "Kazanan"}
           </h2>
 
           <div className="mt-5 grid w-full gap-4 lg:grid-cols-2">
@@ -174,11 +176,17 @@ export function AuctionSimulationStage({
               <p className="text-left text-xs font-black uppercase tracking-widest text-zinc-400">Ödül Kürsüsü & Liderler</p>
               <div className="flex flex-col gap-2 text-left">
                 <div className="flex items-center justify-between p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30">
-                  <span className="text-xs font-bold text-amber-300">⚽ Gol Kralı</span>
+                  <span className="flex items-center gap-1.5 text-xs font-bold text-amber-300">
+                    <Target className="size-3.5 text-amber-400" />
+                    Gol Kralı
+                  </span>
                   <span className="font-mono text-xs font-black text-white">{topScorers[0]?.name || "-"} ({topScorers[0]?.count || 0} Gol)</span>
                 </div>
                 <div className="flex items-center justify-between p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30">
-                  <span className="text-xs font-bold text-cyan-300">👟 Asist Kralı</span>
+                  <span className="flex items-center gap-1.5 text-xs font-bold text-cyan-300">
+                    <Compass className="size-3.5 text-cyan-400" />
+                    Asist Kralı
+                  </span>
                   <span className="font-mono text-xs font-black text-white">{topAssisters[0]?.name || "-"} ({topAssisters[0]?.count || 0} Asist)</span>
                 </div>
               </div>
@@ -196,7 +204,7 @@ export function AuctionSimulationStage({
             </button>
             <button
               type="button"
-              onClick={() => router.push("/?tab=play")}
+              onClick={() => router.push("/")}
               className="w-full sm:w-1/2 py-3 px-4 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-zinc-200 hover:text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-98"
             >
               <Home className="w-4 h-4" />

@@ -13,6 +13,10 @@ export async function generateMetadata({ params }: AuctionPageProps): Promise<Me
   return {
     title: `Müzayede Odası #${roomId} — Canlı Futbol Açık Artırması`,
     description: "Futbolcu pazarından kadronu topla, dizilişini yap ve lig simülasyonunda yarış!",
+    robots: {
+      index: false,
+      follow: false,
+    },
   };
 }
 

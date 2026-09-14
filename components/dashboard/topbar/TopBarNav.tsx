@@ -1,9 +1,19 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { Play, Home, User, ShoppingBag, Settings } from "lucide-react";
 import { DashboardTab } from "../types";
+
+const TAB_HREFS: Record<DashboardTab, string> = {
+  home: "/dashboard",
+  profile: "/profile",
+  play: "/",
+  store: "/store",
+  settings: "/settings",
+  players: "/players",
+};
 
 interface TopBarNavProps {
   activeTab: DashboardTab;
@@ -25,11 +35,18 @@ export function TopBarNav({ activeTab, onTabChange }: TopBarNavProps) {
         {navItems.map((item) => {
           const isSelected = activeTab === item.id;
           const isPlay = item.id === "play";
+          const href = TAB_HREFS[item.id];
 
           return (
-            <button
+            <Link
               key={item.id}
-              onClick={() => onTabChange(item.id)}
+              href={href}
+              onClick={(e) => {
+                if (!e.ctrlKey && !e.metaKey && e.button === 0) {
+                  e.preventDefault();
+                  onTabChange(item.id);
+                }
+              }}
               className={`relative flex items-center gap-1.5 rounded-xl px-3 sm:px-4 py-1.5 sm:py-2 text-xs tracking-wider transition-colors uppercase cursor-pointer shrink-0 font-bold ${
                 isSelected
                   ? "text-white"
@@ -61,7 +78,7 @@ export function TopBarNav({ activeTab, onTabChange }: TopBarNavProps) {
                 }`}
               />
               <span className="hidden sm:inline relative z-10">{item.label}</span>
-            </button>
+            </Link>
           );
         })}
       </nav>

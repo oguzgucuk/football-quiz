@@ -53,7 +53,7 @@ export function SocialProfileHeader({ user, onClose }: SocialProfileHeaderProps)
               {user?.username ?? "Yükleniyor..."}
             </h3>
             <Link
-              href="/?tab=profile"
+              href="/profile"
               onClick={onClose}
               className="text-zinc-400 hover:text-emerald-400 transition-colors p-1"
               title="Profil Sayfasına Git"

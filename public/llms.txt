@@ -1,0 +1,23 @@
+# AlimBALL — Futbol Quiz & Scout Arena
+
+> AlimBALL, gerçek zamanlı 1v1 çok oyunculu futbol bilgi yarışması, transfer pazarı açık artırması (Müzayede) ve kapsamlı futbolcu scout veritabanı sunan interaktif bir web oyun platformudur.
+
+## Oyun Modları
+
+- **Ortak Oyuncu Modu (Common Player):** Ekranda rastgele beliren 2 kulüpte (örn: Real Madrid & Inter) kariyeri boyunca forma giymiş ortak bir futbolcuyu rakibinden önce yazıp turları kazanma.
+- **Millet-Takım Modu (Nation-Team Grid):** Bir oyuncunun millet (örn: Arjantin), diğerinin kulüp (örn: Barcelona) seçtiği ve bu iki kriteri sağlayan futbolcunun en hızlı şekilde tahmin edildiği düello.
+- **Müzayede Modu (Live Auction & Squad Builder):** 100M€ bütçeyle açık artırmaya çıkan dünya yıldızlarına pey sürüp 11 kişilik kadro kurma ve taktiksel koridor simülasyonu ile lig şampiyonluğu mücadelesi.
+- **Sandbox / Antrenman Modu:** Süresiz ve serbestçe istenen iki kulüp arasındaki tüm ortak futbolcuları keşfetme ve pratik yapma modu.
+
+## Veritabanı & Teknik Özellikler
+
+- **18.000+ Futbolcu:** FIFA/EA Sports FC prime reytingleri, mevkiler, doğum tarihleri ve kariyer geçmişi.
+- **500+ Dünya Kulübü:** Doğrulanmış logolar, popülarite skorları ve lig aidiyetleri.
+- **Mimari:** Next.js 15 App Router, PartyKit WebSocket motoru, PostgreSQL, Prisma ORM.
+
+## Kamuya Açık Sayfalar
+
+- Ana Sayfa & Lobi: https://alimball.com/
+- Futbolcu Veritabanı & Scout: https://alimball.com/players
+- Süresiz Antrenman (Sandbox): https://alimball.com/sandbox
+- Arena Mağazası: https://alimball.com/store

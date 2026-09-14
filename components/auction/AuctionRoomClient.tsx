@@ -56,7 +56,7 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
   useEffect(() => {
     if (roomClosedReason) {
       const t = setTimeout(() => {
-        router.push("/?tab=play");
+        router.push("/");
       }, 3500);
       return () => clearTimeout(t);
     }
@@ -85,7 +85,7 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
             <button
               onClick={() => {
                 leaveRoom();
-                router.push("/?tab=play");
+                router.push("/");
               }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-zinc-300 transition-colors cursor-pointer"
             >
@@ -233,7 +233,7 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
             <h2 className="text-xl font-black text-white mb-2">Lobi Kapatıldı</h2>
             <p className="text-sm text-zinc-300 mb-6">{roomClosedReason}</p>
             <button
-              onClick={() => router.push("/?tab=play")}
+              onClick={() => router.push("/")}
               className="w-full py-3.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-lg"
             >
               Ana Sayfaya Dön
