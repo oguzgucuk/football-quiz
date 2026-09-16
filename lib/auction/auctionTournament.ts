@@ -162,6 +162,8 @@ export function generateRoundRobinSchedule(
           awayLineup,
           awayName
         );
+        result.homeLineup = homeLineup;
+        result.awayLineup = awayLineup;
         roundMatches.push(result);
       }
     }

@@ -11,6 +11,7 @@ import React, { useState } from "react";
 import { AuctionRoomState } from "@/lib/auction/auctionTypes";
 import { Timer, ShieldAlert, Gavel, Gem, Crown } from "lucide-react";
 import { getRatingTier } from "@/lib/game/playerRatingTiers";
+import { isGoalkeeper } from "@/lib/auction/auctionRoomEngine";
 import { MySquadDrawer } from "./MySquadDrawer";
 import { AuctionBiddingOpponentCard } from "./AuctionBiddingOpponentCard";
 import { AuctionSalesHistoryDropdown } from "./AuctionSalesHistoryDropdown";
@@ -19,7 +20,7 @@ interface AuctionBiddingStageProps {
   state: AuctionRoomState;
   currentUserId: string;
   errorMessage: string | null;
-  onPlaceBid: (amount: number) => void;
+  onPlaceBid: (amount: number, cardIndex?: number, cardId?: string) => void;
   onPass: () => void;
   isSpectator?: boolean;
 }
@@ -55,17 +56,19 @@ export function AuctionBiddingStage({
   const isMyHighestBid = currentBidderId === currentUserId;
   const hasPassed = state.passedUserIds.includes(currentUserId);
   const isSquadFull = (myParticipant?.squad.length || 0) >= 11;
+  const isGkBlocked = isGoalkeeper(card) && (myParticipant?.squad.some(isGoalkeeper) ?? false);
+  const isBiddingDisabled = isSquadFull || hasPassed || isMyHighestBid || isGkBlocked;
 
   const handleQuickAdd = (delta: number) => {
     const target = currentBid + delta;
-    onPlaceBid(target);
+    onPlaceBid(target, state.currentCardIndex, card?.id);
   };
 
   const handleCustomSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const num = parseInt(customBid, 10);
     if (!isNaN(num) && num > currentBid) {
-      onPlaceBid(num);
+      onPlaceBid(num, state.currentCardIndex, card?.id);
       setCustomBid("");
     }
   };
@@ -219,67 +222,77 @@ export function AuctionBiddingStage({
             <div className="rounded-2xl border border-sky-400/30 bg-sky-950/30 p-4 text-center text-sm font-bold text-sky-200">
               👁 Seyirci modundasınız; teklif veremezsiniz.
             </div>
-          ) : <div className="flex flex-col gap-3">
-            <div className="grid grid-cols-4 gap-2.5">
-              <button
-                type="button"
-                disabled={isSquadFull || hasPassed || isMyHighestBid}
-                onClick={() => handleQuickAdd(1)}
-                className="py-3.5 rounded-xl bg-white/10 hover:bg-emerald-600/40 border border-white/15 text-white font-mono font-black text-sm transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
-              >
-                +1M $
-              </button>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {/* Kaleci Limiti Uyarısı */}
+              {isGkBlocked && (
+                <div className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-amber-950/80 border border-amber-500/60 text-amber-300 font-bold text-xs shadow-md">
+                  <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>Maksimum 1 Kaleci: Kadronuzda zaten bir kaleci bulunuyor.</span>
+                </div>
+              )}
 
-              <button
-                type="button"
-                disabled={isSquadFull || hasPassed || isMyHighestBid}
-                onClick={() => handleQuickAdd(2)}
-                className="py-3.5 rounded-xl bg-white/10 hover:bg-emerald-600/40 border border-white/15 text-white font-mono font-black text-sm transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
-              >
-                +2M $
-              </button>
+              <div className="grid grid-cols-4 gap-2.5">
+                <button
+                  type="button"
+                  disabled={isBiddingDisabled}
+                  onClick={() => handleQuickAdd(1)}
+                  className="py-3.5 rounded-xl bg-white/10 hover:bg-emerald-600/40 border border-white/15 text-white font-mono font-black text-sm transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
+                >
+                  +1M $
+                </button>
 
-              <button
-                type="button"
-                disabled={isSquadFull || hasPassed || isMyHighestBid}
-                onClick={() => handleQuickAdd(3)}
-                className="py-3.5 rounded-xl bg-white/10 hover:bg-emerald-600/40 border border-white/15 text-white font-mono font-black text-sm transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
-              >
-                +3M $
-              </button>
+                <button
+                  type="button"
+                  disabled={isBiddingDisabled}
+                  onClick={() => handleQuickAdd(2)}
+                  className="py-3.5 rounded-xl bg-white/10 hover:bg-emerald-600/40 border border-white/15 text-white font-mono font-black text-sm transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
+                >
+                  +2M $
+                </button>
 
-              <input
-                type="number"
-                min={currentBid + 1}
-                placeholder="... M $"
-                disabled={isSquadFull || hasPassed || isMyHighestBid}
-                value={customBid}
-                onChange={(e) => setCustomBid(e.target.value)}
-                className="w-full text-center rounded-xl bg-black/40 border border-white/15 text-white font-mono font-bold text-sm focus:outline-none focus:border-amber-500 disabled:opacity-40"
-              />
+                <button
+                  type="button"
+                  disabled={isBiddingDisabled}
+                  onClick={() => handleQuickAdd(3)}
+                  className="py-3.5 rounded-xl bg-white/10 hover:bg-emerald-600/40 border border-white/15 text-white font-mono font-black text-sm transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
+                >
+                  +3M $
+                </button>
+
+                <input
+                  type="number"
+                  min={currentBid + 1}
+                  placeholder="... M $"
+                  disabled={isBiddingDisabled}
+                  value={customBid}
+                  onChange={(e) => setCustomBid(e.target.value)}
+                  className="w-full text-center rounded-xl bg-black/40 border border-white/15 text-white font-mono font-bold text-sm focus:outline-none focus:border-amber-500 disabled:opacity-40"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <button
+                  type="button"
+                  disabled={isBiddingDisabled || !customBid}
+                  onClick={handleCustomSubmit}
+                  className="py-4 rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white font-black text-sm uppercase tracking-wider transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg active:scale-98"
+                >
+                  <Gavel className="w-4 h-4" />
+                  Teklif Ver
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isSquadFull || hasPassed || isMyHighestBid}
+                  onClick={onPass}
+                  className="py-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-white/10 text-zinc-300 font-black text-sm uppercase tracking-wider transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-98"
+                >
+                  Pas Geç
+                </button>
+              </div>
             </div>
-
-            <div className="grid grid-cols-2 gap-3 pt-1">
-              <button
-                type="button"
-                disabled={isSquadFull || hasPassed || isMyHighestBid || !customBid}
-                onClick={handleCustomSubmit}
-                className="py-4 rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white font-black text-sm uppercase tracking-wider transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg active:scale-98"
-              >
-                <Gavel className="w-4 h-4" />
-                Teklif Ver
-              </button>
-
-              <button
-                type="button"
-                disabled={isSquadFull || hasPassed || isMyHighestBid}
-                onClick={onPass}
-                className="py-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-white/10 text-zinc-300 font-black text-sm uppercase tracking-wider transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-98"
-              >
-                Pas Geç
-              </button>
-            </div>
-          </div>}
+          )}
         </div>
 
         {/* SAĞ BÖLGE (Rakip Kadrolar - Scrollsüz 2'li Izgara) */}

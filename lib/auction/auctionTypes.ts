@@ -47,10 +47,12 @@ export interface AuctionParticipant {
   isReady: boolean;
   isHost: boolean;
   hasPassed?: boolean;
+  isDisconnected?: boolean;
+  disconnectedAt?: number | null;
 }
 
 export interface AuctionLobbySettings {
-  playerCount: number; // 2 - 6
+  playerCount: number; // 2 - 8
   startingBudget: number; // örn. 20 - 100 ($)
   ratingMin: number; // örn. 67 - 90
   ratingMax: number; // örn. 85 - 99
@@ -61,6 +63,8 @@ export interface AuctionBid {
   bidderUsername: string;
   amount: number;
   timestamp: number;
+  cardIndex?: number;
+  cardId?: string;
 }
 
 export interface AuctionSoldEvent {
@@ -139,6 +143,8 @@ export interface MatchSimulationResult {
   winnerUserId: string | null;
   isFinished: boolean;
   playerStats: Record<string, PlayerMatchStat>;
+  homeLineup?: TeamLineup;
+  awayLineup?: TeamLineup;
 }
 
 /**

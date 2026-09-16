@@ -50,7 +50,12 @@ interface AuctionPitchBuilderProps {
   confirmedUserIds?: string[];
   totalParticipantCount?: number;
   initialLineup?: TeamLineup;
-  nextOpponent?: { username: string; lineup?: TeamLineup; squad?: AuctionPlayerCard[] };
+  nextOpponent?: {
+    username: string;
+    lineup?: TeamLineup;
+    squad?: AuctionPlayerCard[];
+    isFirstMatch?: boolean;
+  };
   onConfirmLineup: (lineup: TeamLineup) => void;
   onUnconfirmLineup?: () => void;
 }
@@ -572,8 +577,13 @@ export function AuctionPitchBuilder({
 
             {nextOpponent.lineup ? (
               <div className="flex flex-col gap-3">
+                <div className="p-2.5 rounded-xl bg-indigo-950/40 border border-indigo-500/30 flex items-center gap-2 text-indigo-200 text-xs font-medium">
+                  <Shield className="w-4 h-4 text-indigo-400 shrink-0" />
+                  <span>Rakibin <strong>bir önceki maçta</strong> sahaya sürdüğü diziliş ve taktikler gösterilmektedir. Canlı taktiği gizlidir.</span>
+                </div>
+
                 <div className="flex items-center justify-between bg-white/5 p-3 rounded-2xl border border-white/10">
-                  <span className="text-xs text-zinc-400 font-bold uppercase">Son Diziliş</span>
+                  <span className="text-xs text-zinc-400 font-bold uppercase">Geçen Maçtaki Diziliş</span>
                   <span className="text-sm font-mono font-black text-emerald-400">
                     {nextOpponent.lineup.formation}
                   </span>
@@ -659,10 +669,15 @@ export function AuctionPitchBuilder({
               </div>
             ) : nextOpponent.squad && nextOpponent.squad.length > 0 ? (
               <div className="flex flex-col gap-2.5">
+                <div className="p-2.5 rounded-xl bg-amber-950/40 border border-amber-500/30 flex items-center gap-2 text-amber-200 text-xs font-medium">
+                  <Shield className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span><strong>İlk Maç:</strong> Rakibin canlı taktik ve dizilişi gizlidir. Yalnızca müzayedede satın aldığı oyuncu havuzu incelenebilir.</span>
+                </div>
+
                 <div className="flex items-center justify-between bg-white/5 p-3 rounded-2xl border border-white/10">
-                  <span className="text-xs text-zinc-400 font-bold uppercase">Durum</span>
+                  <span className="text-xs text-zinc-400 font-bold uppercase">Maç Türü</span>
                   <span className="text-xs font-mono font-bold text-amber-300">
-                    İlk 11 & Taktik Seçimi Bekleniyor
+                    1. Hafta (Kadro Havuzu Açık)
                   </span>
                 </div>
 

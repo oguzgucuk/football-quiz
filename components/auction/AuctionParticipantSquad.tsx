@@ -10,6 +10,7 @@ import React from "react";
 import { AuctionPlayerCard } from "@/lib/auction/auctionTypes";
 import { AuctionPlayerMiniCard } from "./AuctionPlayerMiniCard";
 import { getRatingTier } from "@/lib/game/playerRatingTiers";
+import { groupSquadByPositions } from "@/lib/auction/playerCategoryClassifier";
 
 interface AuctionParticipantSquadProps {
   squad: AuctionPlayerCard[];
@@ -36,25 +37,8 @@ export function AuctionParticipantSquad({ squad, variant = "default" }: AuctionP
   const isLarge = variant === "large";
   const isCompact = variant === "compact";
 
-  const gk: AuctionPlayerCard[] = [];
-  const def: AuctionPlayerCard[] = [];
-  const mid: AuctionPlayerCard[] = [];
-  const fwd: AuctionPlayerCard[] = [];
-
-  for (const player of squad) {
-    const positions = (player.positions?.length > 0 ? player.positions : [player.primaryPosition || "CM"]).map(
-      (p) => p.toUpperCase()
-    );
-    if (positions.includes("GK") || positions.some((p) => p === "KL" || p.includes("GOALKEEPER"))) {
-      gk.push(player);
-    } else if (positions.some((p) => ["CB", "LB", "RB", "LWB", "RWB", "DEF"].includes(p))) {
-      def.push(player);
-    } else if (positions.some((p) => ["CDM", "CM", "CAM", "LM", "RM", "MID"].includes(p))) {
-      mid.push(player);
-    } else {
-      fwd.push(player);
-    }
-  }
+  const grouped = groupSquadByPositions(squad);
+  const { gk, def, mid, fwd } = grouped;
 
   const groups: PositionGroup[] = [
     {

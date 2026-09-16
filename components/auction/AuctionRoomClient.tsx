@@ -16,6 +16,7 @@ import { AuctionSimulationStage } from "./AuctionSimulationStage";
 import { StadiumBackground } from "@/components/ui/StadiumBackground";
 import { Loader2, ArrowLeft, AlertTriangle, AlertCircle } from "lucide-react";
 import { generateLeagueSchedule, getOpponentForUserInRound } from "@/lib/auction/auctionTournament";
+import { TeamLineup } from "@/lib/auction/auctionTypes";
 
 interface AuctionRoomClientProps {
   roomId: string;
@@ -167,14 +168,29 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
             opponentId = getOpponentForUserInRound(schedule, roundIdx, currentUserId);
           }
 
-          const opponentLineup = opponentId ? state.lineups[opponentId] : undefined;
+          // Kullanıcı kuralı: Canlı taktik ASLA görünmez.
+          // İlk maçsa sadece satın alınan kadro görünür.
+          // 2. maç ve sonrasında ise rakibin BİR ÖNCEKİ maçtaki dizilişi ve taktiği görünür.
+          let opponentPreviousLineup: TeamLineup | undefined = undefined;
+          if (roundIdx > 0 && state.simulationRounds && state.simulationRounds[roundIdx - 1]) {
+            const prevRound = state.simulationRounds[roundIdx - 1];
+            const prevMatch = prevRound.matches.find(
+              (m) => m.homeUserId === opponentId || m.awayUserId === opponentId
+            );
+            if (prevMatch) {
+              opponentPreviousLineup =
+                prevMatch.homeUserId === opponentId ? prevMatch.homeLineup : prevMatch.awayLineup;
+            }
+          }
+
           const opponentParticipant = opponentId ? state.participants[opponentId] : undefined;
           const nextOpponent =
             opponentId && opponentParticipant
               ? {
                   username: opponentParticipant.username,
-                  lineup: opponentLineup,
+                  lineup: opponentPreviousLineup,
                   squad: opponentParticipant.squad,
+                  isFirstMatch: roundIdx === 0 || !opponentPreviousLineup,
                 }
               : undefined;
 

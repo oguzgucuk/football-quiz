@@ -8,11 +8,12 @@
  * - (i) butonu ile oyuncunun detay modalını açar.
  */
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { AuctionParticipant, AuctionPlayerCard } from "@/lib/auction/auctionTypes";
 import { getRatingTier } from "@/lib/game/playerRatingTiers";
 import { Info, UserCheck, Shield, Crown } from "lucide-react";
 import { AuctionPlayerDetailModal } from "./AuctionPlayerDetailModal";
+import { groupSquadByPositions, POSITION_CATEGORY_CONFIG } from "@/lib/auction/playerCategoryClassifier";
 
 interface MySquadDrawerProps {
   participant?: AuctionParticipant;
@@ -30,6 +31,8 @@ export function MySquadDrawer({ participant, isMyHighestBid = false }: MySquadDr
     count > 0
       ? Math.round(squad.reduce((sum, p) => sum + p.overallPrime, 0) / count)
       : null;
+
+  const grouped = groupSquadByPositions(squad);
 
   return (
     <>
@@ -75,48 +78,81 @@ export function MySquadDrawer({ participant, isMyHighestBid = false }: MySquadDr
             </div>
           </div>
 
-          {/* Ayrıntılı Kadro Listesi (Taktik Ekranı Tarzında - Kompakt & Scrollsuz) */}
-          <div className="flex flex-col gap-1.5 mt-3">
-            {squad.map((player) => {
-              const tier = getRatingTier(player.overallPrime);
-              const posList =
-                player.positions && player.positions.length > 0
-                  ? player.positions
-                  : [player.primaryPosition || "CM"];
+          {/* Ayrıntılı Kadro Listesi (Mevkilere Göre Gruplanmış) */}
+          <div className="flex flex-col gap-2.5 mt-3">
+            {(["gk", "def", "mid", "fwd"] as const).map((catKey) => {
+              const cfg = POSITION_CATEGORY_CONFIG[catKey];
+              const groupPlayers = grouped[catKey];
+
+              if (groupPlayers.length === 0 && catKey !== "gk") return null;
 
               return (
-                <div
-                  key={player.id}
-                  className="flex items-center justify-between p-1.5 px-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/8 transition-all gap-2"
-                >
-                  {/* Sol: Reyting Rozeti */}
-                  <div
-                    className={`size-7 rounded-lg flex items-center justify-center font-mono text-xs font-black shrink-0 ${tier.badgeClass} shadow-sm`}
-                  >
-                    {player.overallPrime}
-                  </div>
-
-                  {/* Orta: Tam İsim */}
-                  <span className="font-bold text-xs text-white truncate flex-1 min-w-0" title={player.fullName}>
-                    {player.fullName}
-                  </span>
-
-                  {/* Sağ: Mevki Etiketi ve Detay İkonu */}
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-[10px] font-mono font-bold text-zinc-300 bg-white/10 border border-white/15 px-1.5 py-0.5 rounded">
-                      {posList.slice(0, 3).join("/")}
-                      {posList.length > 3 ? "..." : ""}
+                <div key={catKey} className="flex flex-col gap-1">
+                  {/* Mevki Grup Başlığı */}
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-[10px] font-mono font-black uppercase tracking-wider text-zinc-400 flex items-center gap-1">
+                      <span className={`px-1.5 py-0.2 rounded border text-[9px] ${cfg.accentBadge}`}>
+                        {cfg.label}
+                      </span>
+                      <span>{cfg.fullLabel}</span>
                     </span>
-
-                    <button
-                      type="button"
-                      onClick={() => setInspectingPlayer(player)}
-                      className="size-5 rounded flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                      title="Mevkileri ve Detayları Gör"
-                    >
-                      <Info className="w-3.5 h-3.5" />
-                    </button>
+                    <span className="text-[10px] font-mono font-bold text-zinc-400">
+                      {groupPlayers.length}
+                    </span>
                   </div>
+
+                  {groupPlayers.length === 0 && catKey === "gk" ? (
+                    <div className="p-1.5 px-2 rounded-xl border border-dashed border-amber-500/30 bg-amber-950/20 text-amber-300 text-[11px] font-semibold flex items-center gap-1.5">
+                      <span>⚠️ Kaleci Yok</span>
+                    </div>
+                  ) : (
+                    groupPlayers.map((player) => {
+                      const tier = getRatingTier(player.overallPrime);
+                      const posList =
+                        player.positions && player.positions.length > 0
+                          ? player.positions
+                          : [player.primaryPosition || "CM"];
+
+                      return (
+                        <div
+                          key={player.id}
+                          className="flex items-center justify-between p-1.5 px-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/8 transition-all gap-2"
+                        >
+                          {/* Sol: Reyting Rozeti */}
+                          <div
+                            className={`size-7 rounded-lg flex items-center justify-center font-mono text-xs font-black shrink-0 ${tier.badgeClass} shadow-sm`}
+                          >
+                            {player.overallPrime}
+                          </div>
+
+                          {/* Orta: Tam İsim */}
+                          <span
+                            className="font-bold text-xs text-white truncate flex-1 min-w-0"
+                            title={player.fullName}
+                          >
+                            {player.fullName}
+                          </span>
+
+                          {/* Sağ: Mevki Etiketi ve Detay İkonu */}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-[10px] font-mono font-bold text-zinc-300 bg-white/10 border border-white/15 px-1.5 py-0.5 rounded">
+                              {posList.slice(0, 3).join("/")}
+                              {posList.length > 3 ? "..." : ""}
+                            </span>
+
+                            <button
+                              type="button"
+                              onClick={() => setInspectingPlayer(player)}
+                              className="size-5 rounded flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                              title="Mevkileri ve Detayları Gör"
+                            >
+                              <Info className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               );
             })}

@@ -36,38 +36,63 @@ export function useAuctionRoom({ roomId, userId, username }: UseAuctionRoomProps
   useEffect(() => {
     if (!roomId || !userId) return;
 
+    let isUnmounted = false;
+    let reconnectTimeout: NodeJS.Timeout | null = null;
+
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     const originParam = origin ? `?origin=${encodeURIComponent(origin)}` : "";
     const wsUrl = getWebSocketUrl(`/parties/auction/${roomId}${originParam}`);
-    const socket = new WebSocket(wsUrl);
-    wsRef.current = socket;
 
-    socket.onopen = () => {
-      setIsConnected(true);
-      sendMessage({
-        type: "AUCTION_JOIN",
-        userId,
-        username,
-        siteUrl: origin,
-      });
-    };
+    function connect() {
+      if (isUnmounted) return;
+      const socket = new WebSocket(wsUrl);
+      wsRef.current = socket;
 
-    socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        handleIncomingMessage(data, setState, setIsSpectator, setErrorMessage, setToastMessage, setRoomClosedReason);
-      } catch (err) {
-        console.error("[AuctionSocket] Parse hatası:", err);
-      }
-    };
+      socket.onopen = () => {
+        if (isUnmounted) return;
+        setIsConnected(true);
+        sendMessage({
+          type: "AUCTION_JOIN",
+          userId,
+          username,
+          siteUrl: origin,
+        });
+      };
 
-    socket.onclose = () => {
-      setIsConnected(false);
-    };
+      socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          handleIncomingMessage(data, setState, setIsSpectator, setErrorMessage, setToastMessage, setRoomClosedReason);
+        } catch (err) {
+          console.error("[AuctionSocket] Parse hatası:", err);
+        }
+      };
+
+      socket.onclose = () => {
+        if (isUnmounted) return;
+        setIsConnected(false);
+        // Otomatik yeniden bağlanma (sayfa yenilemeye gerek kalmadan)
+        reconnectTimeout = setTimeout(() => {
+          if (!isUnmounted) {
+            connect();
+          }
+        }, 1500);
+      };
+
+      socket.onerror = () => {
+        socket.close();
+      };
+    }
+
+    connect();
 
     return () => {
-      socket.close();
-      wsRef.current = null;
+      isUnmounted = true;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
     };
   }, [roomId, userId, username, sendMessage]);
 
@@ -110,8 +135,8 @@ export function useAuctionRoom({ roomId, userId, username }: UseAuctionRoomProps
   }, [userId, sendMessage]);
 
   const placeBid = useCallback(
-    (amount: number) => {
-      sendMessage({ type: "AUCTION_BID", userId, amount });
+    (amount: number, cardIndex?: number, cardId?: string) => {
+      sendMessage({ type: "AUCTION_BID", userId, amount, cardIndex, cardId });
     },
     [userId, sendMessage]
   );

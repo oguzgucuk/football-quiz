@@ -32,6 +32,8 @@ interface AuctionPartyRoom {
 
 const auctionRooms = new Map<string, AuctionPartyRoom>();
 
+const disconnectGraceTimers = new Map<string, NodeJS.Timeout>();
+
 export function isAuctionRoomId(roomId: string): boolean {
   return roomId.startsWith("oda_muzayede_") || roomId.startsWith("auction_");
 }
@@ -71,7 +73,29 @@ export function handleAuctionSocketConnection(ws: WebSocket, roomId: string) {
     );
 
     if (remainingSockets.length === 0) {
-      handleUserDisconnect(room, clientMeta.userId, clientMeta.username || "Bir oyuncu");
+      const graceKey = `${room.roomId}_${clientMeta.userId}`;
+      const existingTimer = disconnectGraceTimers.get(graceKey);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+      }
+
+      // Katılımcıyı geçici olarak bağlantı koptu işaretle
+      if (room.state.participants[clientMeta.userId]) {
+        room.state.participants[clientMeta.userId].isDisconnected = true;
+        room.state.participants[clientMeta.userId].disconnectedAt = Date.now();
+        broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
+      }
+
+      // 20 saniyelik yeniden bağlanma hoşgörü süresi (F5 ve anlık kopma koruması)
+      const timer = setTimeout(() => {
+        disconnectGraceTimers.delete(graceKey);
+        const currentRoom = auctionRooms.get(room.roomId);
+        if (currentRoom) {
+          handleUserDisconnect(currentRoom, clientMeta.userId, clientMeta.username || "Bir oyuncu");
+        }
+      }, 20000);
+
+      disconnectGraceTimers.set(graceKey, timer);
     }
   });
 }
@@ -82,6 +106,8 @@ type IncomingAuctionMessage = {
   username?: string;
   settings?: Partial<import("./auctionTypes").AuctionLobbySettings>;
   amount?: number | string;
+  cardIndex?: number;
+  cardId?: string;
   lineup?: TeamLineup;
 };
 
@@ -109,7 +135,14 @@ async function processAuctionMessage(
       break;
     }
     case "AUCTION_BID": {
-      handleBid(room, ws, msg.userId, Number(msg.amount));
+      handleBid(
+        room,
+        ws,
+        msg.userId,
+        Number(msg.amount),
+        msg.cardIndex !== undefined ? Number(msg.cardIndex) : undefined,
+        msg.cardId
+      );
       break;
     }
     case "AUCTION_PASS": {
@@ -155,6 +188,14 @@ async function processAuctionMessage(
 function handleJoin(room: AuctionPartyRoom, ws: WebSocket, userId: string, username: string) {
   if (!userId || !userId.trim()) return;
 
+  // Yeniden bağlanma (reconnect): Varsa bekleyen grace period timer'ını iptal et
+  const graceKey = `${room.roomId}_${userId}`;
+  const existingTimer = disconnectGraceTimers.get(graceKey);
+  if (existingTimer) {
+    clearTimeout(existingTimer);
+    disconnectGraceTimers.delete(graceKey);
+  }
+
   room.clients.set(ws, { userId, username });
 
   delete room.state.participants[""];
@@ -176,7 +217,16 @@ function handleJoin(room: AuctionPartyRoom, ws: WebSocket, userId: string, usern
       squad: [],
       isReady: true,
       isHost: room.state.hostUserId === userId,
+      isDisconnected: false,
+      disconnectedAt: null,
     };
+  } else {
+    // Oyuncu zaten vardı (F5 veya yeniden bağlanma)
+    room.state.participants[userId].isDisconnected = false;
+    room.state.participants[userId].disconnectedAt = null;
+    if (username) {
+      room.state.participants[userId].username = username;
+    }
   }
 
   room.state.turnOrder = Object.keys(room.state.participants).filter((id) => Boolean(id && id.trim()));
@@ -200,10 +250,17 @@ async function handleStartGame(room: AuctionPartyRoom) {
   startTimer(room);
 }
 
-function handleBid(room: AuctionPartyRoom, ws: WebSocket, userId: string, amount: number) {
+function handleBid(
+  room: AuctionPartyRoom,
+  ws: WebSocket,
+  userId: string,
+  amount: number,
+  cardIndex?: number,
+  cardId?: string
+) {
   if (room.state.status !== "auction" || !room.state.participants[userId]) return;
 
-  const res = applyBid(room.state, userId, amount);
+  const res = applyBid(room.state, userId, amount, cardIndex, cardId);
   if (!res.success) {
     ws.send(JSON.stringify({ type: "AUCTION_ERROR", message: res.error }));
     return;

@@ -10,8 +10,9 @@
 
 import React, { useState } from "react";
 import { AuctionPlayerCard } from "@/lib/auction/auctionTypes";
-import { Move, Info, CheckCircle2 } from "lucide-react";
+import { Move, Info } from "lucide-react";
 import { getRatingTier } from "@/lib/game/playerRatingTiers";
+import { groupSquadByPositions, POSITION_CATEGORY_CONFIG } from "@/lib/auction/playerCategoryClassifier";
 
 interface AuctionSquadListProps {
   squad: AuctionPlayerCard[];
@@ -40,6 +41,7 @@ export function AuctionSquadList({
 }: AuctionSquadListProps) {
   const [isBenchDragOver, setIsBenchDragOver] = useState(false);
   const unplacedCount = squad.length - placedPlayerIds.size;
+  const grouped = groupSquadByPositions(squad);
 
   return (
     <div
@@ -59,13 +61,13 @@ export function AuctionSquadList({
           onDropOnBench(pId);
         }
       }}
-      className={`p-4 rounded-2xl bg-black/50 border backdrop-blur-xl flex flex-col gap-2 max-h-[600px] xl:max-h-[640px] overflow-y-auto custom-scrollbar transition-all ${
+      className={`p-3.5 rounded-2xl bg-black/50 border backdrop-blur-xl flex flex-col gap-3 max-h-[600px] xl:max-h-[640px] overflow-y-auto custom-scrollbar transition-all ${
         isBenchDragOver
           ? "border-amber-400/80 bg-amber-950/20 ring-2 ring-amber-400/30"
           : "border-white/10"
       }`}
     >
-      <div className="flex items-center justify-between mb-1 pb-1.5 border-b border-white/10">
+      <div className="flex items-center justify-between pb-2 border-b border-white/10">
         <span className="text-[11px] font-extrabold uppercase tracking-widest text-zinc-400">
           Oyuncularım ({unplacedCount} Boşta)
         </span>
@@ -80,73 +82,115 @@ export function AuctionSquadList({
         )}
       </div>
 
-      {squad.map((player) => {
-        const isPlaced = placedPlayerIds.has(player.id);
-        const isSelected = selectedPlayer?.id === player.id;
-        const isDraggingThis = draggedPlayerId === player.id;
+      {(["gk", "def", "mid", "fwd"] as const).map((catKey) => {
+        const cfg = POSITION_CATEGORY_CONFIG[catKey];
+        const categoryPlayers = grouped[catKey];
+
+        if (categoryPlayers.length === 0) return null;
 
         return (
-          <div
-            key={player.id}
-            draggable={!disabled && !isPlaced}
-            onDragStart={(e) => onDragStart(e, player)}
-            onDragEnd={onDragEnd}
-            onClick={() => {
-              if (disabled || isPlaced) {
-                onInspectPlayer(player);
-              } else {
-                onSelectPlayer(isSelected ? null : player);
-              }
-            }}
-            className={`flex items-center justify-between p-2.5 rounded-xl border transition-all ${
-              disabled
-                ? isPlaced
-                  ? "opacity-60 bg-black/40 border-white/5 cursor-pointer"
-                  : "bg-white/5 border-white/10 cursor-pointer"
-                : isPlaced
-                ? "opacity-50 bg-black/40 border-white/5 hover:border-white/20 cursor-pointer"
-                : isDraggingThis
-                ? "opacity-40 scale-95 border-emerald-500 shadow-md cursor-grabbing"
-                : isSelected
-                ? "bg-emerald-950/70 border-emerald-500 shadow-md cursor-pointer"
-                : "bg-white/5 border-white/10 hover:border-emerald-500/40 cursor-grab active:cursor-grabbing"
-            }`}
-          >
-            <div className="flex items-center gap-2 min-w-0 flex-1">
-              {(() => {
-                const playerTier = getRatingTier(player.overallPrime);
-                return (
-                  <span className={`font-mono font-black text-xs px-1.5 py-0.5 rounded shrink-0 ${playerTier.badgeSubtle}`}>
-                    {player.overallPrime}
-                  </span>
-                );
-              })()}
-              <span className="text-xs font-bold text-white truncate">
-                {player.fullName}
-              </span>
-              {isPlaced && (
-                <span className="text-[9px] font-bold text-emerald-400/80 bg-emerald-950/50 px-1.5 py-0.2 rounded border border-emerald-500/20 shrink-0">
-                  Sahada
+          <div key={catKey} className="flex flex-col gap-1.5">
+            {/* Kategori Başlığı */}
+            <div className="flex items-center justify-between px-1">
+              <span className="text-[10px] font-mono font-black uppercase tracking-wider text-zinc-400 flex items-center gap-1">
+                <span className={`px-1.5 py-0.2 rounded border text-[9px] ${cfg.accentBadge}`}>
+                  {cfg.label}
                 </span>
-              )}
+                <span>{cfg.fullLabel}</span>
+              </span>
+              <span className="text-[10px] font-mono font-bold text-zinc-400">
+                {categoryPlayers.length}
+              </span>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0 ml-2">
-              <span className="text-xs font-mono font-black text-zinc-300 tracking-tight">
-                {player.positions.join("/")}
-              </span>
-              <button
-                type="button"
-                title="Oynayabildiği Pozisyonları Gör"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onInspectPlayer(player);
-                }}
-                className="p-1.5 rounded-lg bg-white/5 hover:bg-emerald-500/20 text-zinc-300 hover:text-emerald-300 transition-colors cursor-pointer border border-white/10"
-              >
-                <Info className="w-4 h-4" />
-              </button>
-            </div>
+            {/* Oyuncu Kartları */}
+            {categoryPlayers.map((player) => {
+              const isPlaced = placedPlayerIds.has(player.id);
+              const isSelected = selectedPlayer?.id === player.id;
+              const isDraggingThis = draggedPlayerId === player.id;
+              const playerTier = getRatingTier(player.overallPrime);
+              const primary = player.primaryPosition || player.positions[0] || "CM";
+              const secondaries = player.positions.filter((pos) => pos !== primary);
+
+              return (
+                <div
+                  key={player.id}
+                  draggable={!disabled && !isPlaced}
+                  onDragStart={(e) => onDragStart(e, player)}
+                  onDragEnd={onDragEnd}
+                  onClick={() => {
+                    if (disabled || isPlaced) {
+                      onInspectPlayer(player);
+                    } else {
+                      onSelectPlayer(isSelected ? null : player);
+                    }
+                  }}
+                  className={`flex items-center justify-between p-2 rounded-xl border transition-all ${
+                    disabled
+                      ? isPlaced
+                        ? "opacity-60 bg-black/40 border-white/5 cursor-pointer"
+                        : "bg-white/5 border-white/10 cursor-pointer"
+                      : isPlaced
+                      ? "opacity-50 bg-black/40 border-white/5 hover:border-white/20 cursor-pointer"
+                      : isDraggingThis
+                      ? "opacity-40 scale-95 border-emerald-500 shadow-md cursor-grabbing"
+                      : isSelected
+                      ? "bg-emerald-950/70 border-emerald-500 shadow-md cursor-pointer"
+                      : "bg-white/5 border-white/10 hover:border-emerald-500/40 cursor-grab active:cursor-grabbing"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span
+                      className={`font-mono font-black text-xs px-1.5 py-0.5 rounded shrink-0 ${playerTier.badgeSubtle}`}
+                    >
+                      {player.overallPrime}
+                    </span>
+                    <span className="text-xs font-bold text-white truncate">
+                      {player.fullName}
+                    </span>
+                    {isPlaced && (
+                      <span className="text-[9px] font-bold text-emerald-400/80 bg-emerald-950/50 px-1.5 py-0.2 rounded border border-emerald-500/20 shrink-0">
+                        Sahada
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Mevki Çipleri */}
+                  <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                    <div className="flex items-center gap-1">
+                      {/* Birincil Mevki Çipi */}
+                      <span
+                        className={`text-[10px] font-mono font-black px-1.5 py-0.5 rounded border ${cfg.accentBadge}`}
+                        title={`Birincil Mevki: ${primary}`}
+                      >
+                        {primary}
+                      </span>
+                      {/* İkincil Mevkiler */}
+                      {secondaries.length > 0 && (
+                        <span
+                          className="text-[9px] font-mono font-bold text-zinc-400 bg-white/5 px-1 py-0.5 rounded border border-white/10"
+                          title={`Oynayabildiği Diğer Mevkiler: ${secondaries.join(", ")}`}
+                        >
+                          +{secondaries.length}
+                        </span>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      title="Oynayabildiği Pozisyonları Gör"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onInspectPlayer(player);
+                      }}
+                      className="p-1 rounded-lg bg-white/5 hover:bg-emerald-500/20 text-zinc-300 hover:text-emerald-300 transition-colors cursor-pointer border border-white/10"
+                    >
+                      <Info className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         );
       })}

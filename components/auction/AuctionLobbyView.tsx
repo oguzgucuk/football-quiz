@@ -32,7 +32,7 @@ export function AuctionLobbyView({
   const participantsList = Object.values(state.participants).filter(
     (p) => Boolean(p.userId && p.userId.trim())
   );
-  const totalSlots = 6;
+  const totalSlots = Math.max(state.settings.playerCount || 4, participantsList.length);
   const slots = Array.from({ length: totalSlots }, (_, i) => participantsList[i] || null);
   const canStart = isHost && participantsList.length >= 2;
 
@@ -65,17 +65,17 @@ export function AuctionLobbyView({
         </button>
       </div>
 
-      {/* 1. OYUNCU SLOTLARI (Çizimdeki 6 Slotlu Izgara) */}
+      {/* 1. OYUNCU SLOTLARI (Dinamik 2 - 8 Kapasiteli Izgara) */}
       <div className="w-full p-4 sm:p-6 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-xl shadow-2xl">
         <div className="flex items-center justify-between mb-4">
           <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
             <Users className="w-4 h-4 text-emerald-400" />
-            Lobideki Oyuncular ({participantsList.length}/{totalSlots})
+            Lobideki Oyuncular ({participantsList.length}/{state.settings.playerCount || 4})
           </span>
           <span className="text-[11px] text-zinc-500 font-medium">En az 2 oyuncu gereklidir</span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {slots.map((player, idx) => (
             <div
               key={idx}

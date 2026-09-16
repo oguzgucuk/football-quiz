@@ -12,11 +12,23 @@ import {
 } from "./auctionTypes";
 
 export const DEFAULT_LOBBY_SETTINGS: AuctionLobbySettings = {
-  playerCount: 3,
+  playerCount: 4,
   startingBudget: 30, // 20 - 100 ($)
   ratingMin: 70,
   ratingMax: 99,
 };
+
+export function isGoalkeeper(
+  player: { positions?: string[]; primaryPosition?: string | null } | null | undefined
+): boolean {
+  if (!player) return false;
+  const positions = player.positions || [];
+  return (
+    positions.includes("GK") ||
+    positions.some((p) => p.toUpperCase() === "KL" || p.toUpperCase().includes("GOALKEEPER")) ||
+    (player.primaryPosition ? player.primaryPosition.toUpperCase() === "GK" : false)
+  );
+}
 
 export function createInitialAuctionState(
   roomId: string,
@@ -95,6 +107,8 @@ export function startAuctionStage(
         bidderUsername: updatedParticipants[firstTurnUserId]?.username || "Oyuncu 1",
         amount: 1,
         timestamp: Date.now(),
+        cardIndex: 0,
+        cardId: firstCard.id,
       }
     : null;
 
@@ -116,11 +130,31 @@ export function startAuctionStage(
 export function applyBid(
   state: AuctionRoomState,
   bidderUserId: string,
-  amount: number
+  amount: number,
+  cardIndex?: number,
+  cardId?: string
 ): { success: boolean; error?: string; state: AuctionRoomState } {
   const p = state.participants[bidderUserId];
   if (!p) return { success: false, error: "Oyuncu bulunamadı", state };
   if (p.squad.length >= 11) return { success: false, error: "Kadronuz tamamlandı!", state };
+
+  // Son saniye yarış koşulu koruması: Belirtilen kart ile anlık kart uyuşmalı
+  if (cardIndex !== undefined && cardIndex !== state.currentCardIndex) {
+    return { success: false, error: "Süre dolduğu için teklif yetişmedi.", state };
+  }
+  if (cardId && state.currentCard && cardId !== state.currentCard.id) {
+    return { success: false, error: "Süre dolduğu için teklif yetişmedi.", state };
+  }
+
+  // Kaleci Limiti: En fazla 1 kaleci transfer edilebilir
+  const isCurrentCardGk = isGoalkeeper(state.currentCard);
+  if (isCurrentCardGk && p.squad.some(isGoalkeeper)) {
+    return {
+      success: false,
+      error: "Zaten bir kaleciniz var! Bir takımda en fazla 1 kaleci bulunabilir.",
+      state,
+    };
+  }
 
   const currentAmt = state.currentHighestBid?.amount || 0;
   if (amount <= currentAmt) {
@@ -145,6 +179,8 @@ export function applyBid(
     bidderUsername: p.username,
     amount,
     timestamp: Date.now(),
+    cardIndex: state.currentCardIndex,
+    cardId: state.currentCard?.id,
   };
 
   const nextPassed = state.passedUserIds.filter((id) => id !== bidderUserId);
@@ -221,7 +257,11 @@ function finishOrNextTurn(state: AuctionRoomState): AuctionRoomState {
     };
   }
 
+  const nextCard = state.pool[nextCardIndex] || null;
+  const isNextCardGk = isGoalkeeper(nextCard);
+
   // Sıradaki zorunlu 1$ açılış yapacak oyuncu:
+  // Eğer sıradaki oyuncu kaleci ise, zaten kalecisi olanlar atlanır!
   const validTurnOrder = state.turnOrder.filter((id) => Boolean(id && id.trim()));
   const total = validTurnOrder.length;
   const currentIdx = validTurnOrder.indexOf(state.currentTurnUserId);
@@ -230,23 +270,35 @@ function finishOrNextTurn(state: AuctionRoomState): AuctionRoomState {
   let nextTurnUserId = "";
   for (let i = 0; i < total; i++) {
     const candId = validTurnOrder[(startSearch + i) % total];
-    if (candId && state.participants[candId] && state.participants[candId].squad.length < 11) {
+    const cand = candId ? state.participants[candId] : null;
+    if (cand && cand.squad.length < 11) {
+      if (isNextCardGk && cand.squad.some(isGoalkeeper)) {
+        continue;
+      }
       nextTurnUserId = candId;
       break;
     }
   }
 
   if (!nextTurnUserId && activeBidders.length > 0) {
-    nextTurnUserId = activeBidders[0].userId;
+    if (isNextCardGk) {
+      const bidderWithoutGk = activeBidders.find((b) => !b.squad.some(isGoalkeeper));
+      if (bidderWithoutGk) {
+        nextTurnUserId = bidderWithoutGk.userId;
+      }
+    } else {
+      nextTurnUserId = activeBidders[0].userId;
+    }
   }
 
-  const nextCard = state.pool[nextCardIndex] || null;
   const mandatoryBid: AuctionBid | null = (nextCard && nextTurnUserId)
     ? {
         bidderUserId: nextTurnUserId,
         bidderUsername: state.participants[nextTurnUserId]?.username || "Oyuncu",
         amount: 1,
         timestamp: Date.now(),
+        cardIndex: nextCardIndex,
+        cardId: nextCard.id,
       }
     : null;
 

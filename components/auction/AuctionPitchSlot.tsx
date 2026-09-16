@@ -72,6 +72,37 @@ export function AuctionPitchSlot({
     onClick();
   };
 
+  // Mevki türüne göre sahada dinamik mikro koordinat kayması (Glide):
+  // Örneğin CM -> CAM olunca hücuma yanaşır, CDM olunca defansa yanaşır, CF olunca forvet arkasına kayar.
+  let dynamicX = def?.xPercent || 50;
+  let dynamicY = def?.yPercent || 50;
+
+  switch (slot.targetPosition) {
+    case "CDM":
+      dynamicY = Math.min(dynamicY + 6, 85);
+      break;
+    case "CAM":
+      dynamicY = Math.max(dynamicY - 7, 22);
+      break;
+    case "CF":
+      dynamicY = Math.min(dynamicY + 5, 35);
+      break;
+    case "LWB":
+      dynamicY = Math.max(dynamicY - 6, 40);
+      dynamicX = Math.max(dynamicX - 2, 8);
+      break;
+    case "RWB":
+      dynamicY = Math.max(dynamicY - 6, 40);
+      dynamicX = Math.min(dynamicX + 2, 92);
+      break;
+    case "LM":
+      dynamicX = Math.max(dynamicX - 3, 10);
+      break;
+    case "RM":
+      dynamicX = Math.min(dynamicX + 3, 90);
+      break;
+  }
+
   return (
     <div
       onClick={handleClickWrapper}
@@ -85,8 +116,9 @@ export function AuctionPitchSlot({
         onDrop(e);
       }}
       style={{
-        left: `${def?.xPercent || 50}%`,
-        top: `${def?.yPercent || 50}%`,
+        left: `${dynamicX}%`,
+        top: `${dynamicY}%`,
+        transition: "left 0.35s cubic-bezier(0.16, 1, 0.3, 1), top 0.35s cubic-bezier(0.16, 1, 0.3, 1)",
       }}
       className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group z-10 select-none ${
         disabled ? "cursor-default" : "cursor-pointer"
