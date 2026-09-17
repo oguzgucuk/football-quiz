@@ -15,9 +15,16 @@ const MID_POSITIONS: PitchPosition[] = ["CDM", "CM", "CAM", "LM", "RM"];
 const FWD_POSITIONS: PitchPosition[] = ["ST", "CF", "LW", "RW"];
 
 function isGK(player: AuctionPlayerCard): boolean {
+  const positions = (player.positions || []).map((p) => String(p).toUpperCase());
+  const primary = String(player.primaryPosition || "").toUpperCase();
   return (
-    player.positions?.includes("GK") ||
-    player.primaryPosition === "GK"
+    positions.includes("GK") ||
+    positions.includes("KL") ||
+    positions.some((p) => p.includes("GOALKEEPER") || p.includes("KALECI")) ||
+    primary === "GK" ||
+    primary === "KL" ||
+    primary.includes("GOALKEEPER") ||
+    primary.includes("KALECI")
   );
 }
 

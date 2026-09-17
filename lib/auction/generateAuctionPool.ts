@@ -132,10 +132,24 @@ export function calculateRatingTiers(
 }
 
 export function matchesCategory(player: CandidatePlayer, cat: PositionCategory): boolean {
-  if (cat === "GK") return player.positions.includes("GK");
-  if (cat === "DEF") return player.positions.some((p) => DEF_POSITIONS.has(p));
-  if (cat === "MID") return player.positions.some((p) => MID_POSITIONS.has(p));
-  if (cat === "FWD") return player.positions.some((p) => FWD_POSITIONS.has(p));
+  const positions = (player.positions || []).map((p) => String(p).trim().toUpperCase());
+  const primary = String(player.position || "").trim().toUpperCase();
+
+  const isGk =
+    positions.includes("GK") ||
+    positions.includes("KL") ||
+    positions.some((p) => p.includes("GOALKEEPER") || p.includes("KALECI")) ||
+    primary === "GK" ||
+    primary === "KL" ||
+    primary.includes("GOALKEEPER") ||
+    primary.includes("KALECI");
+
+  if (cat === "GK") return isGk;
+  if (isGk) return false; // Kaleciler defans/orta saha/forvet kategorileriyle eşleşemez
+
+  if (cat === "DEF") return positions.some((p) => DEF_POSITIONS.has(p)) || DEF_POSITIONS.has(primary);
+  if (cat === "MID") return positions.some((p) => MID_POSITIONS.has(p)) || MID_POSITIONS.has(primary);
+  if (cat === "FWD") return positions.some((p) => FWD_POSITIONS.has(p)) || FWD_POSITIONS.has(primary);
   return false;
 }
 
@@ -279,10 +293,11 @@ function pickPlayersFromTiers(
     }
   }
 
-  // Hedef toplam karta ulaşana kadar kalanlardan tamamla
+  // Hedef toplam karta ulaşana kadar kalan adaylardan tamamla (FAZLADAN KALECİ ASLA ALINMAZ)
   for (const p of shuffleArray(shuffledAllCandidates)) {
     if (selectedList.length >= targetTotal) break;
     if (!selectedIds.has(p.id)) {
+      if (matchesCategory(p, "GK")) continue; // Havuzda ihtiyaçtan fazla kaleci birikmesini önle
       selectedList.push(p);
       selectedIds.add(p.id);
     }
@@ -319,12 +334,20 @@ async function populateTeamDetails(selected: CandidatePlayer[]): Promise<Auction
 
   return shuffleArray(selected).map((p) => {
     const team = detailsMap.get(p.id);
+    const isGk = matchesCategory(p, "GK");
+    const normalizedPositions =
+      p.positions && p.positions.length > 0
+        ? p.positions
+        : isGk
+        ? ["GK"]
+        : [p.position || "CM"];
+
     return {
       id: p.id,
       fullName: p.fullName,
       overallPrime: p.overallPrime,
-      positions: p.positions,
-      primaryPosition: p.position,
+      positions: normalizedPositions,
+      primaryPosition: isGk ? "GK" : p.position,
       nationality: p.nationality,
       currentClub: team?.name || null,
       logoUrl: team?.logoUrl || null,

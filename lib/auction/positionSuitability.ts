@@ -163,7 +163,13 @@ export function getPlayerPositionBreakdown(
     }
   }
 
-  const isGoalkeeper = player.positions.some((p) => p.toUpperCase() === "GK");
+  const isGoalkeeper =
+    (player.positions || []).some((p) => {
+      const up = p.toUpperCase();
+      return up === "GK" || up === "KL" || up.includes("GOALKEEPER") || up.includes("KALECI");
+    }) ||
+    String(player.primaryPosition || "").toUpperCase() === "GK" ||
+    String(player.primaryPosition || "").toUpperCase().includes("GOALKEEPER");
 
   return { natural, nearby, distant, isGoalkeeper };
 }

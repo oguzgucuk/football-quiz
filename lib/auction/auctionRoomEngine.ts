@@ -19,15 +19,25 @@ export const DEFAULT_LOBBY_SETTINGS: AuctionLobbySettings = {
 };
 
 export function isGoalkeeper(
-  player: { positions?: string[]; primaryPosition?: string | null } | null | undefined
+  player: {
+    positions?: string[];
+    primaryPosition?: string | null;
+    position?: string | null;
+  } | null | undefined
 ): boolean {
   if (!player) return false;
-  const positions = player.positions || [];
-  return (
-    positions.includes("GK") ||
-    positions.some((p) => p.toUpperCase() === "KL" || p.toUpperCase().includes("GOALKEEPER")) ||
-    (player.primaryPosition ? player.primaryPosition.toUpperCase() === "GK" : false)
-  );
+  const positions = (player.positions || []).map((p) => String(p).trim().toUpperCase());
+  const primary = String(player.primaryPosition || player.position || "").trim().toUpperCase();
+
+  const isGkToken = (s: string) =>
+    s === "GK" ||
+    s === "KL" ||
+    s.includes("GOALKEEPER") ||
+    s.includes("KALECI") ||
+    s.includes("TORWART") ||
+    s.includes("PORTERO");
+
+  return positions.some(isGkToken) || isGkToken(primary);
 }
 
 export function createInitialAuctionState(
@@ -240,13 +250,34 @@ export function advanceAuctionCard(state: AuctionRoomState): AuctionRoomState {
 }
 
 function finishOrNextTurn(state: AuctionRoomState): AuctionRoomState {
-  // Herkes 11 oyuncuya ulaştı mı kontrolü
   const activeBidders = Object.values(state.participants).filter(
     (p) => Boolean(p.userId && p.userId.trim()) && p.squad.length < 11
   );
-  const nextCardIndex = state.currentCardIndex + 1;
 
-  if (activeBidders.length === 0 || nextCardIndex >= state.pool.length) {
+  // Odadaki aktif oyuncuların kaleciye ihtiyacı var mı?
+  const anyActiveNeedsGk = activeBidders.some((p) => !p.squad.some(isGoalkeeper));
+
+  // Sıradaki uygun kartı bul: Eğer kart kaleciyse ve kimsenin kaleciye ihtiyacı kalmadıysa o kartı doğrudan atla!
+  let nextCardIndex = state.currentCardIndex + 1;
+  let nextCard: AuctionPlayerCard | null = null;
+  let isNextCardGk = false;
+
+  while (nextCardIndex < state.pool.length) {
+    const candidateCard = state.pool[nextCardIndex];
+    const isCandGk = isGoalkeeper(candidateCard);
+
+    if (isCandGk && !anyActiveNeedsGk) {
+      // Kimsenin kaleciye ihtiyacı yok, bu kaleci kartını ihaleye çıkarmadan atla!
+      nextCardIndex++;
+      continue;
+    }
+
+    nextCard = candidateCard;
+    isNextCardGk = isCandGk;
+    break;
+  }
+
+  if (activeBidders.length === 0 || !nextCard || nextCardIndex >= state.pool.length) {
     return {
       ...state,
       status: "tactics",
@@ -257,11 +288,8 @@ function finishOrNextTurn(state: AuctionRoomState): AuctionRoomState {
     };
   }
 
-  const nextCard = state.pool[nextCardIndex] || null;
-  const isNextCardGk = isGoalkeeper(nextCard);
-
   // Sıradaki zorunlu 1$ açılış yapacak oyuncu:
-  // Eğer sıradaki oyuncu kaleci ise, zaten kalecisi olanlar atlanır!
+  // Eğer sıradaki kart kaleci ise, YALNIZCA kalecisi olmayan bir oyuncuya sıra gelebilir!
   const validTurnOrder = state.turnOrder.filter((id) => Boolean(id && id.trim()));
   const total = validTurnOrder.length;
   const currentIdx = validTurnOrder.indexOf(state.currentTurnUserId);
@@ -273,7 +301,7 @@ function finishOrNextTurn(state: AuctionRoomState): AuctionRoomState {
     const cand = candId ? state.participants[candId] : null;
     if (cand && cand.squad.length < 11) {
       if (isNextCardGk && cand.squad.some(isGoalkeeper)) {
-        continue;
+        continue; // Zaten kalecisi varsa asla bu kalecinin açılış teklifçisi olamaz!
       }
       nextTurnUserId = candId;
       break;
