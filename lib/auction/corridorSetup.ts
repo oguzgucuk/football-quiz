@@ -77,11 +77,13 @@ export function determineAttackCorridor(
   if (homeTactics.attackDirection === "left") { left += homeOvr * 0.75; center -= homeOvr * 0.2; right -= homeOvr * 0.35; }
   else if (homeTactics.attackDirection === "right") { right += homeOvr * 0.75; center -= homeOvr * 0.2; left -= homeOvr * 0.35; }
   else if (homeTactics.attackDirection === "center") { center += homeOvr * 0.75; left -= homeOvr * 0.25; right -= homeOvr * 0.25; }
+  else if (homeTactics.attackDirection === "wings") { left += homeOvr * 0.45; right += homeOvr * 0.45; center -= homeOvr * 0.50; }
 
   // Deplasman tercihi baskısı (Ayna kuralı: Deplasmanın solu = Ev sahibinin sağı)
   if (awayTactics.attackDirection === "left") { right += awayOvr * 0.75; center -= awayOvr * 0.2; left -= awayOvr * 0.35; }
   else if (awayTactics.attackDirection === "right") { left += awayOvr * 0.75; center -= awayOvr * 0.2; right -= awayOvr * 0.35; }
   else if (awayTactics.attackDirection === "center") { center += awayOvr * 0.75; left -= awayOvr * 0.25; right -= awayOvr * 0.25; }
+  else if (awayTactics.attackDirection === "wings") { left += awayOvr * 0.45; right += awayOvr * 0.45; center -= awayOvr * 0.50; }
 
   left = Math.max(15, left);
   center = Math.max(15, center);

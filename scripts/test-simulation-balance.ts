@@ -4,7 +4,7 @@ import { TeamLineup } from "../lib/auction/auctionTypes";
 function createMockLineup(userId: string, atk: number, mid: number, def: number, gk: number): TeamLineup {
   return {
     userId,
-    formation: "4-2-3-1",
+    formation: "4-3-3",
     teamOvr: Math.round((atk + mid + def + gk) / 4),
     rawDefPower: def,
     rawMidPower: mid,

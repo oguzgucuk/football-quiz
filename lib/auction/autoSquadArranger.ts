@@ -64,19 +64,21 @@ function getPositionAffinityScore(player: AuctionPlayerCard, targetPos: PitchPos
  */
 export function autoAssignSquadToFormation(
   squad: AuctionPlayerCard[],
-  formationName: FormationName = "4-2-3-1",
+  formationName: FormationName = "4-3-3",
   existingSlots?: SquadSlot[]
 ): SquadSlot[] {
-  const formKey = formationName in FORMATION_CONFIGS ? formationName : "4-2-3-1";
+  const formKey = formationName in FORMATION_CONFIGS ? formationName : "4-3-3";
   const baseSlots = createInitialSlotsForFormation(formKey);
 
-  // 1. Eğer kullanıcı sahaya bazı oyuncuları zaten koymuşsa, onları koru
+  // 1. Eğer kullanıcı sahaya bazı oyuncuları zaten koymuşsa, onları ve mevkilerini kesinlikle koru
   const currentSlots: SquadSlot[] = baseSlots.map((base, idx) => {
     const existing = existingSlots?.[idx];
     if (existing?.placedPlayer) {
-      const { effectiveRating, penalty } = calculateSlotRating(existing.placedPlayer, base.targetPosition);
+      const targetPos = existing.targetPosition || base.targetPosition;
+      const { effectiveRating, penalty } = calculateSlotRating(existing.placedPlayer, targetPos);
       return {
         ...base,
+        targetPosition: targetPos,
         placedPlayer: existing.placedPlayer,
         effectiveRating,
         penalty,

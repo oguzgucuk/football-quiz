@@ -110,7 +110,10 @@ export function AuctionSquadList({
               const isDraggingThis = draggedPlayerId === player.id;
               const playerTier = getRatingTier(player.overallPrime);
               const primary = player.primaryPosition || player.positions[0] || "CM";
-              const secondaries = player.positions.filter((pos) => pos !== primary);
+              const posList =
+                player.positions && player.positions.length > 0
+                  ? player.positions
+                  : [primary];
 
               return (
                 <div
@@ -155,26 +158,14 @@ export function AuctionSquadList({
                     )}
                   </div>
 
-                  {/* Mevki Çipleri */}
+                  {/* Ayrıntılı Mevkiler ve Detay Butonu */}
                   <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                    <div className="flex items-center gap-1">
-                      {/* Birincil Mevki Çipi */}
-                      <span
-                        className={`text-[10px] font-mono font-black px-1.5 py-0.5 rounded border ${cfg.accentBadge}`}
-                        title={`Birincil Mevki: ${primary}`}
-                      >
-                        {primary}
-                      </span>
-                      {/* İkincil Mevkiler */}
-                      {secondaries.length > 0 && (
-                        <span
-                          className="text-[9px] font-mono font-bold text-zinc-400 bg-white/5 px-1 py-0.5 rounded border border-white/10"
-                          title={`Oynayabildiği Diğer Mevkiler: ${secondaries.join(", ")}`}
-                        >
-                          +{secondaries.length}
-                        </span>
-                      )}
-                    </div>
+                    <span
+                      className="text-[10px] font-mono font-bold text-zinc-300 bg-white/10 border border-white/15 px-1.5 py-0.5 rounded cursor-default max-w-[90px] truncate"
+                      title={`Oynayabildiği Mevkiler: ${posList.join(", ")}`}
+                    >
+                      {posList.join(" / ")}
+                    </span>
 
                     <button
                       type="button"
@@ -183,7 +174,7 @@ export function AuctionSquadList({
                         e.stopPropagation();
                         onInspectPlayer(player);
                       }}
-                      className="p-1 rounded-lg bg-white/5 hover:bg-emerald-500/20 text-zinc-300 hover:text-emerald-300 transition-colors cursor-pointer border border-white/10"
+                      className="p-1 rounded-lg bg-white/5 hover:bg-emerald-500/20 text-zinc-400 hover:text-emerald-300 transition-colors cursor-pointer border border-white/10"
                     >
                       <Info className="w-3.5 h-3.5" />
                     </button>

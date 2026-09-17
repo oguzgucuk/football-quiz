@@ -40,12 +40,12 @@ export function MySquadDrawer({ participant, isMyHighestBid = false }: MySquadDr
         <div
           className={`rounded-3xl border-2 transition-colors duration-200 p-4 sm:p-5 shadow-2xl backdrop-blur-2xl flex flex-col ${
             isMyHighestBid
-              ? "border-amber-400 bg-gradient-to-b from-amber-500/20 via-amber-950/35 to-black/80 shadow-[0_0_35px_rgba(251,191,36,0.35)] ring-2 ring-amber-400/50"
+              ? "border-yellow-400 bg-gradient-to-b from-yellow-500/25 via-yellow-950/40 to-black/90 shadow-[0_0_35px_rgba(250,204,21,0.35)] ring-2 ring-yellow-400/60"
               : "border-emerald-500/25 bg-black/60"
           }`}
         >
           {isMyHighestBid && (
-            <div className="mb-2.5 flex items-center justify-center gap-1.5 py-1 px-3 rounded-xl bg-amber-400 text-black font-mono font-black text-xs shadow-md shadow-amber-950/40">
+            <div className="mb-2.5 flex items-center justify-center gap-1.5 py-1 px-3 rounded-xl bg-yellow-400 text-black font-mono font-black text-xs shadow-md shadow-yellow-950/40">
               <Crown className="size-3.5 fill-black text-black" />
               <span>EN YÜKSEK TEKLİF SENDE!</span>
             </div>
@@ -57,7 +57,7 @@ export function MySquadDrawer({ participant, isMyHighestBid = false }: MySquadDr
               <div className="flex items-center gap-2">
                 <p
                   className={`text-xs sm:text-sm font-black uppercase tracking-widest ${
-                    isMyHighestBid ? "text-amber-300" : "text-emerald-400"
+                    isMyHighestBid ? "text-yellow-300" : "text-emerald-400"
                   }`}
                 >
                   KADROM
@@ -73,7 +73,7 @@ export function MySquadDrawer({ participant, isMyHighestBid = false }: MySquadDr
               </p>
             </div>
             <div className="text-right font-mono">
-              <p className="text-lg sm:text-xl font-black text-amber-400">${participant.budget}M</p>
+              <p className="text-lg sm:text-xl font-black text-yellow-400">${participant.budget}M</p>
               <p className="text-[11px] text-zinc-300 font-bold">{count}/11 Oyuncu</p>
             </div>
           </div>
@@ -135,9 +135,11 @@ export function MySquadDrawer({ participant, isMyHighestBid = false }: MySquadDr
 
                           {/* Sağ: Mevki Etiketi ve Detay İkonu */}
                           <div className="flex items-center gap-1.5 shrink-0">
-                            <span className="text-[10px] font-mono font-bold text-zinc-300 bg-white/10 border border-white/15 px-1.5 py-0.5 rounded">
-                              {posList.slice(0, 3).join("/")}
-                              {posList.length > 3 ? "..." : ""}
+                            <span
+                              className="text-[10px] font-mono font-bold text-zinc-300 bg-white/10 border border-white/15 px-1.5 py-0.5 rounded cursor-default max-w-[90px] truncate"
+                              title={`Oynayabildiği Mevkiler: ${posList.join(", ")}`}
+                            >
+                              {posList.join(" / ")}
                             </span>
 
                             <button

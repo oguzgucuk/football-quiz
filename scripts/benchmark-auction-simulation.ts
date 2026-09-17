@@ -20,7 +20,7 @@ interface LineupOptions {
 }
 
 function createBenchLineup(opts: LineupOptions): TeamLineup {
-  const formation = opts.formation || "4-2-3-1";
+  const formation = opts.formation || "4-3-3";
   const slots = createInitialSlotsForFormation(formation);
   const tactics: TeamTactics = {
     tempo: opts.tactics?.tempo || "balanced",

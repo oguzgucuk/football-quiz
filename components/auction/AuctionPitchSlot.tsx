@@ -79,7 +79,7 @@ export function AuctionPitchSlot({
 
   switch (slot.targetPosition) {
     case "CDM":
-      dynamicY = Math.min(dynamicY + 6, 85);
+      dynamicY = Math.min(dynamicY + 3.5, 85);
       break;
     case "CAM":
       dynamicY = Math.max(dynamicY - 7, 22);

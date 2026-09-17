@@ -21,7 +21,12 @@ import { generateAuctionPool } from "./generateAuctionPool";
 import { createInitialSlotsForFormation } from "./formationTemplates";
 import { calculateLineupPowers, calculateSlotRating } from "./positionSuitability";
 import { autoAssignSquadToFormation } from "./autoSquadArranger";
-import { generateRoundRobinSchedule, calculateStandings, collectCompletedRoundMatches } from "./auctionTournament";
+import {
+  generateLeagueSchedule,
+  simulateSingleRoundMatches,
+  calculateStandings,
+  collectCompletedRoundMatches,
+} from "./auctionTournament";
 
 interface AuctionPartyRoom {
   roomId: string;
@@ -83,6 +88,7 @@ export function handleAuctionSocketConnection(ws: WebSocket, roomId: string) {
       if (room.state.participants[clientMeta.userId]) {
         room.state.participants[clientMeta.userId].isDisconnected = true;
         room.state.participants[clientMeta.userId].disconnectedAt = Date.now();
+        syncSimulationProgress(room);
         broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
       }
 
@@ -230,6 +236,7 @@ function handleJoin(room: AuctionPartyRoom, ws: WebSocket, userId: string, usern
   }
 
   room.state.turnOrder = Object.keys(room.state.participants).filter((id) => Boolean(id && id.trim()));
+  syncSimulationProgress(room);
   broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
 }
 
@@ -286,6 +293,7 @@ function handlePass(room: AuctionPartyRoom, userId: string) {
 
 function handleConfirmLineup(room: AuctionPartyRoom, userId: string, lineup: TeamLineup) {
   if (!room.state.participants[userId]) return;
+  if (room.state.status !== "tactics") return;
   if (!room.state.confirmedLineupUserIds) {
     room.state.confirmedLineupUserIds = [];
   }
@@ -299,14 +307,10 @@ function handleConfirmLineup(room: AuctionPartyRoom, userId: string, lineup: Tea
     activeUids.length > 0 && activeUids.every((uid) => room.state.confirmedLineupUserIds.includes(uid));
 
   if (allConfirmed) {
-    if (!room.state.simulationRounds || room.state.simulationRounds.length === 0) {
+    if (!room.state.leagueSchedule || room.state.leagueSchedule.length === 0) {
       startTournamentSimulation(room);
     } else {
-      room.state.status = "simulation";
-      room.state.currentRoundMinute = 0;
-      room.state.currentSimMinute = 0;
-      room.state.confirmedLineupUserIds = [];
-      broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
+      proceedToSimulationRound(room);
     }
   } else {
     broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
@@ -323,29 +327,54 @@ function handleUnconfirmLineup(room: AuctionPartyRoom, userId: string) {
   broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
 }
 
+function proceedToSimulationRound(room: AuctionPartyRoom) {
+  const uids = Object.keys(room.state.participants).filter((id) => Boolean(id && id.trim()));
+  if (!room.state.leagueSchedule || room.state.leagueSchedule.length === 0) {
+    room.state.leagueSchedule = generateLeagueSchedule(uids);
+    room.state.byeUserIds = room.state.leagueSchedule.map((round) => round.byeUserId);
+  }
+
+  const roundIdx = room.state.currentRoundIndex ?? 0;
+  const currentScheduleItem = room.state.leagueSchedule[roundIdx];
+
+  if (currentScheduleItem) {
+    const simulatedRound = simulateSingleRoundMatches(
+      currentScheduleItem,
+      room.state.lineups,
+      room.state.participants
+    );
+    if (!room.state.simulationRounds) {
+      room.state.simulationRounds = [];
+    }
+    room.state.simulationRounds[roundIdx] = simulatedRound;
+    room.state.simulationMatches = room.state.simulationRounds.flatMap((r) => r.matches);
+  }
+
+  room.state.status = "simulation";
+  room.state.simulationStartedAt = Date.now();
+  room.state.currentRoundMinute = 0;
+  room.state.currentSimMinute = 0;
+  room.state.confirmedLineupUserIds = [];
+  broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
+}
+
 function startTournamentSimulation(room: AuctionPartyRoom) {
   const uids = Object.keys(room.state.participants).filter((id) => Boolean(id && id.trim()));
-  const rounds = generateRoundRobinSchedule(
-    uids,
-    room.state.lineups,
-    room.state.participants
-  );
+  const schedule = generateLeagueSchedule(uids);
 
-  room.state.simulationRounds = rounds;
-  room.state.byeUserIds = rounds.map((round) => round.byeUserId);
-  room.state.simulationMatches = rounds.flatMap((round) => round.matches);
+  room.state.leagueSchedule = schedule;
+  room.state.byeUserIds = schedule.map((round) => round.byeUserId);
   room.state.currentRoundIndex = 0;
   room.state.currentRoundMinute = 0;
+  room.state.currentSimMinute = 0;
   // Sıfır spoiler: Başlangıçta oynanmamış maçlar puan tablosuna eklenmez
   room.state.standings = calculateStandings(uids, room.state.participants, []);
   room.state.championUserId = null;
   room.state.currentSimMatchIndex = 0;
-  room.state.currentSimMinute = 0;
   room.state.simReadyUserIds = [];
-  room.state.status = "simulation";
   room.state.secondsLeft = 30;
 
-  broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
+  proceedToSimulationRound(room);
 }
 
 function updateStandingsAfterRound(room: AuctionPartyRoom) {
@@ -353,7 +382,8 @@ function updateStandingsAfterRound(room: AuctionPartyRoom) {
   const completedMatches = collectCompletedRoundMatches(room.state.simulationRounds, room.state.currentRoundIndex + 1);
   room.state.standings = calculateStandings(uids, room.state.participants, completedMatches);
 
-  if (room.state.currentRoundIndex >= room.state.simulationRounds.length - 1) {
+  const totalRounds = room.state.leagueSchedule?.length || room.state.simulationRounds.length;
+  if (room.state.currentRoundIndex >= totalRounds - 1) {
     room.state.championUserId = room.state.standings[0]?.userId || null;
   }
 }
@@ -406,14 +436,22 @@ function handleNextSimMatch(room: AuctionPartyRoom, userId?: string) {
   if (!isHost && !isAllReady) return;
 
   room.state.simReadyUserIds = [];
+  const totalRounds = room.state.leagueSchedule?.length || room.state.simulationRounds.length;
   const nextIdx = room.state.currentRoundIndex + 1;
-  if (nextIdx < room.state.simulationRounds.length) {
+  if (nextIdx < totalRounds) {
     room.state.currentRoundIndex = nextIdx;
+    room.state.simulationStartedAt = undefined;
     room.state.currentRoundMinute = 0;
     room.state.currentSimMinute = 0;
     room.state.status = "tactics";
     room.state.secondsLeft = 120; // 2 dakikalık analiz ve taktik süresi
     room.state.confirmedLineupUserIds = [];
+    // Önceki kadroları koru ancak yeni tur için onaysız yap ki oyuncular yeni taktiği onaylayabilsin
+    for (const uid of Object.keys(room.state.lineups)) {
+      if (room.state.lineups[uid]) {
+        room.state.lineups[uid].isConfirmed = false;
+      }
+    }
     broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
   } else {
     room.state.status = "finished";
@@ -435,33 +473,66 @@ function startTimer(room: AuctionPartyRoom) {
       }
     } else if (room.state.status === "tactics") {
       if (room.state.secondsLeft <= 1) {
-        if (!room.state.simulationRounds || room.state.simulationRounds.length === 0) {
-          autoConfirmLineups(room);
+        autoConfirmLineups(room);
+        if (!room.state.leagueSchedule || room.state.leagueSchedule.length === 0) {
           startTournamentSimulation(room);
         } else {
-          autoConfirmLineups(room);
-          room.state.status = "simulation";
-          room.state.currentRoundMinute = 0;
-          room.state.currentSimMinute = 0;
-          room.state.confirmedLineupUserIds = [];
-          broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
+          proceedToSimulationRound(room);
         }
       } else {
         room.state.secondsLeft--;
         broadcast(room, { type: "AUCTION_TIMER_TICK", secondsLeft: room.state.secondsLeft });
       }
+    } else if (room.state.status === "simulation") {
+      if (!room.state.simulationStartedAt) {
+        room.state.simulationStartedAt = Date.now() - Math.floor(((room.state.currentRoundMinute || 0) / 90) * 30 * 1000);
+      }
+      const startedAt = room.state.simulationStartedAt;
+      const elapsedSeconds = Math.max(0, (Date.now() - startedAt) / 1000);
+      const calculatedMinute = Math.min(90, Math.floor((elapsedSeconds / 30) * 90));
+
+      const prevMinute = room.state.currentRoundMinute || 0;
+      room.state.currentRoundMinute = Math.max(prevMinute, calculatedMinute);
+      room.state.currentSimMinute = room.state.currentRoundMinute;
+
+      if (room.state.currentRoundMinute >= 90) {
+        if (prevMinute < 90) {
+          updateStandingsAfterRound(room);
+          broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
+        }
+      } else {
+        broadcast(room, {
+          type: "AUCTION_SIM_TICK",
+          currentRoundMinute: room.state.currentRoundMinute,
+        });
+      }
     }
   }, 1000);
+}
+
+function syncSimulationProgress(room: AuctionPartyRoom) {
+  if (room.state.status === "simulation") {
+    if (!room.state.simulationStartedAt) {
+      room.state.simulationStartedAt = Date.now() - Math.floor(((room.state.currentRoundMinute || 0) / 90) * 30 * 1000);
+    }
+    const elapsedSeconds = Math.max(0, (Date.now() - room.state.simulationStartedAt) / 1000);
+    const minute = Math.min(90, Math.floor((elapsedSeconds / 30) * 90));
+    room.state.currentRoundMinute = Math.max(room.state.currentRoundMinute || 0, minute);
+    room.state.currentSimMinute = room.state.currentRoundMinute;
+    if (room.state.currentRoundMinute >= 90 && (!room.state.standings || room.state.standings.length === 0)) {
+      updateStandingsAfterRound(room);
+    }
+  }
 }
 
 function autoConfirmLineups(room: AuctionPartyRoom) {
   for (const [uid, p] of Object.entries(room.state.participants)) {
     if (!room.state.lineups[uid]?.isConfirmed) {
-      const defaultFormation: FormationName = "4-2-3-1";
+      const defaultFormation: FormationName = "4-3-3";
       const existingSlots = room.state.lineups[uid]?.slots;
       // Akıllı dizilim: GK'yi mutlaka kaleye, defansı defansa koyar, sahada elle konmuş oyuncuları korur
-      const slots = autoAssignSquadToFormation(p.squad, defaultFormation, existingSlots);
-      const lineup = calculateLineupPowers(uid, defaultFormation, slots);
+      const slots = autoAssignSquadToFormation(p.squad, room.state.lineups[uid]?.formation || defaultFormation, existingSlots);
+      const lineup = calculateLineupPowers(uid, room.state.lineups[uid]?.formation || defaultFormation, slots);
       lineup.tactics = room.state.lineups[uid]?.tactics || {
         tempo: "balanced",
         buildUp: "balanced",
@@ -506,6 +577,7 @@ function handleReturnToLobby(room: AuctionPartyRoom) {
     currentHighestBid: null,
     passedUserIds: [],
     secondsLeft: 0,
+    simulationStartedAt: undefined,
     lineups: {},
     simulationMatches: [],
     currentSimMatchIndex: 0,

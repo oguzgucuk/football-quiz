@@ -24,7 +24,7 @@ export type PitchPosition =
 
 export type FormationName =
   | "3-5-2" | "3-4-2-1" | "3-4-3"
-  | "4-4-2(1)" | "4-4-2(2)" | "4-2-3-1"
+  | "4-4-2(1)" | "4-4-2(2)" | "4-5-1" | "4-3-3" | "4-2-4"
   | "5-3-2" | "5-2-3" | "5-4-1(1)" | "5-4-1(2)";
 
 export interface AuctionPlayerCard {
@@ -88,9 +88,9 @@ export type PitchCorridor = "left" | "center" | "right";
 
 export interface TeamTactics {
   tempo: "slow" | "balanced" | "fast";
-  buildUp: "short_pass" | "balanced" | "long_ball";
+  buildUp: "short_pass" | "balanced" | "long_ball" | "shoot_on_sight";
   pressing: "park_bus" | "balanced" | "high_press";
-  attackDirection: "left" | "center" | "right" | "balanced";
+  attackDirection: "left" | "center" | "right" | "balanced" | "wings";
 }
 
 export interface TeamLineup {
@@ -116,6 +116,7 @@ export interface PossessionResult {
   isGoal: boolean;
   gkSaved: boolean;
   defenseBlocked: boolean;
+  isLongRangeShot?: boolean;
   goalScorerName?: string;
   assistPlayerName?: string;
   gkName?: string;
@@ -145,6 +146,12 @@ export interface MatchSimulationResult {
   playerStats: Record<string, PlayerMatchStat>;
   homeLineup?: TeamLineup;
   awayLineup?: TeamLineup;
+}
+
+export interface RoundScheduleItem {
+  roundNumber: number;
+  pairings: Array<{ homeUserId: string; awayUserId: string }>;
+  byeUserId: string | null;
 }
 
 /**
@@ -196,10 +203,14 @@ export interface AuctionRoomState {
   // --- Yeni tur tabanlı eş zamanlı simülasyon alanları ---
   /** Tüm tur verisi: her tur içinde paralel maçlar ve bye oyuncusu. */
   simulationRounds: SimulationRound[];
+  /** Lig fikstür eşleşmeleri tablosu (hangi tur kim kiminle oynuyor) */
+  leagueSchedule?: RoundScheduleItem[];
   /** Şu an yayınlanan turun indexi (0-tabanlı). */
   currentRoundIndex: number;
   /** Şu an gösterilen dakika — tüm maçlar bu dakikada eş zamanlı ilerler. */
   currentRoundMinute: number;
+  /** Tur simülasyonunun başladığı sunucu epoch zamanı (ms) */
+  simulationStartedAt?: number;
   /** Her turun bye oyuncusu: byeUserIds[turIndex] → userId | null */
   byeUserIds: (string | null)[];
 
@@ -209,3 +220,4 @@ export interface AuctionRoomState {
   lastSoldEvent?: AuctionSoldEvent | null;
   salesHistory?: AuctionSoldEvent[];
 }
+

@@ -29,7 +29,7 @@ import { getRatingTier } from "@/lib/game/playerRatingTiers";
 
 const FORMATIONS: FormationName[] = [
   "3-5-2", "3-4-2-1", "3-4-3", "4-4-2(1)", "4-4-2(2)",
-  "4-2-3-1", "5-3-2", "5-2-3", "5-4-1(1)", "5-4-1(2)",
+  "4-5-1", "4-3-3", "4-2-4", "5-3-2", "5-2-3", "5-4-1(1)", "5-4-1(2)",
 ];
 
 const CHANGEABLE_POSITION_GROUPS: PitchPosition[][] = [
@@ -71,15 +71,15 @@ export function AuctionPitchBuilder({
   onConfirmLineup,
   onUnconfirmLineup,
 }: AuctionPitchBuilderProps) {
-  // Önceki 11 varsa doğrudan koru, yoksa 4-2-3-1 boş yuvalar
+  // Önceki 11 varsa doğrudan koru, yoksa 4-3-3 boş yuvalar
   const [formation, setFormation] = useState<FormationName>(
-    () => initialLineup?.formation || "4-2-3-1"
+    () => initialLineup?.formation || "4-3-3"
   );
   const [slots, setSlots] = useState<SquadSlot[]>(() => {
     if (initialLineup?.slots && initialLineup.slots.length === 11) {
       return initialLineup.slots;
     }
-    return createInitialSlotsForFormation("4-2-3-1");
+    return createInitialSlotsForFormation("4-3-3");
   });
   const [tactics, setTactics] = useState<TeamTactics>(() => {
     return initialLineup?.tactics || {
@@ -326,7 +326,7 @@ export function AuctionPitchBuilder({
               className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-400/40 text-indigo-300 font-bold text-xs transition-all cursor-pointer shadow-sm active:scale-95"
             >
               <Search className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Rakip Analizi (@{nextOpponent.username})</span>
+              <span>Rakip Kadrosu (@{nextOpponent.username})</span>
             </button>
           )}
         </div>
@@ -394,7 +394,7 @@ export function AuctionPitchBuilder({
               <div className="absolute top-0 bottom-0 left-2/3 w-[1px] border-r border-dashed border-white/10" />
 
               {/* Sol Koridor Aydınlatması */}
-              {tactics.attackDirection === "left" && (
+              {(tactics.attackDirection === "left" || tactics.attackDirection === "wings") && (
                 <div className="absolute top-0 bottom-0 left-0 w-1/3 bg-gradient-to-t from-emerald-500/5 via-emerald-400/15 to-emerald-300/25 border-r border-emerald-400/40 flex flex-col items-center justify-around py-8 animate-pulse">
                   <span className="text-emerald-300/40 font-mono text-lg font-black">▲</span>
                   <span className="text-emerald-300/60 font-mono text-2xl font-black">▲</span>
@@ -412,7 +412,7 @@ export function AuctionPitchBuilder({
               )}
 
               {/* Sağ Koridor Aydınlatması */}
-              {tactics.attackDirection === "right" && (
+              {(tactics.attackDirection === "right" || tactics.attackDirection === "wings") && (
                 <div className="absolute top-0 bottom-0 left-2/3 w-1/3 bg-gradient-to-t from-emerald-500/5 via-emerald-400/15 to-emerald-300/25 border-l border-emerald-400/40 flex flex-col items-center justify-around py-8 animate-pulse">
                   <span className="text-emerald-300/40 font-mono text-lg font-black">▲</span>
                   <span className="text-emerald-300/60 font-mono text-2xl font-black">▲</span>
@@ -555,137 +555,70 @@ export function AuctionPitchBuilder({
         </div>
       </div>
 
-      {/* Rakip Analizi Modalı */}
+      {/* Rakip Analizi Modalı (Sadece Oyuncular, Taktikler Gizli) */}
       {showOpponentModal && nextOpponent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fadeIn">
-          <div className="relative w-full max-w-lg rounded-3xl border border-white/15 bg-[#0f1713] p-5 shadow-2xl flex flex-col gap-4 text-white">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <div className="flex items-center gap-2">
-                <Search className="w-5 h-5 text-indigo-400" />
-                <span className="font-black text-base text-white">
-                  Rakip Analizi: @{nextOpponent.username}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowOpponentModal(false)}
-                className="size-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+            {(() => {
+              const players: AuctionPlayerCard[] =
+                nextOpponent.squad && nextOpponent.squad.length > 0
+                  ? nextOpponent.squad
+                  : (nextOpponent.lineup?.slots
+                      .map((s) => s.placedPlayer)
+                      .filter(Boolean) as AuctionPlayerCard[]) || [];
 
-            {nextOpponent.lineup ? (
-              <div className="flex flex-col gap-3">
-                <div className="p-2.5 rounded-xl bg-indigo-950/40 border border-indigo-500/30 flex items-center gap-2 text-indigo-200 text-xs font-medium">
-                  <Shield className="w-4 h-4 text-indigo-400 shrink-0" />
-                  <span>Rakibin <strong>bir önceki maçta</strong> sahaya sürdüğü diziliş ve taktikler gösterilmektedir. Canlı taktiği gizlidir.</span>
-                </div>
+              const avgGen =
+                typeof nextOpponent.lineup?.teamOvr === "number" && nextOpponent.lineup.teamOvr > 0
+                  ? nextOpponent.lineup.teamOvr
+                  : players.length > 0
+                  ? Math.round(players.reduce((sum, p) => sum + p.overallPrime, 0) / players.length)
+                  : null;
 
-                <div className="flex items-center justify-between bg-white/5 p-3 rounded-2xl border border-white/10">
-                  <span className="text-xs text-zinc-400 font-bold uppercase">Geçen Maçtaki Diziliş</span>
-                  <span className="text-sm font-mono font-black text-emerald-400">
-                    {nextOpponent.lineup.formation}
-                  </span>
-                </div>
-
-                {/* Rakibin 4 Taktiği */}
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="p-2 rounded-xl bg-white/5 border border-white/8 flex flex-col gap-0.5">
-                    <span className="text-[10px] text-zinc-400 font-bold">Tempo</span>
-                    <span className="font-black text-amber-300 capitalize">
-                      {nextOpponent.lineup.tactics?.tempo === "fast"
-                        ? "Hızlı"
-                        : nextOpponent.lineup.tactics?.tempo === "slow"
-                        ? "Yavaş"
-                        : "Dengeli"}
-                    </span>
-                  </div>
-
-                  <div className="p-2 rounded-xl bg-white/5 border border-white/8 flex flex-col gap-0.5">
-                    <span className="text-[10px] text-zinc-400 font-bold">Oyun Kurma</span>
-                    <span className="font-black text-cyan-300 capitalize">
-                      {nextOpponent.lineup.tactics?.buildUp === "short_pass"
-                        ? "Kısa Pas"
-                        : nextOpponent.lineup.tactics?.buildUp === "long_ball"
-                        ? "Uzun Top"
-                        : "Dengeli"}
-                    </span>
-                  </div>
-
-                  <div className="p-2 rounded-xl bg-white/5 border border-white/8 flex flex-col gap-0.5">
-                    <span className="text-[10px] text-zinc-400 font-bold">Pres</span>
-                    <span className="font-black text-rose-300 capitalize">
-                      {nextOpponent.lineup.tactics?.pressing === "high_press"
-                        ? "Önde Pres"
-                        : nextOpponent.lineup.tactics?.pressing === "park_bus"
-                        ? "Otobüsü Park Et"
-                        : "Dengeli"}
-                    </span>
-                  </div>
-
-                  <div className="p-2 rounded-xl bg-white/5 border border-white/8 flex flex-col gap-0.5">
-                    <span className="text-[10px] text-zinc-400 font-bold">Hücum Yönü</span>
-                    <span className="font-black text-emerald-300 capitalize">
-                      {nextOpponent.lineup.tactics?.attackDirection === "left"
-                        ? "Sol Kanat"
-                        : nextOpponent.lineup.tactics?.attackDirection === "right"
-                        ? "Sağ Kanat"
-                        : nextOpponent.lineup.tactics?.attackDirection === "center"
-                        ? "Merkez"
-                        : "Dengeli"}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Rakibin Sahaya Sürdüğü 11 Oyuncu */}
-                <div className="flex flex-col gap-1 mt-1 max-h-52 overflow-y-auto pr-1">
-                  <span className="text-[10px] uppercase font-black tracking-wider text-zinc-400 mb-1">
-                    Rakip İlk 11 ({nextOpponent.lineup.slots.filter((s) => s.placedPlayer).length} Oyuncu)
-                  </span>
-                  {nextOpponent.lineup.slots.map((slot) => {
-                    if (!slot.placedPlayer) return null;
-                    const tier = getRatingTier(slot.placedPlayer.overallPrime);
-                    return (
-                      <div
-                        key={slot.slotId}
-                        className="flex items-center justify-between p-1.5 px-2.5 rounded-xl bg-white/5 border border-white/5 text-xs"
-                      >
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <span className={`size-6 rounded flex items-center justify-center font-mono text-[10px] font-black shrink-0 ${tier.badgeClass}`}>
-                            {slot.placedPlayer.overallPrime}
-                          </span>
-                          <span className="font-bold text-white truncate">
-                            {slot.placedPlayer.fullName}
-                          </span>
-                        </div>
-                        <span className="font-mono font-bold text-zinc-400 bg-white/10 px-1.5 py-0.5 rounded text-[10px]">
-                          {slot.targetPosition}
+              return (
+                <div className="relative w-full max-w-lg rounded-3xl border border-white/15 bg-[#0f1713] p-5 shadow-2xl flex flex-col gap-4 text-white">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      <Search className="w-5 h-5 text-indigo-400 shrink-0" />
+                      <span className="font-black text-base text-white truncate max-w-[200px] sm:max-w-xs">
+                        Rakip Kadrosu: @{nextOpponent.username}
+                      </span>
+                      {avgGen && (
+                        <span className="flex items-center gap-1 font-mono text-xs font-black text-emerald-300 bg-emerald-950/80 border border-emerald-500/40 px-2 py-0.5 rounded-lg shadow-sm">
+                          <span className="text-[9px] text-zinc-400 font-bold uppercase">Ort. GEN</span>
+                          <span>{avgGen}</span>
                         </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : nextOpponent.squad && nextOpponent.squad.length > 0 ? (
-              <div className="flex flex-col gap-2.5">
-                <div className="p-2.5 rounded-xl bg-amber-950/40 border border-amber-500/30 flex items-center gap-2 text-amber-200 text-xs font-medium">
-                  <Shield className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span><strong>İlk Maç:</strong> Rakibin canlı taktik ve dizilişi gizlidir. Yalnızca müzayedede satın aldığı oyuncu havuzu incelenebilir.</span>
-                </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowOpponentModal(false)}
+                      className="size-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0 ml-2"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
 
-                <div className="flex items-center justify-between bg-white/5 p-3 rounded-2xl border border-white/10">
-                  <span className="text-xs text-zinc-400 font-bold uppercase">Maç Türü</span>
-                  <span className="text-xs font-mono font-bold text-amber-300">
-                    1. Hafta (Kadro Havuzu Açık)
-                  </span>
-                </div>
+                  <div className="p-2.5 rounded-xl bg-indigo-950/40 border border-indigo-500/30 flex items-center justify-between gap-2 text-indigo-200 text-xs font-medium">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Shield className="w-4 h-4 text-indigo-400 shrink-0" />
+                      <span className="truncate">Rakibin taktik ve dizilişi gizlidir. Yalnızca oyuncu havuzu gösterilir.</span>
+                    </div>
+                    {avgGen && (
+                      <span className="shrink-0 font-mono font-black text-emerald-300 bg-black/50 border border-emerald-500/40 px-2 py-0.5 rounded-md text-[11px]">
+                        GEN {avgGen}
+                      </span>
+                    )}
+                  </div>
 
-                <div className="flex flex-col gap-1.5 max-h-64 overflow-y-auto pr-1">
+                  {players.length === 0 ? (
+                    <div className="py-8 text-center text-zinc-400 text-xs font-semibold">
+                      Henüz transfer edilen oyuncu bulunmuyor.
+                    </div>
+                  ) : (
+                <div className="flex flex-col gap-1.5 max-h-72 overflow-y-auto pr-1 custom-scrollbar">
                   <span className="text-[10px] uppercase font-black tracking-wider text-zinc-400 mb-0.5">
-                    Satın Alınan Kadro ({nextOpponent.squad.length} Oyuncu)
+                    Kadro Havuzu ({players.length} Oyuncu)
                   </span>
-                  {nextOpponent.squad.map((player) => {
+                  {players.map((player) => {
                     const tier = getRatingTier(player.overallPrime);
                     const posList =
                       player.positions && player.positions.length > 0
@@ -694,32 +627,42 @@ export function AuctionPitchBuilder({
                     return (
                       <div
                         key={player.id}
-                        className="flex items-center justify-between p-1.5 px-2.5 rounded-xl bg-white/5 border border-white/5 text-xs"
+                        className="flex items-center justify-between p-2 px-3 rounded-xl bg-white/5 border border-white/8 text-xs hover:bg-white/10 transition-colors"
                       >
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
                           <span
-                            className={`size-6 rounded flex items-center justify-center font-mono text-[10px] font-black shrink-0 ${tier.badgeClass}`}
+                            className={`size-6.5 rounded-lg flex items-center justify-center font-mono text-[11px] font-black shrink-0 ${tier.badgeClass}`}
                           >
                             {player.overallPrime}
                           </span>
-                          <span className="font-bold text-white truncate">
+                          <span className="font-bold text-white truncate" title={player.fullName}>
                             {player.fullName}
                           </span>
                         </div>
-                        <span className="font-mono font-bold text-zinc-400 bg-white/10 px-1.5 py-0.5 rounded text-[10px]">
-                          {posList.slice(0, 3).join("/")}
-                        </span>
-                      </div>
-                    );
-                  })}
+                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                              <span
+                                className={`size-6.5 rounded-lg flex items-center justify-center font-mono text-[11px] font-black shrink-0 ${tier.badgeClass}`}
+                              >
+                                {player.overallPrime}
+                              </span>
+                              <span className="font-bold text-white truncate" title={player.fullName}>
+                                {player.fullName}
+                              </span>
+                            </div>
+                            <span
+                              className="font-mono font-bold text-zinc-300 bg-white/10 border border-white/15 px-2 py-0.5 rounded text-[10px] shrink-0 ml-2"
+                              title={`Oynayabildiği Mevkiler: ${posList.join(", ")}`}
+                            >
+                              {posList.join(" / ")}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ) : (
-              <div className="py-8 text-center text-zinc-400 text-xs font-bold">
-                Rakibin henüz oyuncu verisi bulunmuyor.
-              </div>
-            )}
-          </div>
+              );
+            })()}
         </div>
       )}
 

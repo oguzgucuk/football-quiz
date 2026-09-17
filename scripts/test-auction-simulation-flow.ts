@@ -68,7 +68,7 @@ async function testSimulationFlow() {
   // 3. Simülasyon Başlangıcı & Sıfır Spoiler Puan Tablosu
   const dummyLineup = (uid: string): TeamLineup => ({
     userId: uid,
-    formation: "4-2-3-1",
+    formation: "4-3-3",
     slots: [],
     teamOvr: 85,
     rawDefPower: 85,

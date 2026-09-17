@@ -27,7 +27,8 @@ import { createInitialSlotsForFormation } from "../lib/auction/formationTemplate
 import { calculateLineupPowers, calculateSlotRating } from "../lib/auction/positionSuitability";
 import { autoAssignSquadToFormation } from "../lib/auction/autoSquadArranger";
 import {
-  generateRoundRobinSchedule,
+  generateLeagueSchedule,
+  simulateSingleRoundMatches,
   calculateStandings,
   collectCompletedRoundMatches,
 } from "../lib/auction/auctionTournament";
@@ -44,6 +45,7 @@ export default class AuctionPartyServer implements Party.Server {
 
   onConnect(conn: Party.Connection, ctx: Party.ConnectionContext) {
     this.extractSiteUrl(ctx);
+    this.syncSimulationProgress();
     conn.send(JSON.stringify({ type: "AUCTION_STATE_SYNC", state: this.state }));
   }
 
@@ -163,6 +165,7 @@ export default class AuctionPartyServer implements Party.Server {
     }
 
     this.state.turnOrder = Object.keys(this.state.participants).filter((id) => Boolean(id && id.trim()));
+    this.syncSimulationProgress();
     this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
   }
 
@@ -237,6 +240,7 @@ export default class AuctionPartyServer implements Party.Server {
 
   private handleConfirmLineup(userId: string, lineup: TeamLineup) {
     if (!this.state.participants[userId]) return;
+    if (this.state.status !== "tactics") return;
     if (!this.state.confirmedLineupUserIds) {
       this.state.confirmedLineupUserIds = [];
     }
@@ -250,14 +254,10 @@ export default class AuctionPartyServer implements Party.Server {
       activeUids.length > 0 && activeUids.every((uid) => this.state.confirmedLineupUserIds.includes(uid));
 
     if (allConfirmed) {
-      if (!this.state.simulationRounds || this.state.simulationRounds.length === 0) {
+      if (!this.state.leagueSchedule || this.state.leagueSchedule.length === 0) {
         this.startTournamentSimulation();
       } else {
-        this.state.status = "simulation";
-        this.state.currentRoundMinute = 0;
-        this.state.currentSimMinute = 0;
-        this.state.confirmedLineupUserIds = [];
-        this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
+        this.proceedToSimulationRound();
       }
     } else {
       this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
@@ -278,51 +278,59 @@ export default class AuctionPartyServer implements Party.Server {
   // Tur Tabanlı Simülasyon — Ana Başlatıcı
   // ---------------------------------------------------------------------------
 
+  private proceedToSimulationRound() {
+    const uids = Object.keys(this.state.participants).filter((id) => Boolean(id && id.trim()));
+    if (!this.state.leagueSchedule || this.state.leagueSchedule.length === 0) {
+      this.state.leagueSchedule = generateLeagueSchedule(uids);
+      this.state.byeUserIds = this.state.leagueSchedule.map((round) => round.byeUserId);
+    }
+
+    const roundIdx = this.state.currentRoundIndex ?? 0;
+    const currentScheduleItem = this.state.leagueSchedule[roundIdx];
+
+    if (currentScheduleItem) {
+      const simulatedRound = simulateSingleRoundMatches(
+        currentScheduleItem,
+        this.state.lineups,
+        this.state.participants
+      );
+      if (!this.state.simulationRounds) {
+        this.state.simulationRounds = [];
+      }
+      this.state.simulationRounds[roundIdx] = simulatedRound;
+      this.state.simulationMatches = this.state.simulationRounds.flatMap((r) => r.matches);
+    }
+
+    this.state.status = "simulation";
+    this.state.simulationStartedAt = Date.now();
+    this.state.currentRoundMinute = 0;
+    this.state.currentSimMinute = 0;
+    this.state.confirmedLineupUserIds = [];
+    this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
+  }
+
   private startTournamentSimulation() {
     const uids = Object.keys(this.state.participants).filter((id) => Boolean(id && id.trim()));
+    const schedule = generateLeagueSchedule(uids);
 
-    // Berger circle algoritmasıyla tüm turları ve maçları tek seferde üret
-    const rounds = generateRoundRobinSchedule(
-      uids,
-      this.state.lineups,
-      this.state.participants
-    );
-
-    // byeUserIds: her tur için bye oyuncu listesi
-    const byeUserIds = rounds.map((r) => r.byeUserId);
-
-    // Eski alanları da dolduralım (geriye dönük uyum — hiçbir şeyi kırmasın)
-    const allMatches = rounds.flatMap((r) => r.matches);
-
-    this.state.simulationRounds = rounds;
-    this.state.byeUserIds = byeUserIds;
+    this.state.leagueSchedule = schedule;
+    this.state.byeUserIds = schedule.map((r) => r.byeUserId);
     this.state.currentRoundIndex = 0;
     this.state.currentRoundMinute = 0;
-
-    // Eski alanlar — bazı istemciler hâlâ bunlara bakıyor olabilir
-    this.state.simulationMatches = allMatches;
-    this.state.currentSimMatchIndex = 0;
     this.state.currentSimMinute = 0;
 
     // Sıfır spoiler: başlangıçta oynanmamış maçlar puan tablosuna eklenmez
     this.state.standings = calculateStandings(uids, this.state.participants, []);
     this.state.championUserId = null;
     this.state.simReadyUserIds = [];
-    this.state.status = "simulation";
     this.state.secondsLeft = 30;
 
-    this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
+    this.proceedToSimulationRound();
   }
 
   private handleRoundComplete(userId: string) {
-    // Client'tan gelen "round bitti" bildirimi.
-    // Server'da currentRoundMinute client-side timer tarafından artırılmaz —
-    // sadece client local state'te artıyor. Dolayısıyla server'daki değer
-    // hep 0'da kalır; >= 90 kontrolü güvenilmez. Bunun yerine
-    // simReadyUserIds ile duplicate'i engelliyoruz (aşağıdaki handleSimReady ile aynı mantık).
     if (!this.state.participants[userId] || this.state.status !== "simulation") return;
 
-    // Puan tablosunu güncelle (idempotent — birden fazla çağrıda sorun yok)
     this.state.currentRoundMinute = 90;
     this.state.currentSimMinute = 90;
     this.updateStandingsAfterRound();
@@ -335,15 +343,14 @@ export default class AuctionPartyServer implements Party.Server {
 
   private updateStandingsAfterRound() {
     const uids = Object.keys(this.state.participants).filter((id) => Boolean(id && id.trim()));
-    // Bu tura kadar (dahil) tamamlanmış tüm maçlar
     const completedMatches = collectCompletedRoundMatches(
       this.state.simulationRounds,
       this.state.currentRoundIndex + 1
     );
     this.state.standings = calculateStandings(uids, this.state.participants, completedMatches);
 
-    // Son tur bittiyse şampiyon belirle
-    if (this.state.currentRoundIndex >= this.state.simulationRounds.length - 1) {
+    const totalRounds = this.state.leagueSchedule?.length || this.state.simulationRounds.length;
+    if (this.state.currentRoundIndex >= totalRounds - 1) {
       this.state.championUserId = this.state.standings[0]?.userId || null;
     }
   }
@@ -385,21 +392,24 @@ export default class AuctionPartyServer implements Party.Server {
 
   private advanceToNextRound() {
     this.state.simReadyUserIds = [];
+    const totalRounds = this.state.leagueSchedule?.length || this.state.simulationRounds.length;
     const nextRoundIdx = this.state.currentRoundIndex + 1;
 
-    if (nextRoundIdx < this.state.simulationRounds.length) {
+    if (nextRoundIdx < totalRounds) {
       this.state.currentRoundIndex = nextRoundIdx;
+      this.state.simulationStartedAt = undefined;
       this.state.currentRoundMinute = 0;
       this.state.currentSimMinute = 0; // geriye dönük uyum
       this.state.status = "tactics";
       this.state.secondsLeft = 120; // 2 dakikalık analiz ve taktik süresi
       this.state.confirmedLineupUserIds = [];
 
-      // Eski alan güncelle — bu turun ilk maçı
-      const roundStartMatchIndex = this.state.simulationRounds
-        .slice(0, nextRoundIdx)
-        .reduce((acc, r) => acc + r.matches.length, 0);
-      this.state.currentSimMatchIndex = roundStartMatchIndex;
+      // Önceki kadroları koru ancak yeni tur için onaysız yap
+      for (const uid of Object.keys(this.state.lineups)) {
+        if (this.state.lineups[uid]) {
+          this.state.lineups[uid].isConfirmed = false;
+        }
+      }
 
       this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
     } else {
@@ -427,23 +437,56 @@ export default class AuctionPartyServer implements Party.Server {
         }
       } else if (this.state.status === "tactics") {
         if (this.state.secondsLeft <= 1) {
-          if (!this.state.simulationRounds || this.state.simulationRounds.length === 0) {
-            this.autoConfirmLineups();
+          this.autoConfirmLineups();
+          if (!this.state.leagueSchedule || this.state.leagueSchedule.length === 0) {
             this.startTournamentSimulation();
           } else {
-            this.autoConfirmLineups();
-            this.state.status = "simulation";
-            this.state.currentRoundMinute = 0;
-            this.state.currentSimMinute = 0;
-            this.state.confirmedLineupUserIds = [];
-            this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
+            this.proceedToSimulationRound();
           }
         } else {
           this.state.secondsLeft--;
           this.broadcast({ type: "AUCTION_TIMER_TICK", secondsLeft: this.state.secondsLeft });
         }
+      } else if (this.state.status === "simulation") {
+        if (!this.state.simulationStartedAt) {
+          this.state.simulationStartedAt = Date.now() - Math.floor(((this.state.currentRoundMinute || 0) / 90) * 30 * 1000);
+        }
+        const startedAt = this.state.simulationStartedAt;
+        const elapsedSeconds = Math.max(0, (Date.now() - startedAt) / 1000);
+        const calculatedMinute = Math.min(90, Math.floor((elapsedSeconds / 30) * 90));
+
+        const prevMinute = this.state.currentRoundMinute || 0;
+        this.state.currentRoundMinute = Math.max(prevMinute, calculatedMinute);
+        this.state.currentSimMinute = this.state.currentRoundMinute;
+
+        if (this.state.currentRoundMinute >= 90) {
+          if (prevMinute < 90) {
+            this.updateStandingsAfterRound();
+            this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
+          }
+        } else {
+          this.broadcast({
+            type: "AUCTION_SIM_TICK",
+            currentRoundMinute: this.state.currentRoundMinute,
+          });
+        }
       }
     }, 1000);
+  }
+
+  private syncSimulationProgress() {
+    if (this.state.status === "simulation") {
+      if (!this.state.simulationStartedAt) {
+        this.state.simulationStartedAt = Date.now() - Math.floor(((this.state.currentRoundMinute || 0) / 90) * 30 * 1000);
+      }
+      const elapsedSeconds = Math.max(0, (Date.now() - this.state.simulationStartedAt) / 1000);
+      const minute = Math.min(90, Math.floor((elapsedSeconds / 30) * 90));
+      this.state.currentRoundMinute = Math.max(this.state.currentRoundMinute || 0, minute);
+      this.state.currentSimMinute = this.state.currentRoundMinute;
+      if (this.state.currentRoundMinute >= 90 && (!this.state.standings || this.state.standings.length === 0)) {
+        this.updateStandingsAfterRound();
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -453,7 +496,7 @@ export default class AuctionPartyServer implements Party.Server {
   private autoConfirmLineups() {
     for (const [uid, p] of Object.entries(this.state.participants)) {
       if (!this.state.lineups[uid]?.isConfirmed) {
-        const defaultFormation: FormationName = "4-2-3-1";
+        const defaultFormation: FormationName = "4-3-3";
         const existingSlots = this.state.lineups[uid]?.slots;
         // Akıllı dizilim: GK'yi mutlaka kaleye, defansı defansa koyar, sahada elle konmuş oyuncuları korur
         const slots = autoAssignSquadToFormation(p.squad, defaultFormation, existingSlots);
@@ -502,6 +545,7 @@ export default class AuctionPartyServer implements Party.Server {
       currentHighestBid: null,
       passedUserIds: [],
       secondsLeft: 0,
+      simulationStartedAt: undefined,
       lineups: {},
       simulationMatches: [],
       currentSimMatchIndex: 0,

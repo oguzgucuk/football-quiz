@@ -89,10 +89,18 @@ export function calculateRatingTiers(
     const t4Min = t3Max + 1;
     const t4Max = ratingMax;
 
-    const t1Count = Math.max(1, Math.round(targetTotal * 0.20));
-    const t2Count = Math.max(1, Math.round(targetTotal * 0.35));
-    const t3Count = Math.max(1, Math.round(targetTotal * 0.30));
-    const t4Count = Math.max(1, targetTotal - (t1Count + t2Count + t3Count));
+    let t1Count = Math.max(1, Math.round(targetTotal * 0.20));
+    let t2Count = Math.max(1, Math.round(targetTotal * 0.35));
+    let t3Count = Math.max(1, Math.round(targetTotal * 0.30));
+    let t4Count = Math.max(1, targetTotal - (t1Count + t2Count + t3Count));
+
+    // 96+ reyting kademesinde veritabanında sadece 2 oyuncu (Messi ve Ronaldo) bulunmaktadır.
+    // Kotanın eksik kalmasını engellemek için t4'ü 2 ile sınırla, kalanı yıldızlar kademesine (Tier 3) aktar.
+    if (t4Min >= 96 && t4Count > 2) {
+      const excess = t4Count - 2;
+      t4Count = 2;
+      t3Count += excess;
+    }
 
     return [
       { id: "tier1", name: "Taban / Fırsat", min: t1Min, max: t1Max, targetRatio: 0.20, targetCount: t1Count },
@@ -141,7 +149,7 @@ export function shuffleArray<T>(arr: T[]): T[] {
 }
 
 /**
- * DB'den aday oyuncuları hafif olarak çeker.
+ * DB'den aday oyuncuları hafif olarak çeker ve karıştırır.
  * Seçilen aralık üstüne ASLA çıkılmaz; sadece yetersiz aday varsa aşağı doğru genişler.
  */
 async function fetchCandidates(
@@ -187,7 +195,8 @@ async function fetchCandidates(
     raw = [...raw, ...fallbacks];
   }
 
-  return raw.filter((c): c is CandidatePlayer => typeof c.overallPrime === "number");
+  const valid = raw.filter((c): c is CandidatePlayer => typeof c.overallPrime === "number");
+  return shuffleArray(valid);
 }
 
 /**
@@ -209,9 +218,10 @@ function pickPlayersFromTiers(
   const selectedList: CandidatePlayer[] = [];
   const selectedIds = new Set<string>();
 
+  const shuffledAllCandidates = shuffleArray(allCandidates);
   const candidatesByTier = new Map<string, CandidatePlayer[]>();
   for (const t of tiers) {
-    const inTier = allCandidates.filter((c) => c.overallPrime >= t.min && c.overallPrime <= t.max);
+    const inTier = shuffledAllCandidates.filter((c) => c.overallPrime >= t.min && c.overallPrime <= t.max);
     candidatesByTier.set(t.id, shuffleArray(inTier));
   }
 
@@ -257,10 +267,11 @@ function pickPlayersFromTiers(
     }
   }
 
-  // Eksik mevkileri tüm adaylardan tamamla
+  // Eksik mevkileri tüm adaylardan tamamla (karıştırılmış havuzdan)
+  const randomFallbackPool = shuffleArray(shuffledAllCandidates);
   for (const cat of posCycle) {
     while (neededPositions[cat] > 0) {
-      const p = allCandidates.find((c) => !selectedIds.has(c.id) && matchesCategory(c, cat));
+      const p = randomFallbackPool.find((c) => !selectedIds.has(c.id) && matchesCategory(c, cat));
       if (!p) break;
       selectedList.push(p);
       selectedIds.add(p.id);
@@ -269,7 +280,7 @@ function pickPlayersFromTiers(
   }
 
   // Hedef toplam karta ulaşana kadar kalanlardan tamamla
-  for (const p of shuffleArray(allCandidates)) {
+  for (const p of shuffleArray(shuffledAllCandidates)) {
     if (selectedList.length >= targetTotal) break;
     if (!selectedIds.has(p.id)) {
       selectedList.push(p);

@@ -8,6 +8,8 @@ import {
   pickCorridorAssist,
   pickCorridorDefender,
   pickCorridorShooter,
+  pickLongRangeShooter,
+  pickCorridorBlocker,
 } from "./corridorEngine";
 import { ratingCurve } from "./matchWeights";
 
@@ -94,6 +96,147 @@ function generateGoalCommentary(shooterName: string, attackingUsername: string, 
   return solo[Math.floor(Math.random() * solo.length)];
 }
 
+function generateLongShotGoalCommentary(shooterName: string, attackingUsername: string, corridor: PitchCorridor): string {
+  const cName = corridorNameTr(corridor);
+  if (corridor === "center") {
+    const centerVariants = [
+      `🚀 FÜZE! ${shooterName} (${attackingUsername}) yaklaşık 28 metreden kaleye müthiş bir füze yolladı, top çatala asıldı!`,
+      `💥 İNANILMAZ GOL! ${shooterName} (${attackingUsername}) kaleyi görür görmez çok uzaklardan mermi gibi vurdu, top 90'a gitti!`,
+      `⚡ MERMİ! ${shooterName} (${attackingUsername}) ceza sahası yayının gerisinden nefis vurdu, kaleci çaresiz kaldı!`,
+    ];
+    return centerVariants[Math.floor(Math.random() * centerVariants.length)];
+  } else {
+    const wideVariants = [
+      `🚀 FÜZE! ${shooterName} (${attackingUsername}) ${cName} içeri kat etti, uzak köşeye akıl almaz bir plase yolladı ve top ağlarda!`,
+      `💥 MUHTEŞEM VURUŞ! ${shooterName} (${attackingUsername}) ${cName} ceza sahası çaprazından kaleyi düşündü, top 90'a takıldı!`,
+      `⚡ HARİKA GOL! ${shooterName} (${attackingUsername}) ${cName} kaleyi cepheye aldı, müthiş bir vuruşla kaleciyi avladı!`,
+    ];
+    return wideVariants[Math.floor(Math.random() * wideVariants.length)];
+  }
+}
+
+function generateLongShotSaveCommentary(gkName: string, shooterName: string, corridor: PitchCorridor): string {
+  const cName = corridorNameTr(corridor);
+  const variations = [
+    `🧤 ${gkName}, ${shooterName}'in ${cName} yaklaşık 28 metreden 90'a giden füzesini parmaklarının ucuyla kornere çeldi!`,
+    `🧤 UZAKTAN TEHLİKE! ${shooterName} ${cName} çok sert vurdu, ${gkName} muazzam uzanarak golü önledi!`,
+    `🧤 ${gkName} devleşti! ${shooterName}'in ceza sahası dışından sert şutunu son anda köşeden tokatladı!`,
+  ];
+  return variations[Math.floor(Math.random() * variations.length)];
+}
+
+function generateLongShotBlockCommentary(blockerName: string, shooterName: string, attackingUsername: string, corridor: PitchCorridor): string {
+  const cName = corridorNameTr(corridor);
+  const variations = [
+    `🛡️ ${blockerName}, ${shooterName}'in (${attackingUsername}) ${cName} kaleye gönderdiği sert füzenin önüne adeta siper oldu!`,
+    `🛡️ ${shooterName} (${attackingUsername}) ${cName} kaleyi görür görmez denedi ancak ${blockerName} şuta ayak koydu!`,
+    `🛡️ ${attackingUsername} uzaktan kaleyi yokladı ancak ${blockerName} ceza sahası önünde geçit vermedi, top kornere çıktı.`,
+  ];
+  return variations[Math.floor(Math.random() * variations.length)];
+}
+
+/**
+ * Uzaktan şut denemesini çözen fonksiyon.
+ * 1. Blokaj testi (savunma şutun önüne siper olabildi mi?)
+ * 2. Blokaj aşıldıysa: Kaleci vs Uzaktan Şut düellosu.
+ */
+export function resolveLongRangeShot(
+  minute: number,
+  attacking: TeamLineup,
+  attackingUsername: string,
+  defending: TeamLineup,
+  defendingUsername: string,
+  corridor: PitchCorridor
+): PossessionResult {
+  const shooterSlot = pickLongRangeShooter(attacking, corridor);
+  const shooterName = shooterSlot?.placedPlayer?.fullName || "Futbolcu";
+  const shooterCurve = ratingCurve(shooterSlot?.effectiveRating || 75);
+
+  const defenseCorridor = mirrorCorridor(corridor);
+  const blockerSlot = pickCorridorBlocker(defending, defenseCorridor);
+  const blockerName = blockerSlot?.placedPlayer?.fullName || "Savunmacı";
+  const blockerCurve = ratingCurve(blockerSlot?.effectiveRating || 75);
+
+  // 1. Blokaj Testi (Eşit güçte ~%20 blokaj, %80 kaleye gider)
+  const blockChance = clamp(
+    (blockerCurve * 0.70) / Math.max(0.001, shooterCurve + blockerCurve * 0.70),
+    0.10,
+    0.35
+  );
+  const isBlocked = Math.random() < blockChance;
+
+  if (isBlocked) {
+    const event: MatchEvent = {
+      minute,
+      type: "chance",
+      teamUserId: attacking.userId,
+      playerName: blockerName,
+      description: generateLongShotBlockCommentary(blockerName, shooterName, attackingUsername, corridor),
+    };
+    return {
+      attackingTeamUserId: attacking.userId,
+      isGoal: false,
+      gkSaved: false,
+      defenseBlocked: true,
+      isLongRangeShot: true,
+      defenderName: blockerName,
+      event,
+    };
+  }
+
+  // 2. Blokaj Aşıldı -> Kaleci vs Uzaktan Şut
+  const gkSlot = defending.slots.find((slot) => slot.targetPosition === "GK");
+  const gkName = gkSlot?.placedPlayer?.fullName || "Kaleci";
+  const gkCurve = ratingCurve(gkSlot?.effectiveRating || 40);
+
+  const baseRateMap: Record<string, number> = {
+    shoot_on_sight: 0.20,
+    balanced: 0.16,
+    long_ball: 0.14,
+    short_pass: 0.12,
+  };
+  const baseRate = baseRateMap[attacking.tactics?.buildUp || "balanced"] ?? 0.16;
+  const goalChance = clamp(baseRate + (shooterCurve - gkCurve) * 0.35, 0.05, 0.40);
+  const isGoal = Math.random() < goalChance;
+
+  if (isGoal) {
+    const event: MatchEvent = {
+      minute,
+      type: "goal",
+      teamUserId: attacking.userId,
+      playerName: shooterName,
+      description: generateLongShotGoalCommentary(shooterName, attackingUsername, corridor),
+    };
+    return {
+      attackingTeamUserId: attacking.userId,
+      isGoal: true,
+      gkSaved: false,
+      defenseBlocked: false,
+      isLongRangeShot: true,
+      goalScorerName: shooterName,
+      gkName,
+      event,
+    };
+  }
+
+  const event: MatchEvent = {
+    minute,
+    type: "save",
+    teamUserId: defending.userId,
+    playerName: gkName,
+    description: generateLongShotSaveCommentary(gkName, shooterName, corridor),
+  };
+  return {
+    attackingTeamUserId: attacking.userId,
+    isGoal: false,
+    gkSaved: true,
+    defenseBlocked: false,
+    isLongRangeShot: true,
+    gkName,
+    event,
+  };
+}
+
 export function resolvePossession(
   minute: number,
   home: TeamLineup,
@@ -122,7 +265,20 @@ export function resolvePossession(
   const attackCorridor = homeAttacks ? initialCorridor : awayCorridor;
   const defenseCorridor = mirrorCorridor(attackCorridor);
 
-  // 3. SAFHA 2: Ceza Sahasını Delme (Hücumcular vs Savunmacılar)
+  // 3. UZAKTAN ŞUT İHTİMALİ KONTROLÜ (Taktik Tercihine Göre)
+  // shoot_on_sight %70, balanced %15, long_ball %10, short_pass %5
+  const longShotChanceMap: Record<string, number> = {
+    shoot_on_sight: 0.70,
+    balanced: 0.15,
+    long_ball: 0.10,
+    short_pass: 0.05,
+  };
+  const longShotChance = longShotChanceMap[attacking.tactics?.buildUp || "balanced"] ?? 0.15;
+  if (Math.random() < longShotChance) {
+    return resolveLongRangeShot(minute, attacking, attackingUsername, defending, defendingUsername, attackCorridor);
+  }
+
+  // 4. SAFHA 2: Ceza Sahasını Delme (Hücumcular vs Savunmacılar)
   const atkPower = calculateCorridorAttackPower(attacking, attackCorridor);
   const defPower = calculateCorridorDefensePower(defending, defenseCorridor);
   // Savunma direnci güçlendirildi: atakların ~%60-%65'i stoperler ve bekler tarafından kesilir

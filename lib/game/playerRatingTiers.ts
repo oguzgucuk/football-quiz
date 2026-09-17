@@ -40,17 +40,17 @@ const GOLD_STYLE: RatingTierStyle = {
   tier: "gold",
   tierName: "ALTIN",
   badgeClass:
-    "bg-amber-950/90 border-2 border-amber-400/70 text-amber-200 font-black shadow-[0_2px_14px_rgba(251,191,36,0.25)]",
+    "bg-gradient-to-br from-yellow-900/90 via-amber-900/70 to-yellow-950/90 border-2 border-yellow-400 text-yellow-200 font-black shadow-[0_2px_16px_rgba(250,204,21,0.35)]",
   badgeSubtle:
-    "bg-amber-500/20 text-amber-300 border border-amber-400/40",
+    "bg-yellow-500/20 text-yellow-300 border border-yellow-400/50",
   cardBorder:
-    "border-amber-400/40 hover:border-amber-300 shadow-[0_4px_20px_rgba(0,0,0,0.7)]",
-  glowGradient: "from-amber-950/30 via-[#0c1612]/90 to-[#0c1612]",
-  ambientBlur: "bg-amber-400/10 shadow-[0_0_30px_rgba(251,191,36,0.15)]",
+    "border-yellow-400/50 hover:border-yellow-300 shadow-[0_4px_20px_rgba(250,204,21,0.25)]",
+  glowGradient: "from-yellow-950/40 via-[#0c1612]/90 to-[#0c1612]",
+  ambientBlur: "bg-yellow-400/15 shadow-[0_0_30px_rgba(250,204,21,0.2)]",
   pillClass:
-    "bg-amber-950/60 text-amber-200 border border-amber-400/40",
-  accentText: "text-amber-300",
-  iconColor: "text-amber-400",
+    "bg-yellow-950/80 text-yellow-300 border border-yellow-400/60 font-black",
+  accentText: "text-yellow-300",
+  iconColor: "text-yellow-400",
 };
 
 const SILVER_STYLE: RatingTierStyle = {

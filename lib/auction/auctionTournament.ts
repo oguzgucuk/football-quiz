@@ -9,7 +9,7 @@
  * 2. Eski sıralı mod (generateLeagueFixtures): Geriye dönük uyum için tutuldu.
  */
 
-import { StandingRow, MatchSimulationResult, TeamLineup, AuctionParticipant, SimulationRound } from "./auctionTypes";
+import { StandingRow, MatchSimulationResult, TeamLineup, AuctionParticipant, SimulationRound, RoundScheduleItem } from "./auctionTypes";
 import { simulateMatch } from "./simulateMatch";
 
 export interface FixturePair {
@@ -22,11 +22,7 @@ export interface FixturePair {
 // Yeni: Circle/Berger Round-Robin Algoritması
 // ---------------------------------------------------------------------------
 
-export interface RoundScheduleItem {
-  roundNumber: number;
-  pairings: Array<{ homeUserId: string; awayUserId: string }>;
-  byeUserId: string | null;
-}
+export type { RoundScheduleItem };
 
 /**
  * Berger circle algoritmasıyla tüm ligin eşleşmelerini üretir (taktiklerden bağımsız, saf eşleşme).
@@ -74,6 +70,44 @@ export function generateLeagueSchedule(userIds: string[]): RoundScheduleItem[] {
 }
 
 /**
+ * Belirtilen turun maçlarını o anki güncel kadrolar ve taktiklerle canlı olarak simüle eder.
+ */
+export function simulateSingleRoundMatches(
+  scheduleItem: RoundScheduleItem,
+  lineups: Record<string, TeamLineup>,
+  participants: Record<string, AuctionParticipant>
+): SimulationRound {
+  const roundMatches: MatchSimulationResult[] = [];
+  let matchCounter = 1;
+
+  for (const { homeUserId: home, awayUserId: away } of scheduleItem.pairings) {
+    const homeLineup = lineups[home];
+    const awayLineup = lineups[away];
+    const homeName = participants[home]?.username || "Ev Sahibi";
+    const awayName = participants[away]?.username || "Deplasman";
+
+    if (homeLineup && awayLineup) {
+      const result = simulateMatch(
+        `match_r${scheduleItem.roundNumber}_${matchCounter++}`,
+        homeLineup,
+        homeName,
+        awayLineup,
+        awayName
+      );
+      result.homeLineup = homeLineup;
+      result.awayLineup = awayLineup;
+      roundMatches.push(result);
+    }
+  }
+
+  return {
+    roundNumber: scheduleItem.roundNumber,
+    matches: roundMatches,
+    byeUserId: scheduleItem.byeUserId,
+  };
+}
+
+/**
  * Belirtilen turda bir oyuncunun rakibini bulur. Bye ise null döner.
  */
 export function getOpponentForUserInRound(
@@ -89,93 +123,15 @@ export function getOpponentForUserInRound(
 }
 
 /**
- * Berger circle yöntemiyle round-robin fikstür üretir.
- * Çift sayı N oyuncu → N-1 tur, her turda N/2 eş zamanlı maç.
- * Tek sayı N oyuncu → N tur, her turda (N-1)/2 eş zamanlı maç + 1 bye.
- *
- * Örnek (4 oyuncu → 3 tur):
- *   Tur 1: [0-3, 1-2]   Tur 2: [0-2, 3-1]   Tur 3: [0-1, 2-3]
- *
- * @param userIds - Oyuncu ID listesi
- * @param lineups - Taktik çıktısı (maç simülasyonu için)
- * @param participants - Kullanıcı adları
+ * Berger circle yöntemiyle round-robin fikstür üretir ve simüle eder (geriye dönük uyum).
  */
 export function generateRoundRobinSchedule(
   userIds: string[],
   lineups: Record<string, TeamLineup>,
   participants: Record<string, AuctionParticipant>
 ): SimulationRound[] {
-  // Tek sayıda oyuncu → "ghost" (bye) oyuncu ekle
-  const hasBye = userIds.length % 2 !== 0;
-  const BYE_ID = "__BYE__";
-  const ids = hasBye ? [...userIds, BYE_ID] : [...userIds];
-  const n = ids.length; // Her zaman çift
-
-  const totalRounds = n - 1;
-  const rounds: SimulationRound[] = [];
-
-  // Circle algoritması: ilk oyuncu sabit, geri kalanlar her tur döner
-  const circle = ids.slice(1); // ilk eleman (ids[0]) sabit
-
-  let matchCounter = 1;
-
-  for (let r = 0; r < totalRounds; r++) {
-    const fixed = ids[0];
-    const rotated = [circle[(r + circle.length - 1) % circle.length], ...circle.slice(0, circle.length - 1).map((_, i) => circle[(r + i) % (circle.length)])];
-    // Rotasyonu doğru hesapla
-    const rotatedCorrect: string[] = [];
-    for (let i = 0; i < circle.length; i++) {
-      rotatedCorrect.push(circle[(r + i) % circle.length]);
-    }
-
-    const half = n / 2;
-    const pairings: Array<[string, string]> = [];
-
-    // fixed vs rotatedCorrect[n/2 - 1]
-    pairings.push([fixed, rotatedCorrect[half - 1]]);
-
-    // Kalan çiftler: rotatedCorrect[0] vs rotatedCorrect[n-2], rotatedCorrect[1] vs rotatedCorrect[n-3], ...
-    for (let i = 0; i < half - 1; i++) {
-      pairings.push([rotatedCorrect[i], rotatedCorrect[n - 2 - i]]);
-    }
-
-    const roundMatches: MatchSimulationResult[] = [];
-    let byeUserId: string | null = null;
-
-    for (const [home, away] of pairings) {
-      // bye içeren çifti atla
-      if (home === BYE_ID || away === BYE_ID) {
-        byeUserId = home === BYE_ID ? away : home;
-        continue;
-      }
-
-      const homeLineup = lineups[home];
-      const awayLineup = lineups[away];
-      const homeName = participants[home]?.username || "Ev Sahibi";
-      const awayName = participants[away]?.username || "Deplasman";
-
-      if (homeLineup && awayLineup) {
-        const result = simulateMatch(
-          `match_r${r + 1}_${matchCounter++}`,
-          homeLineup,
-          homeName,
-          awayLineup,
-          awayName
-        );
-        result.homeLineup = homeLineup;
-        result.awayLineup = awayLineup;
-        roundMatches.push(result);
-      }
-    }
-
-    rounds.push({
-      roundNumber: r + 1,
-      matches: roundMatches,
-      byeUserId,
-    });
-  }
-
-  return rounds;
+  const schedule = generateLeagueSchedule(userIds);
+  return schedule.map((item) => simulateSingleRoundMatches(item, lineups, participants));
 }
 
 // ---------------------------------------------------------------------------

@@ -65,6 +65,20 @@ export const ASSIST_WEIGHTS: Record<PitchPosition, number> = {
 };
 
 /**
+ * Ceza sahası dışından uzaktan şut çekme ve tehdit yaratma taban ağırlıkları.
+ * CAM (10 numara) ve CM (merkez orta saha) uzaktan şut uzmanlarıdır.
+ * LW/RW kanattan içeri kat edip vurur. CDM yay üzerinde dönen toplara mermi gibi vurur.
+ */
+export const LONG_SHOT_WEIGHTS: Record<PitchPosition, number> = {
+  GK: 0,
+  CB: 0.15,
+  LB: 0.50, RB: 0.50, LWB: 0.70, RWB: 0.70,
+  CDM: 1.20, CM: 1.60, LM: 1.00, RM: 1.00, CAM: 1.85,
+  LW: 1.40, RW: 1.40,
+  ST: 1.10, CF: 1.10,
+};
+
+/**
  * Oyuncu reytingini simülasyon güç eğrisine dönüştürür.
  * 2.1 üssü; açık arttırmadaki 3-4 reytinglik kadro avantajını ödüllendirirken
  * aşırı ezici uçurumları törpüleyip maçlara rekabetçi direnç alanı tanır.

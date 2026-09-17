@@ -22,6 +22,7 @@ import {
 } from "@/lib/auction/auctionTypes";
 import { calculateStandings, collectCompletedRoundMatches } from "@/lib/auction/auctionTournament";
 import { FORMATION_CONFIGS, FormationSlotDefinition } from "@/lib/auction/formationTemplates";
+import { calculateSlotRating } from "@/lib/auction/positionSuitability";
 import { getRatingTier } from "@/lib/game/playerRatingTiers";
 import {
   Trophy,
@@ -309,12 +310,12 @@ export function AuctionSimulationStage({
               {isUserPlaying ? "Benim Kadrom" : leftUsername}
             </span>
             <span className="font-mono text-[11px] font-black text-white bg-emerald-950/80 border border-emerald-500/30 px-2 py-0.5 rounded-md">
-              {leftLineup?.formation || "4-2-3-1"}
+              {leftLineup?.formation || "4-3-3"}
             </span>
           </div>
 
           {/* Dikey Mini Yeşil Saha */}
-          <MiniPitchView lineup={leftLineup} formation={leftLineup?.formation || "4-2-3-1"} />
+          <MiniPitchView lineup={leftLineup} formation={leftLineup?.formation || "4-3-3"} />
 
           {/* Sahanın Altındaki Taktik Rozetleri */}
           <TacticsBadgesBar tactics={leftLineup?.tactics} />
@@ -329,12 +330,12 @@ export function AuctionSimulationStage({
               {isUserPlaying ? `Rakip: ${rightUsername}` : rightUsername}
             </span>
             <span className="font-mono text-[11px] font-black text-white bg-cyan-950/80 border border-cyan-400/30 px-2 py-0.5 rounded-md">
-              {rightLineup?.formation || "4-2-3-1"}
+              {rightLineup?.formation || "4-3-3"}
             </span>
           </div>
 
           {/* Dikey Mini Yeşil Saha */}
-          <MiniPitchView lineup={rightLineup} formation={rightLineup?.formation || "4-2-3-1"} isOpponent />
+          <MiniPitchView lineup={rightLineup} formation={rightLineup?.formation || "4-3-3"} isOpponent />
 
           {/* Sahanın Altındaki Taktik Rozetleri */}
           <TacticsBadgesBar tactics={rightLineup?.tactics} isOpponent />
@@ -508,7 +509,7 @@ function MiniPitchView({
   formation?: FormationName | string;
   isOpponent?: boolean;
 }) {
-  const formKey = (formation as FormationName) in FORMATION_CONFIGS ? (formation as FormationName) : "4-2-3-1";
+  const formKey = (formation as FormationName) in FORMATION_CONFIGS ? (formation as FormationName) : "4-3-3";
   const formationConfig = FORMATION_CONFIGS[formKey];
   const slots = lineup?.slots || [];
 
@@ -522,12 +523,36 @@ function MiniPitchView({
       <div className="absolute top-1/2 inset-x-2 h-[1px] bg-white/15 pointer-events-none" />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-12 rounded-full border border-white/15 pointer-events-none" />
 
+      {/* Sahanın Sağ Üstünde Ortalama GEN */}
+      {typeof lineup?.teamOvr === "number" && lineup.teamOvr > 0 && (
+        <div
+          className={`absolute top-2.5 right-2.5 z-20 flex items-center gap-1 px-2.5 py-0.5 rounded-lg border backdrop-blur-md shadow-md pointer-events-none ${
+            isOpponent
+              ? "bg-black/75 border-cyan-400/40 text-cyan-300"
+              : "bg-black/75 border-emerald-400/40 text-emerald-300"
+          }`}
+        >
+          <span className="text-[8px] font-mono font-bold uppercase tracking-wider opacity-75">GEN</span>
+          <span className="text-xs font-mono font-black text-white tabular-nums">{lineup.teamOvr}</span>
+        </div>
+      )}
+
       {/* 11 Oyuncu Rozeti */}
       <div className="relative w-full h-full p-2">
         {formationConfig.map((slotDef: FormationSlotDefinition, index: number) => {
           const slot = slots[index];
           const player = slot?.placedPlayer;
-          const tier = player ? getRatingTier(player.overallPrime) : null;
+          const effectiveRating = player
+            ? typeof slot?.effectiveRating === "number" && slot.effectiveRating > 0
+              ? slot.effectiveRating
+              : calculateSlotRating(player, slotDef.targetPosition).effectiveRating
+            : 0;
+          const penalty = player
+            ? typeof slot?.penalty === "number"
+              ? slot.penalty
+              : calculateSlotRating(player, slotDef.targetPosition).penalty
+            : 0;
+          const tier = player ? getRatingTier(effectiveRating) : null;
           const x = slotDef.xPercent;
           const y = slotDef.yPercent;
 
@@ -539,12 +564,28 @@ function MiniPitchView({
             >
               {player ? (
                 <div className="flex flex-col items-center">
-                  <div
-                    className={`size-6 sm:size-7 rounded-full flex items-center justify-center font-mono text-[10px] font-black border shadow-md ${
-                      isOpponent ? "bg-cyan-950 border-cyan-400 text-cyan-300" : tier?.badgeClass || "bg-emerald-950 border-emerald-400 text-emerald-300"
-                    }`}
-                  >
-                    {player.overallPrime}
+                  <div className="relative">
+                    <div
+                      className={`size-6 sm:size-7 rounded-full flex items-center justify-center font-mono text-[10px] font-black border shadow-md ${
+                        penalty > 0
+                          ? "bg-amber-950 border-amber-500 text-amber-200 ring-1 ring-amber-400/50"
+                          : isOpponent
+                          ? "bg-cyan-950 border-cyan-400 text-cyan-300"
+                          : tier?.badgeClass || "bg-emerald-950 border-emerald-400 text-emerald-300"
+                      }`}
+                      title={
+                        penalty > 0
+                          ? `${player.fullName} (${slotDef.targetPosition} mevkisinde -${penalty} ceza ile ${effectiveRating} OVR)`
+                          : `${player.fullName} (${effectiveRating} OVR)`
+                      }
+                    >
+                      {effectiveRating}
+                    </div>
+                    {penalty > 0 && (
+                      <span className="absolute -top-1 -right-1 px-0.5 rounded bg-red-600 border border-red-400 text-[7px] font-mono font-black text-white leading-none shadow-xs">
+                        -{penalty}
+                      </span>
+                    )}
                   </div>
                   <span className="text-[9px] font-bold text-white bg-black/80 px-1 rounded truncate max-w-[55px] text-center mt-0.5 leading-tight shadow-sm">
                     {player.fullName.split(" ").slice(-1)[0]}
@@ -576,11 +617,19 @@ function TacticsBadgesBar({
   const tempoLabel =
     tactics?.tempo === "fast" ? "Hızlı" : tactics?.tempo === "slow" ? "Yavaş" : "Dengeli";
   const buildUpLabel =
-    tactics?.buildUp === "short_pass" ? "Kısa Pas" : tactics?.buildUp === "long_ball" ? "Uzun Top" : "Dengeli";
+    tactics?.buildUp === "shoot_on_sight"
+      ? "Kaleyi Görünce Vur"
+      : tactics?.buildUp === "short_pass"
+      ? "Kısa Pas"
+      : tactics?.buildUp === "long_ball"
+      ? "Uzun Top"
+      : "Dengeli";
   const pressLabel =
     tactics?.pressing === "high_press" ? "Önde Pres" : tactics?.pressing === "park_bus" ? "Otobüs" : "Dengeli";
   const dirLabel =
-    tactics?.attackDirection === "left"
+    tactics?.attackDirection === "wings"
+      ? "Kanatlar"
+      : tactics?.attackDirection === "left"
       ? "Sol"
       : tactics?.attackDirection === "right"
       ? "Sağ"

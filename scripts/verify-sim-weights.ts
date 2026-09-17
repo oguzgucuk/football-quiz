@@ -15,6 +15,7 @@ import {
   ATK_WEIGHTS,
   DEF_WEIGHTS,
   MID_WEIGHTS,
+  LONG_SHOT_WEIGHTS,
   ratingCurve,
 } from "../lib/auction/matchWeights";
 import { FormationName, PitchPosition, TeamLineup, TeamTactics } from "../lib/auction/auctionTypes";
@@ -59,8 +60,9 @@ async function runVerification() {
     if (DEF_WEIGHTS[pos] === undefined) throw new Error(`DEF_WEIGHTS tablosunda ${pos} eksik!`);
     if (ATK_WEIGHTS[pos] === undefined) throw new Error(`ATK_WEIGHTS tablosunda ${pos} eksik!`);
     if (ASSIST_WEIGHTS[pos] === undefined) throw new Error(`ASSIST_WEIGHTS tablosunda ${pos} eksik!`);
+    if (LONG_SHOT_WEIGHTS[pos] === undefined) throw new Error(`LONG_SHOT_WEIGHTS tablosunda ${pos} eksik!`);
   }
-  console.log("✅ 1. matchWeights tablosunda tüm mevkilerin (MID, DEF, ATK, ASSIST) ağırlıkları eksiksiz mevcut.");
+  console.log("✅ 1. matchWeights tablosunda tüm mevkilerin (MID, DEF, ATK, ASSIST, LONG_SHOT) ağırlıkları eksiksiz mevcut.");
 
   // 2. CAM vs CM vs CDM Savunma Gücü Kıyaslaması
   console.log("\n📊 2. MERKEZ DEFANS KATKILARI KIYASI (Aynı Reyting: 85 OVR)");
@@ -80,25 +82,25 @@ async function runVerification() {
   // 3. Koridor Savunma Gücü Entegrasyonu Testi
   const defaultTac: TeamTactics = { tempo: "balanced", buildUp: "balanced", pressing: "balanced", attackDirection: "balanced" };
   
-  // 4-2-3-1 dizilişinde kadrolar
-  const team4231 = createTeam("t1", 80, "4-2-3-1", defaultTac);
-  const defCenter = calculateCorridorDefensePower(team4231, "center");
+  // 4-3-3 dizilişinde kadrolar
+  const team433 = createTeam("t1", 80, "4-3-3", defaultTac);
+  const defCenter = calculateCorridorDefensePower(team433, "center");
 
-  console.log(`\n✅ 3. Takım Merkez Savunma Gücü (4-2-3-1, 80 OVR): ${defCenter.toFixed(3)}`);
+  console.log(`\n✅ 3. Takım Merkez Savunma Gücü (4-3-3, 80 OVR): ${defCenter.toFixed(3)}`);
 
   // 4. Beklerin Kanat Top Kapma (Orta Saha) Katkısı Testi
-  // 4-2-3-1 dizilişinde sol koridorda LB ve LW'nin top kapmaya katkısını kontrol edelim
-  const midLeftScore = calculateCorridorMidfieldScore(team4231, "left");
+  // 4-3-3 dizilişinde sol koridorda LB ve LW'nin top kapmaya katkısını kontrol edelim
+  const midLeftScore = calculateCorridorMidfieldScore(team433, "left");
   console.log(`\n📊 4. KANAT ORTA SAHA / TOP KAPMA GÜCÜ:`);
-  console.log(`- 4-2-3-1 Sol Koridor Top Kapma Puanı (LB + LW desteğiyle): ${midLeftScore.toFixed(3)}`);
+  console.log(`- 4-3-3 Sol Koridor Top Kapma Puanı (LB + LW desteğiyle): ${midLeftScore.toFixed(3)}`);
   if (midLeftScore <= 0.05) {
     throw new Error("HATA: Bek ve kanat forvet kanattaki top kapmaya katkı veremiyor!");
   }
   console.log("✅ 4. Bekler (LB/RB: 0.30x) ve Kanat Forvetler (LW/RW: 0.25x) kanattaki top kapmaya başarıyla katkı veriyor.");
 
   // 5. Yüksek Pres (High Press) Taktiğinde Takım Presi Testi
-  const balancedTeam = createTeam("t_bal", 80, "4-2-3-1", { ...defaultTac, pressing: "balanced" });
-  const highPressTeam = createTeam("t_press", 80, "4-2-3-1", { ...defaultTac, pressing: "high_press" });
+  const balancedTeam = createTeam("t_bal", 80, "4-3-3", { ...defaultTac, pressing: "balanced" });
+  const highPressTeam = createTeam("t_press", 80, "4-3-3", { ...defaultTac, pressing: "high_press" });
 
   const midBalanced = calculateCorridorMidfieldScore(balancedTeam, "center");
   const midHighPress = calculateCorridorMidfieldScore(highPressTeam, "center");
@@ -114,7 +116,7 @@ async function runVerification() {
 
   // 6. Örnek Canlı Maç Simülasyonu
   console.log("\n⚽ 6. 90 DAKİKALIK ÖRNEK MAÇ TESTİ (Real Madrid vs Barcelona)");
-  const match = simulateMatch("test_match", team4231, "Real Madrid", highPressTeam, "Barcelona");
+  const match = simulateMatch("test_match", team433, "Real Madrid", highPressTeam, "Barcelona");
   console.log(`- Sonuç: Real Madrid ${match.homeScore} - ${match.awayScore} Barcelona`);
   console.log(`- Toplam Pozisyon / Olay: ${match.events.length}`);
   console.log("- İlk 3 Olay Örneği:");

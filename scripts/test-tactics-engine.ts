@@ -12,7 +12,8 @@ import {
   getSlotCorridor,
 } from "../lib/auction/corridorEngine";
 import { simulateMatch } from "../lib/auction/simulateMatch";
-import { TeamLineup, TeamTactics } from "../lib/auction/auctionTypes";
+import { resolvePossession } from "../lib/auction/possessionResolver";
+import { FormationName, TeamLineup, TeamTactics } from "../lib/auction/auctionTypes";
 import { createInitialSlotsForFormation } from "../lib/auction/formationTemplates";
 import { calculateLineupPowers } from "../lib/auction/positionSuitability";
 import { ratingCurve } from "../lib/auction/matchWeights";
@@ -21,7 +22,7 @@ function createTestLineup(
   userId: string,
   ovr: number,
   tactics: TeamTactics,
-  formation: any = "4-2-3-1"
+  formation: FormationName = "4-3-3"
 ): TeamLineup {
   const slots = createInitialSlotsForFormation(formation);
   slots.forEach((s) => {
@@ -138,6 +139,24 @@ async function runTacticsTests() {
     throw new Error("Sol kanat yönü en yüksek orana sahip olmalıydı!");
   }
 
+  // Kanatlar (Wings) Testi
+  const wingsTeam = createTestLineup("u3", 90, { tempo: "balanced", buildUp: "balanced", pressing: "balanced", attackDirection: "wings" });
+  let wLeft = 0, wCenter = 0, wRight = 0;
+  for (let i = 0; i < 1000; i++) {
+    const corridor = determineAttackCorridor(wingsTeam, balancedTeam);
+    if (corridor === "left") wLeft++;
+    else if (corridor === "center") wCenter++;
+    else wRight++;
+  }
+  console.log(`\nKanatlar (Wings) Odaklı Takım (90 GEN) Dağılımı:`);
+  console.log(`  Sol Koridor: %${((wLeft / 1000) * 100).toFixed(1)}`);
+  console.log(`  Sağ Koridor: %${((wRight / 1000) * 100).toFixed(1)}`);
+  console.log(`  Merkez Koridor: %${((wCenter / 1000) * 100).toFixed(1)}`);
+
+  if (wCenter >= wLeft || wCenter >= wRight || (wLeft + wRight) < 700) {
+    throw new Error("Kanatlar taktiği atakları iki kanada dağıtmalı ve merkez atakları baskılamalıydı!");
+  }
+
   console.log("\n==========================================");
   console.log("🧪 5. CANLI MAÇ SİMÜLASYONU ENTEGRASYON TESTİ");
   console.log("==========================================");
@@ -154,12 +173,12 @@ async function runTacticsTests() {
   console.log("🧪 6. MEVKİLERİN KANAT ETKİ ORANLARI DOĞRULAMASI");
   console.log("==========================================");
 
-  // 1. Tek ST (4-2-3-1) vs Çift ST (3-5-2 veya 4-4-2) ST kanat atağı etkisi
+  // 1. Tek ST (4-3-3) vs Çift ST (3-5-2 veya 4-4-2) ST kanat atağı etkisi
   // Sadece ST'lerin sol kanada ürettiği hücum gücünü izole kontrol edelim:
-  const singleStTeam = createTestLineup("u1", 80, { tempo: "balanced", buildUp: "balanced", pressing: "balanced", attackDirection: "balanced" }, "4-2-3-1");
+  const singleStTeam = createTestLineup("u1", 80, { tempo: "balanced", buildUp: "balanced", pressing: "balanced", attackDirection: "balanced" }, "4-3-3");
   const doubleStTeam = createTestLineup("u2", 80, { tempo: "balanced", buildUp: "balanced", pressing: "balanced", attackDirection: "balanced" }, "3-5-2");
 
-  // 4-2-3-1'deki tek ST'nin sol kanada katkısı: 1.5 * 0.30 = 0.45 * curve
+  // 4-3-3'teki tek ST'nin sol kanada katkısı: 1.5 * 0.30 = 0.45 * curve
   // 3-5-2'deki sol ST'nin sol kanada katkısı: 1.5 * 0.60 = 0.90 * curve
   const singleStSlot = singleStTeam.slots.find((s) => s.targetPosition === "ST")!;
   const doubleStSlot = doubleStTeam.slots.find((s) => s.targetPosition === "ST" && getSlotCorridor(s.slotId, s.targetPosition, "3-5-2") === "left")!;
@@ -189,6 +208,41 @@ async function runTacticsTests() {
   console.log(`Çoklu Orta Saha (3-4 CM) Kanat Katkısı (%60 tabanlı): ${multiMidContrib.toFixed(3)}`);
   console.log(`2 Orta Saha Kanat Katkısı (%20 tabanlı): ${fewMidContrib.toFixed(3)}`);
   if (Math.abs(multiMidContrib - fewMidContrib * 3) > 0.0001) throw new Error("Çoklu orta sahada ilgili CM tam 3 kat (%60 vs %20) etkili olmalıydı!");
+
+  console.log("\n==========================================");
+  console.log("🧪 7. UZAKTAN ŞUT & 'KALEYİ GÖRÜNCE VUR' TESTLERİ");
+  console.log("==========================================");
+
+  const shootOnSightTeam = createTestLineup("u1", 80, { tempo: "balanced", buildUp: "shoot_on_sight", pressing: "balanced", attackDirection: "balanced" });
+  const normalOpponent = createTestLineup("u2", 80, { tempo: "balanced", buildUp: "balanced", pressing: "balanced", attackDirection: "balanced" });
+
+  let shootOnSightAttacks = 0;
+  let longShotCount = 0;
+  let longShotGoals = 0;
+  const N = 2000;
+
+  for (let i = 0; i < N; i++) {
+    const res = resolvePossession(10, shootOnSightTeam, "Ev Sahibi", normalOpponent, "Deplasman");
+    if (res.attackingTeamUserId === shootOnSightTeam.userId) {
+      shootOnSightAttacks++;
+      if (res.isLongRangeShot) {
+        longShotCount++;
+        if (res.isGoal) longShotGoals++;
+      }
+    }
+  }
+
+  const longShotPct = (longShotCount / shootOnSightAttacks) * 100;
+  const conversionPct = longShotCount > 0 ? (longShotGoals / longShotCount) * 100 : 0;
+  console.log(`Kaleyi Görünce Vur Takımı Uzaktan Şut Sıklığı (Beklenen: ~%70): %${longShotPct.toFixed(1)} (${longShotCount}/${shootOnSightAttacks})`);
+  console.log(`Uzaktan Şutların Gole Dönüşme Oranı (Beklenen: ~%16): %${conversionPct.toFixed(1)} (${longShotGoals}/${longShotCount})`);
+
+  if (longShotPct < 65 || longShotPct > 75) {
+    throw new Error(`Kaleyi görünce vur uzaktan şut sıklığı %70 civarı olmalıydı! (Çıkan: %${longShotPct})`);
+  }
+  if (conversionPct < 10 || conversionPct > 22) {
+    throw new Error(`Uzaktan şut gole dönüşme oranı %16 civarı olmalıydı! (Çıkan: %${conversionPct})`);
+  }
 
   console.log("\n🎉 TÜM TESTLER BAŞARIYLA GEÇTİ!");
 }

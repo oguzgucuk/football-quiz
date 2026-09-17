@@ -193,21 +193,21 @@ export function AuctionBiddingStage({
             <span className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-1.5">
               Mevcut Teklif
             </span>
-            <div className="flex items-center gap-2 px-10 py-3 rounded-2xl bg-amber-950/40 border-2 border-amber-500/50 text-amber-400 font-mono font-black text-4xl sm:text-5xl shadow-[0_0_30px_rgba(245,158,11,0.25)]">
+            <div className="flex items-center gap-2 px-10 py-3 rounded-2xl bg-gradient-to-b from-yellow-950/50 via-yellow-900/30 to-black/80 border-2 border-yellow-400/80 text-yellow-300 font-mono font-black text-4xl sm:text-5xl shadow-[0_0_35px_rgba(250,204,21,0.35)]">
               {currentBid}M $
             </div>
 
             <div className="mt-3 flex items-center justify-center text-center">
               {isMyHighestBid ? (
-                <div className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-amber-400/20 border border-amber-400/60 text-amber-300 font-black text-sm sm:text-base shadow-xs">
-                  <Crown className="size-4 fill-amber-400 text-amber-400 shrink-0" />
+                <div className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-yellow-400/20 border border-yellow-400/70 text-yellow-300 font-black text-sm sm:text-base shadow-xs">
+                  <Crown className="size-4 fill-yellow-400 text-yellow-400 shrink-0" />
                   <span>En Yüksek Teklif Sende! Karşı tarafın hamlesi bekleniyor...</span>
                 </div>
               ) : state.currentHighestBid ? (
                 <div className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-white/10 border border-white/15 text-zinc-200 font-bold text-sm sm:text-base flex-wrap justify-center">
                   <span className="text-zinc-400 font-medium">Lider Teklif Sahibi:</span>
                   <span className="text-white font-black">{state.currentHighestBid.bidderUsername}</span>
-                  <span className="font-mono text-amber-400 font-black">({currentBid}M $)</span>
+                  <span className="font-mono text-yellow-400 font-black">({currentBid}M $)</span>
                 </div>
               ) : (
                 <span className="text-sm font-bold text-zinc-500 tracking-wide">

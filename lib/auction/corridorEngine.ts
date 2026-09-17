@@ -24,4 +24,6 @@ export {
   pickCorridorShooter,
   pickCorridorAssist,
   pickCorridorDefender,
+  pickLongRangeShooter,
+  pickCorridorBlocker,
 } from "./corridorActors";

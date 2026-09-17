@@ -6,7 +6,7 @@
 
 import { PitchCorridor, SquadSlot, TeamLineup } from "./auctionTypes";
 import { DEFAULT_TACTICS, getSlotCorridor } from "./corridorEngine";
-import { ASSIST_WEIGHTS, ATK_WEIGHTS, DEF_WEIGHTS, ratingCurve } from "./matchWeights";
+import { ASSIST_WEIGHTS, ATK_WEIGHTS, DEF_WEIGHTS, LONG_SHOT_WEIGHTS, ratingCurve } from "./matchWeights";
 
 function weightedPick<T>(candidates: { item: T; weight: number }[]): T | undefined {
   const valid = candidates.filter((c) => c.weight > 0);
@@ -113,4 +113,89 @@ export function pickCorridorDefender(lineup: TeamLineup, defendingCorridor: Pitc
 
   return weightedPick(candidates);
 }
+
+/**
+ * Ceza sahası dışından uzaktan şut çekecek oyuncuyu seçer.
+ * LONG_SHOT_WEIGHTS taban gücü ve atağın koridoruna göre ağırlıklandırılır.
+ */
+export function pickLongRangeShooter(lineup: TeamLineup, corridor: PitchCorridor): SquadSlot {
+  const candidates: { item: SquadSlot; weight: number }[] = [];
+
+  for (const slot of lineup.slots) {
+    if (!slot.placedPlayer || slot.targetPosition === "GK") continue;
+    const curve = ratingCurve(slot.effectiveRating);
+    const baseShot = LONG_SHOT_WEIGHTS[slot.targetPosition] ?? 0.5;
+    const slotCorridor = getSlotCorridor(slot.slotId, slot.targetPosition, lineup.formation);
+
+    let weight = curve * baseShot;
+
+    if (corridor === "center") {
+      // Merkezde CAM, CM, CDM, ST tam önceliklidir
+      if (["CAM", "CM", "CDM", "ST", "CF"].includes(slot.targetPosition)) {
+        weight *= 1.4;
+      } else {
+        weight *= 0.5;
+      }
+    } else {
+      // Kanat koridorlarında (left/right) kendi kanadındaki kanat forvetler ve bekler
+      if (slotCorridor === corridor) {
+        if (["LW", "RW"].includes(slot.targetPosition)) weight *= 1.6;
+        else if (["LM", "RM", "LWB", "RWB"].includes(slot.targetPosition)) weight *= 1.3;
+        else weight *= 1.1;
+      } else if (["CAM", "CM"].includes(slot.targetPosition)) {
+        // İç orta saha kanat çaprazına destek verir
+        weight *= 1.0;
+      } else {
+        weight *= 0.1;
+      }
+    }
+
+    if (weight > 0) {
+      candidates.push({ item: slot, weight });
+    }
+  }
+
+  return weightedPick(candidates) || lineup.slots.find((s) => s.placedPlayer && s.targetPosition !== "GK")!;
+}
+
+/**
+ * Uzaktan şutun önüne siper olup blokaj yapmaya çalışacak savunmacıyı seçer.
+ * DEF_WEIGHTS taban gücü ve atağın geldiği koridora göre belirlenir.
+ */
+export function pickCorridorBlocker(lineup: TeamLineup, defendingCorridor: PitchCorridor): SquadSlot {
+  const candidates: { item: SquadSlot; weight: number }[] = [];
+
+  for (const slot of lineup.slots) {
+    if (!slot.placedPlayer || slot.targetPosition === "GK") continue;
+    const curve = ratingCurve(slot.effectiveRating);
+    const baseDef = DEF_WEIGHTS[slot.targetPosition] ?? 0.3;
+    const slotCorridor = getSlotCorridor(slot.slotId, slot.targetPosition, lineup.formation);
+
+    let weight = curve * baseDef;
+
+    if (defendingCorridor === "center") {
+      // Merkezde yay önündeki CDM ve stoperler asıl blokajcılardır
+      if (slot.targetPosition === "CDM") weight *= 1.8;
+      else if (slot.targetPosition === "CB") weight *= 1.4;
+      else if (slot.targetPosition === "CM") weight *= 1.1;
+      else weight *= 0.3;
+    } else {
+      // Kanatta o kanadın beki ve kademeye kayan stoper bloklar
+      if (slotCorridor === defendingCorridor) {
+        if (["LB", "RB", "LWB", "RWB"].includes(slot.targetPosition)) weight *= 1.8;
+        else if (slot.targetPosition === "CB") weight *= 1.4;
+        else weight *= 1.1;
+      } else {
+        weight *= 0.2;
+      }
+    }
+
+    if (weight > 0) {
+      candidates.push({ item: slot, weight });
+    }
+  }
+
+  return weightedPick(candidates) || lineup.slots.find((s) => s.placedPlayer && s.targetPosition !== "GK")!;
+}
+
 

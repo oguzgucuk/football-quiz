@@ -69,11 +69,12 @@ export function AuctionTacticsSelector({
           <FastForward className="w-3.5 h-3.5 text-amber-400" />
           <span>Oyun Kurma (Pas)</span>
         </div>
-        <div className="grid grid-cols-3 gap-1">
+        <div className="grid grid-cols-4 gap-1">
           {[
             { id: "short_pass" as const, label: "Kısa Pas", sub: "Atk+ / Def-" },
             { id: "balanced" as const, label: "Dengeli", sub: "%100 Güç" },
             { id: "long_ball" as const, label: "Uzun Top", sub: "Orta Saha ✕" },
+            { id: "shoot_on_sight" as const, label: "Kaleyi Görünce Vur", sub: "Uzaktan Şut+" },
           ].map((item) => (
             <button
               key={item.id}
@@ -133,11 +134,12 @@ export function AuctionTacticsSelector({
           <Compass className="w-3.5 h-3.5 text-purple-400" />
           <span>Hücum Yönü</span>
         </div>
-        <div className="grid grid-cols-4 gap-1">
+        <div className="grid grid-cols-5 gap-1">
           {[
             { id: "left" as const, label: "Sol" },
             { id: "center" as const, label: "Merkez" },
             { id: "right" as const, label: "Sağ" },
+            { id: "wings" as const, label: "Kanatlar" },
             { id: "balanced" as const, label: "Dengeli" },
           ].map((item) => (
             <button

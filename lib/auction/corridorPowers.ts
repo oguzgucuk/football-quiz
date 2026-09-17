@@ -96,13 +96,20 @@ function calculateSlotAttack(slot: SquadSlot, c: PitchCorridor, f: FormationName
 
   // Oyun kurma taktiği çarpanları (Hücum)
   if (tac.buildUp === "short_pass") {
-    // Kısa pas: Orta sahalar ve pasör bekler bufflanır (+%20), hücumcular/forvetler direkt hızlı vuruş yapamadığı için hafif nerf yer (-%15)
-    if (["CM", "CAM", "CDM", "LM", "RM", "LB", "RB"].includes(slot.targetPosition)) power *= 1.20;
-    else if (["ST", "CF", "LW", "RW"].includes(slot.targetPosition)) power *= 0.85;
+    // Kısa pas: Orta saha ve kanat bekler (LWB/RWB) +%20 buff
+    if (["CM", "CAM", "CDM", "LWB", "RWB"].includes(slot.targetPosition)) power *= 1.20;
+    // CF, LM, RM bağlantı oyuncuları +%5 buff
+    else if (["CF", "LM", "RM"].includes(slot.targetPosition)) power *= 1.05;
+    // ST, RW, LW direkt bitiriciler -%15 nerf
+    else if (["ST", "LW", "RW"].includes(slot.targetPosition)) power *= 0.85;
+    // LB ve RB normal (buff yok), CB/GK etkilenmez
   } else if (tac.buildUp === "long_ball") {
     // Uzun top: Santrforlar hava hakimiyetiyle bufflanır (+%30), tüm orta sahalar (LM, CM, CDM, CAM, RM) baypas edildiği için nerf yer (%70 düşüş: 0.30x)
     if (["ST", "CF"].includes(slot.targetPosition)) power *= 1.30;
     else if (["LM", "RM", "CM", "CDM", "CAM"].includes(slot.targetPosition)) power *= 0.30;
+  } else if (tac.buildUp === "shoot_on_sight") {
+    // Kaleyi görünce vur: CAM ve CM oyuncuları ceza sahası önünde anında şuta yöneldiği için hücumda +%10 buff
+    if (["CAM", "CM"].includes(slot.targetPosition)) power *= 1.10;
   }
 
   return power;
