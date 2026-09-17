@@ -20,6 +20,8 @@ import { AuthModal } from "@/components/auth/AuthModal";
 import { StadiumBackground } from "@/components/ui/StadiumBackground";
 import { ClientStatusBar } from "./ClientStatusBar";
 import { GameMode } from "@/types/game";
+import { TabInfoButton } from "./TabInfoButton";
+import { TabInfoModal } from "./TabInfoModal";
 
 const TAB_PATHS: Record<DashboardTab, string> = {
   play: "/",
@@ -40,6 +42,7 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
   const { friends, pendingRequests } = useFriends();
   const [activeTab, setActiveTab] = useState<DashboardTab>(initialTab);
   const [isSocialOpen, setIsSocialOpen] = useState(false);
+  const [isTabInfoModalOpen, setIsTabInfoModalOpen] = useState(false);
 
   // Sekme değiştiğinde tarayıcı URL'sini yumuşakça (pushState ile) güncelle
   const handleTabChange = (tab: DashboardTab, updateHistory = true) => {
@@ -174,6 +177,12 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
 
         {/* Merkezde Değişen Sahne (Main Stage İçeriği - Dikey Kaydırma Destekli) */}
         <div className="flex-1 min-h-0 relative overflow-y-auto overflow-x-hidden">
+          {/* Her Sekmenin Sağ Üstündeki Belirgin Bilgilendirme / Rehber Butonu */}
+          <TabInfoButton
+            activeTab={activeTab}
+            onClick={() => setIsTabInfoModalOpen(true)}
+          />
+
           {activeTab === "home" && (
             <HomeStage onGoToPlay={() => handleTabChange("play")} />
           )}
@@ -254,6 +263,12 @@ export function DashboardShell({ initialTab = "play" }: DashboardShellProps) {
         isOpen={isAuthModalOpen}
         initialTab={authModalTab}
         onClose={() => setIsAuthModalOpen(false)}
+      />
+
+      {/* Her Sekmenin İçeriğini & SEO Detaylarını Anlatan Modal */}
+      <TabInfoModal
+        tab={isTabInfoModalOpen ? activeTab : null}
+        onClose={() => setIsTabInfoModalOpen(false)}
       />
     </main>
   );

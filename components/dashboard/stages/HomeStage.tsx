@@ -13,6 +13,7 @@ import {
   Clock,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { PatchNotesSection } from "./home/PatchNotesSection";
 
 interface HomeStageProps {
   onGoToPlay: () => void;
@@ -102,7 +103,10 @@ export function HomeStage({ onGoToPlay }: HomeStageProps) {
           </div>
         )}
 
-        {/* 3. Yakında Gelecek Özellikler Önizlemesi */}
+        {/* 3. Yama Notları & Güncellemeler (Yama 0.1) */}
+        <PatchNotesSection />
+
+        {/* 4. Yakında Gelecek Özellikler Önizlemesi */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="rounded-2xl bg-[#0c1612]/70 border border-white/10 p-5 backdrop-blur-md">
             <div className="size-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mb-3">

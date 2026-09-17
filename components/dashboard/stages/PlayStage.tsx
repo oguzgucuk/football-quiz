@@ -2,13 +2,13 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRight } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { PlayCommonPlayerCard, SubModeType } from "./play/PlayCommonPlayerCard";
 import { PlayGridModeCard, NationTeamSubMode } from "./play/PlayGridModeCard";
 import { PlayAuctionModeCard } from "./play/PlayAuctionModeCard";
 import { PlayTrainingCard, TrainingSubMode } from "./play/PlayTrainingCard";
 import { PlayModeGuidesModal } from "./play/PlayModeGuidesModal";
+import { PlayActionButtons } from "./play/PlayActionButtons";
 import { JoinAuctionRoomModal } from "@/components/auction/JoinAuctionRoomModal";
 import { JoinDuelRoomModal } from "@/components/game/JoinDuelRoomModal";
 import { GameMode } from "@/types/game";
@@ -47,19 +47,11 @@ export function PlayStage({
       return;
     }
     if (selectedModeId === "auction") {
-      const roomId = `oda_muzayede_${Math.floor(1000 + Math.random() * 9000)}`;
-      router.push(`/auction/${roomId}`);
-      return;
-    }
-    if (selectedModeId === "common_player") {
-      const roomId = `oda_${Math.floor(1000 + Math.random() * 9000)}`;
-      router.push(`/play/${roomId}`);
-      return;
-    }
-    if (selectedModeId === "grid") {
-      const roomId = `oda_millet_${Math.floor(1000 + Math.random() * 9000)}`;
-      router.push(`/play/${roomId}`);
-      return;
+      router.push(`/auction/oda_muzayede_${Math.floor(1000 + Math.random() * 9000)}`);
+    } else if (selectedModeId === "common_player") {
+      router.push(`/play/oda_${Math.floor(1000 + Math.random() * 9000)}`);
+    } else if (selectedModeId === "grid") {
+      router.push(`/play/oda_millet_${Math.floor(1000 + Math.random() * 9000)}`);
     }
   };
 
@@ -70,46 +62,34 @@ export function PlayStage({
     }
     if (selectedModeId === "auction") {
       setIsJoinAuctionModalOpen(true);
-      return;
-    }
-    if (selectedModeId === "common_player" || selectedModeId === "grid") {
+    } else if (selectedModeId === "common_player" || selectedModeId === "grid") {
       setIsJoinDuelModalOpen(true);
-      return;
     }
   };
 
   const handleConfirm = () => {
     if (selectedModeId === "training") {
-      if (selectedTrainingSubMode === "players") {
-        onGoToPlayers();
-      }
+      if (selectedTrainingSubMode === "players") onGoToPlayers();
       return;
     }
-
     if (!user) {
       onOpenAuthModal?.("login");
       return;
     }
-
     if (selectedModeId === "common_player") {
-      if (selectedSubMode === "ranked") {
-        onStartRanked();
-      } else if (selectedSubMode === "casual") {
-        onStartCasual("team_vs_team");
-      }
-    } else if (selectedModeId === "grid") {
-      if (selectedNationTeamSubMode === "casual") {
-        onStartCasual("country_vs_team");
-      }
+      if (selectedSubMode === "ranked") onStartRanked();
+      else if (selectedSubMode === "casual") onStartCasual("team_vs_team");
+    } else if (selectedModeId === "grid" && selectedNationTeamSubMode === "casual") {
+      onStartCasual("country_vs_team");
     }
   };
 
-  const getButtonLabel = () => {
-    if (selectedModeId === "training") {
-      return selectedTrainingSubMode === "players" ? "OYUNCULARI GÖRÜNTÜLE" : "YAKINDA GELECEK";
-    }
-    return "OYNA";
-  };
+  const buttonLabel =
+    selectedModeId === "training"
+      ? selectedTrainingSubMode === "players"
+        ? "OYUNCULARI GÖRÜNTÜLE"
+        : "YAKINDA GELECEK"
+      : "OYNA";
 
   return (
     <div className="relative flex flex-1 flex-col justify-between overflow-y-auto overflow-x-hidden bg-transparent text-white select-none font-sans p-4 sm:p-6 lg:p-8 min-h-full">
@@ -118,12 +98,7 @@ export function PlayStage({
 
       {/* 2. Merkez Mimari Saha Çizgileri */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 opacity-25">
-        <svg
-          viewBox="0 0 1000 600"
-          className="w-[950px] max-w-full h-auto"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
+        <svg viewBox="0 0 1000 600" className="w-[950px] max-w-full h-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
           <circle cx="500" cy="300" r="140" stroke="#22c55e" strokeWidth="1.25" strokeDasharray="4 4" />
           <circle cx="500" cy="300" r="4" fill="#22c55e" />
           <line x1="500" y1="60" x2="500" y2="540" stroke="#22c55e" strokeWidth="1" opacity="0.6" />
@@ -167,46 +142,16 @@ export function PlayStage({
         </div>
       </div>
 
-      {/* Onay Butonları Sabit Konteyner */}
-      <div className="relative z-10 flex justify-center items-center h-[76px] py-2 shrink-0">
-        <div className="w-full max-w-[420px] h-[56px] flex items-center justify-center">
-          {isCustomMode ? (
-            <div className="flex items-center gap-3 w-full h-full">
-              {/* 1. OYUN KUR */}
-              <button
-                onClick={handleCreateGame}
-                className="flex-1 h-full rounded-xl bg-gradient-to-b from-[#168841] to-[#126d34] hover:from-[#15803d] hover:to-[#0f5c2b] text-white font-black text-sm tracking-[0.14em] uppercase border border-emerald-400/50 shadow-md shadow-emerald-900/40 active:translate-y-[1px] transition-[background-color,border-color,box-shadow,transform] duration-150 flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <span>OYUN KUR</span>
-                <ChevronRight className="size-4 stroke-[2.5]" />
-              </button>
-
-              {/* 2. OYUNA KATIL */}
-              <button
-                onClick={handleJoinGame}
-                className="flex-1 h-full rounded-xl bg-black/60 hover:bg-black/80 text-zinc-200 hover:text-white font-black text-sm tracking-[0.14em] uppercase border border-white/20 hover:border-emerald-400/50 backdrop-blur-xl shadow-md active:translate-y-[1px] transition-[background-color,border-color,box-shadow,transform] duration-150 flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <span>OYUNA KATIL</span>
-              </button>
-            </div>
-          ) : selectedModeId !== "training" || selectedTrainingSubMode === "players" ? (
-            <button
-              onClick={handleConfirm}
-              className="w-full h-full rounded-xl bg-gradient-to-b from-[#168841] to-[#126d34] hover:from-[#15803d] hover:to-[#0f5c2b] text-white font-black text-base tracking-[0.18em] uppercase border border-emerald-400/50 shadow-md shadow-emerald-900/40 active:translate-y-[1px] transition-[background-color,border-color,box-shadow,transform] duration-150 flex items-center justify-center gap-2.5 cursor-pointer"
-            >
-              <span>{getButtonLabel()}</span>
-              <ChevronRight className="size-5 stroke-[2.5]" />
-            </button>
-          ) : (
-            <button
-              disabled
-              className="w-full h-full flex items-center justify-center bg-black/40 text-zinc-500 font-black text-sm tracking-[0.18em] uppercase cursor-not-allowed rounded-xl border border-white/10 backdrop-blur-md"
-            >
-              YAKINDA GELECEK
-            </button>
-          )}
-        </div>
-      </div>
+      {/* Onay Butonları */}
+      <PlayActionButtons
+        isCustomMode={isCustomMode}
+        selectedModeId={selectedModeId}
+        selectedTrainingSubMode={selectedTrainingSubMode}
+        buttonLabel={buttonLabel}
+        onCreateGame={handleCreateGame}
+        onJoinGame={handleJoinGame}
+        onConfirm={handleConfirm}
+      />
 
       {/* "Nasıl Oynanır?" Modal Rehberi */}
       <PlayModeGuidesModal
