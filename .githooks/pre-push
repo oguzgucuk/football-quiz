@@ -1,0 +1,20 @@
+#!/bin/sh
+# Git Push öncesinde PartyKit'i otomatik deploy eden hook
+echo ""
+echo "=================================================="
+echo "🚀 [Auto-Deploy] PartyKit deploy otomatik başlatılıyor..."
+echo "=================================================="
+npm run party:deploy
+
+STATUS=$?
+if [ $STATUS -ne 0 ]; then
+  echo ""
+  echo "❌ [Auto-Deploy] PartyKit deploy başarısız oldu! Git push durduruldu."
+  exit $STATUS
+fi
+
+echo ""
+echo "✅ [Auto-Deploy] PartyKit deploy başarılı! Değişiklikler GitHub'a gönderiliyor..."
+echo "=================================================="
+echo ""
+exit 0

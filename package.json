@@ -12,6 +12,7 @@
     "generate:index": "tsx scripts/generate-static-player-index.ts",
     "start": "next start -H 0.0.0.0 -p 5000",
     "party:deploy": "partykit deploy",
+    "push": "git push",
     "lint": "eslint",
     "verify:sim": "tsx scripts/verify-sim-weights.ts",
     "db:generate": "prisma generate",
