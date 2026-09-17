@@ -2,16 +2,14 @@
 
 /**
  * Müzayede Lobisi Görünümü.
- * Kullanıcının çizdiği 1. taslağa tam sadık kalınarak:
- * - 6 slotlu oyuncu paneli ([Oyuncu Adı] / [BOŞ])
- * - Bütçe ve Rating ayar kaydırıcıları (Sadece Host değiştirebilir)
+ * - Sabit 8 Slotlu Oyuncu Paneli ([Dolu Oyuncu Kartı] / [Açık Koltuk • Bekleniyor])
+ * - Bütçe ve Rating ayar kartları (Sadece Host değiştirebilir)
  * - "Oyunu Başlat" ana butonu
  */
 
 import React, { useState } from "react";
 import { AuctionRoomState, AuctionLobbySettings } from "@/lib/auction/auctionTypes";
-import { Users, Crown, Shield, Copy, Check, Share2, Loader2, ChevronRight } from "lucide-react";
-
+import { Users, Crown, Shield, Copy, Check, Share2, Loader2, ChevronRight, UserPlus } from "lucide-react";
 import { AuctionLobbySettingsCards } from "./AuctionLobbySettingsCards";
 
 interface AuctionLobbyViewProps {
@@ -21,6 +19,8 @@ interface AuctionLobbyViewProps {
   onStartGame: () => void;
 }
 
+const TOTAL_SLOTS = 8;
+
 export function AuctionLobbyView({
   state,
   currentUserId,
@@ -29,18 +29,36 @@ export function AuctionLobbyView({
 }: AuctionLobbyViewProps) {
   const isHost = state.hostUserId === currentUserId;
   const [isStarting, setIsStarting] = useState(false);
+  const [copied, setCopied] = useState(false);
+
   const participantsList = Object.values(state.participants).filter(
     (p) => Boolean(p.userId && p.userId.trim())
   );
-  const totalSlots = Math.max(state.settings.playerCount || 4, participantsList.length);
-  const slots = Array.from({ length: totalSlots }, (_, i) => participantsList[i] || null);
+  const slots = Array.from({ length: TOTAL_SLOTS }, (_, i) => participantsList[i] || null);
   const canStart = isHost && participantsList.length >= 2;
 
-  const [copied, setCopied] = React.useState(false);
+  const roomUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/auction/${state.roomId}`
+      : state.roomId;
+
   const handleCopyCode = () => {
     navigator.clipboard.writeText(state.roomId);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(roomUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleShareWhatsApp = () => {
+    const text = encodeURIComponent(
+      `Futbol Quiz Canlı Müzayede Odasına katıl! Kadronu kur, 8 kişilik ligde şampiyon ol: ${roomUrl}`
+    );
+    window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
   };
 
   return (
@@ -49,7 +67,7 @@ export function AuctionLobbyView({
       <div className="flex flex-col sm:flex-row items-center justify-between w-full border-b border-white/10 pb-4 gap-3">
         <div>
           <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-950/60 px-2.5 py-1 rounded-full border border-emerald-500/30">
-            Özel Lobi
+            Özel Müzayede Ligi
           </span>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white mt-1">
             Müzayede Lobisi
@@ -57,40 +75,43 @@ export function AuctionLobbyView({
         </div>
 
         <button
+          type="button"
           onClick={handleCopyCode}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/40 border border-white/10 hover:border-emerald-500/40 text-xs font-mono text-zinc-300 transition-all cursor-pointer"
+          className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-black/40 border border-white/10 hover:border-emerald-500/40 text-xs font-mono text-zinc-300 transition-all cursor-pointer shadow-sm"
         >
           <span>Oda Kodu: <strong className="text-emerald-400">{state.roomId}</strong></span>
           {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-zinc-400" />}
         </button>
       </div>
 
-      {/* 1. OYUNCU SLOTLARI (Dinamik 2 - 8 Kapasiteli Izgara) */}
+      {/* 1. OYUNCU SLOTLARI (Sabit 8 Koltuklu Izgara) */}
       <div className="w-full p-4 sm:p-6 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-xl shadow-2xl">
         <div className="flex items-center justify-between mb-4">
           <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
             <Users className="w-4 h-4 text-emerald-400" />
-            Lobideki Oyuncular ({participantsList.length}/{state.settings.playerCount || 4})
+            Lobideki Oyuncular ({participantsList.length} / {TOTAL_SLOTS})
           </span>
-          <span className="text-[11px] text-zinc-500 font-medium">En az 2 oyuncu gereklidir</span>
+          <span className="text-[11px] text-zinc-400 font-medium">
+            En az 2 oyuncu • 8 Kişilik Lig Fikstürü
+          </span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {slots.map((player, idx) => (
             <div
               key={idx}
-              className={`flex items-center gap-3 p-3.5 rounded-xl border transition-all ${
+              className={`relative flex items-center gap-3 p-3.5 rounded-xl border transition-all ${
                 player
                   ? "bg-white/5 border-emerald-500/40 shadow-sm shadow-emerald-950/40"
-                  : "bg-black/20 border-white/5 border-dashed"
+                  : "bg-black/25 border-dashed border-white/10 hover:border-white/20"
               }`}
             >
               {player ? (
                 <>
-                  <div className="relative flex size-10 items-center justify-center rounded-full bg-emerald-950/80 border border-emerald-500/50 text-emerald-400 font-black text-sm">
+                  <div className="relative flex size-10 items-center justify-center rounded-full bg-emerald-950/80 border border-emerald-500/50 text-emerald-400 font-black text-sm shrink-0">
                     {player.username.charAt(0).toUpperCase()}
                     {player.isHost && (
-                      <Crown className="w-3.5 h-3.5 text-amber-400 absolute -top-1.5 -right-1" />
+                      <Crown className="w-3.5 h-3.5 text-amber-400 absolute -top-1.5 -right-1 drop-shadow" />
                     )}
                   </div>
                   <div className="flex flex-col min-w-0 flex-1">
@@ -100,14 +121,26 @@ export function AuctionLobbyView({
                         <span className="text-[10px] text-emerald-400 font-mono font-bold">(Sen)</span>
                       )}
                     </span>
-                    <span className="text-[10px] text-zinc-400">
+                    <span className="text-[10px] text-zinc-400 font-medium">
                       {player.isHost ? "Oda Sahibi" : "Hazır"}
                     </span>
                   </div>
+                  <span className="text-[9px] font-mono text-zinc-500 absolute top-2 right-2.5">
+                    #{idx + 1}
+                  </span>
                 </>
               ) : (
-                <div className="w-full flex items-center justify-center py-2 text-xs font-bold tracking-wider text-zinc-600">
-                  BOŞ
+                <div className="w-full flex items-center justify-between py-1 px-1">
+                  <div className="flex items-center gap-2.5 text-zinc-500">
+                    <div className="size-8 rounded-full border border-dashed border-zinc-700 flex items-center justify-center text-zinc-600">
+                      <UserPlus className="size-3.5" />
+                    </div>
+                    <div className="flex flex-col text-left">
+                      <span className="text-xs font-bold text-zinc-400">Açık Koltuk</span>
+                      <span className="text-[10px] text-zinc-600 font-medium">Bekleniyor...</span>
+                    </div>
+                  </div>
+                  <span className="text-[9px] font-mono text-zinc-600">#{idx + 1}</span>
                 </div>
               )}
             </div>
@@ -120,18 +153,14 @@ export function AuctionLobbyView({
         <div className="flex items-center gap-2 text-xs text-zinc-300">
           <span className="font-bold text-zinc-400">Davet Linki:</span>
           <span className="font-mono text-emerald-400 truncate max-w-[240px] sm:max-w-[340px]">
-            {typeof window !== "undefined" ? `${window.location.origin}/auction/${state.roomId}` : state.roomId}
+            {roomUrl}
           </span>
         </div>
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => {
-              const url = `${window.location.origin}/auction/${state.roomId}`;
-              navigator.clipboard.writeText(url);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-            }}
+            type="button"
+            onClick={handleCopyLink}
             className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-emerald-600/30 border border-white/15 text-xs font-bold text-white transition-all cursor-pointer flex items-center gap-1.5"
           >
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-zinc-400" />}
@@ -139,11 +168,8 @@ export function AuctionLobbyView({
           </button>
 
           <button
-            onClick={() => {
-              const url = `${window.location.origin}/auction/${state.roomId}`;
-              const text = encodeURIComponent(`Futbol Quiz Canlı Müzayede Odasına katıl: ${url}`);
-              window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
-            }}
+            type="button"
+            onClick={handleShareWhatsApp}
             className="px-3 py-1.5 rounded-xl bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-500/40 text-xs font-bold text-emerald-300 transition-all cursor-pointer flex items-center gap-1.5"
           >
             <Share2 className="w-3.5 h-3.5" />
@@ -152,7 +178,7 @@ export function AuctionLobbyView({
         </div>
       </div>
 
-      {/* 2. AYARLAR KARTLARI */}
+      {/* 2. AYARLAR KARTLARI (Bütçe & Reyting Aralığı) */}
       <AuctionLobbySettingsCards
         settings={state.settings}
         isHost={isHost}
@@ -160,15 +186,16 @@ export function AuctionLobbyView({
       />
 
       {!isHost && (
-        <p className="text-xs text-zinc-400 italic">
-          * Ayarları yalnızca oda sahibi değiştirebilir ve oyunu başlatabilir.
+        <p className="text-xs text-zinc-400">
+          * Ayarları yalnızca oda sahibi düzenleyebilir ve oyunu başlatabilir.
         </p>
       )}
 
-      {/* 3. OYUNU BAŞLAT BUTONU (Dönme Efektli Spinner ile) */}
+      {/* 3. OYUNU BAŞLAT BUTONU */}
       <div className="w-full flex justify-center pt-2">
         {isHost ? (
           <button
+            type="button"
             onClick={() => {
               setIsStarting(true);
               onStartGame();

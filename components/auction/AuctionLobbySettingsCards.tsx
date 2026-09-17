@@ -3,13 +3,12 @@
 /**
  * Müzayede Lobisi Ayar Kartları.
  * - Başlangıç Bütçesi Kaydırıcısı ($20M - $100M)
- * - Baştan ve Sondan Çekilebilen Çift Uçlu (Dual-Thumb) Reyting Aralığı Kaydırıcısı (67 - 99 OVR)
+ * - Baştan ve Sondan Çekilebilen Çift Uçlu (Dual-Thumb) Reyting Aralığı Kaydırıcısı (67 - 96 OVR)
  */
 
 import React from "react";
 import { AuctionLobbySettings } from "@/lib/auction/auctionTypes";
-import { Coins, Sparkles, Users } from "lucide-react";
-
+import { Coins, Sparkles } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 
 interface AuctionLobbySettingsCardsProps {
@@ -26,56 +25,9 @@ export function AuctionLobbySettingsCards({
   const minPercent = Math.min(100, Math.max(0, ((settings.ratingMin - 67) / 29) * 100));
   const maxPercent = Math.min(100, Math.max(0, ((settings.ratingMax - 67) / 29) * 100));
   const rangeWidth = Math.max(0, maxPercent - minPercent);
-  const playerCount = settings.playerCount || 4;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
-      {/* 1. Lobi Kapasitesi Kartı (2 - 8 Kişi) */}
-      <div className="p-5 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-xl flex flex-col justify-between gap-4">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-extrabold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-            <Users className="w-4 h-4 text-cyan-400" />
-            Lobi Kapasitesi
-          </span>
-          <span className="px-3 py-1 rounded-lg bg-cyan-950/50 border border-cyan-500/40 text-cyan-300 font-mono font-black text-sm">
-            {playerCount} Oyuncu
-          </span>
-        </div>
-
-        <div className="flex flex-col gap-2.5">
-          <Slider
-            min={2}
-            max={8}
-            step={1}
-            disabled={!isHost}
-            value={[playerCount]}
-            onValueChange={(val) => onUpdateSettings({ playerCount: val[0] })}
-            className={`w-full ${isHost ? "cursor-pointer" : "opacity-60 cursor-not-allowed"}`}
-          />
-          <div className="flex justify-between items-center text-[11px] text-zinc-500 font-mono">
-            <span>Min: 2</span>
-            {isHost && (
-              <div className="flex flex-wrap gap-1 font-sans justify-end">
-                {[2, 3, 4, 6, 8].map((cnt) => (
-                  <button
-                    key={cnt}
-                    type="button"
-                    onClick={() => onUpdateSettings({ playerCount: cnt })}
-                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition-colors cursor-pointer ${
-                      playerCount === cnt
-                        ? "bg-cyan-500/30 border-cyan-400 text-cyan-200"
-                        : "bg-white/5 border-white/10 text-zinc-400 hover:text-white"
-                    }`}
-                  >
-                    {cnt}P
-                  </button>
-                ))}
-              </div>
-            )}
-            <span>Maks: 8</span>
-          </div>
-        </div>
-      </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
       {/* 1. Başlangıç Bütçesi Kartı */}
       <div className="p-5 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-xl flex flex-col justify-between gap-4">
         <div className="flex items-center justify-between">
@@ -105,6 +57,7 @@ export function AuctionLobbySettingsCards({
                 {[20, 30, 50, 100].map((amt) => (
                   <button
                     key={amt}
+                    type="button"
                     onClick={() => onUpdateSettings({ startingBudget: amt })}
                     className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition-colors cursor-pointer ${
                       settings.startingBudget === amt
@@ -122,7 +75,7 @@ export function AuctionLobbySettingsCards({
         </div>
       </div>
 
-      {/* 2. Reyting Aralığı Kartı (Tek Çubukta İki Uçtan Sürüklenebilir Dual-Thumb Slider) */}
+      {/* 2. Reyting Aralığı Kartı (Dual-Thumb Slider) */}
       <div className="p-5 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-xl flex flex-col justify-between gap-4">
         <div className="flex items-center justify-between">
           <span className="text-xs font-extrabold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
@@ -137,10 +90,8 @@ export function AuctionLobbySettingsCards({
         <div className="flex flex-col gap-2.5">
           {/* Çift Uçlu (Dual-Thumb) Kaydırıcı Çubuğu */}
           <div className="relative w-full h-8 flex items-center">
-            {/* Arka plan rayı */}
             <div className="absolute w-full h-2 rounded-full bg-zinc-800/90 border border-white/10" />
 
-            {/* Seçilen aralığı vurgulayan yeşil çizgi */}
             <div
               className="absolute h-2 rounded-full bg-gradient-to-r from-emerald-500 to-green-400 shadow-[0_0_10px_rgba(16,185,129,0.6)]"
               style={{
@@ -195,6 +146,7 @@ export function AuctionLobbySettingsCards({
                 ].map((preset) => (
                   <button
                     key={preset.label}
+                    type="button"
                     onClick={() => onUpdateSettings({ ratingMin: preset.min, ratingMax: preset.max })}
                     className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition-colors cursor-pointer ${
                       settings.ratingMin === preset.min && settings.ratingMax === preset.max
@@ -210,8 +162,8 @@ export function AuctionLobbySettingsCards({
             <span>Maks: {settings.ratingMax}</span>
           </div>
 
-          <span className="text-[10px] text-zinc-500 italic">
-            * En yüksek prime futbolcu 96 OVR&apos;dir (Ronaldo, Messi). Yetersiz dar aralıklarda havuz otomatik olarak en iyi yıldızlarla güvenceye alınır.
+          <span className="text-[10px] text-zinc-500">
+            * En yüksek prime futbolcu 96 OVR&apos;dir (Ronaldo, Messi). Dar aralıklarda havuz otomatik dengelenir.
           </span>
         </div>
       </div>
