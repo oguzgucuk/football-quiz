@@ -43,7 +43,7 @@ export function getSlotCorridor(
 
 /**
  * İki takımın tempo tercihlerini GEN güçlerine göre ağırlıklandırarak
- * maçtaki toplam pozisyon sayısını belirler (10 ile 18 arası, taban 14).
+ * maçtaki toplam pozisyon sayısını belirler (16 ile 24 arası, taban 20).
  */
 export function calculateMatchTempo(homeLineup: TeamLineup, awayLineup: TeamLineup): number {
   const homeOvr = Math.max(40, homeLineup.teamOvr || 70);
@@ -56,7 +56,7 @@ export function calculateMatchTempo(homeLineup: TeamLineup, awayLineup: TeamLine
     (homeOvr * (deltaMap[homeTactics.tempo] ?? 0) + awayOvr * (deltaMap[awayTactics.tempo] ?? 0)) /
     (homeOvr + awayOvr);
 
-  return Math.round(clamp(14 + weightedDelta, 10, 18));
+  return Math.round(clamp(20 + weightedDelta, 16, 24));
 }
 
 /**

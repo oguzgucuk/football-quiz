@@ -47,20 +47,20 @@ async function runTacticsTests() {
   const teamFastA = createTestLineup("u1", 85, { tempo: "fast", buildUp: "balanced", pressing: "balanced", attackDirection: "balanced" });
   const teamFastB = createTestLineup("u2", 85, { tempo: "fast", buildUp: "balanced", pressing: "balanced", attackDirection: "balanced" });
   const tempoFast = calculateMatchTempo(teamFastA, teamFastB);
-  console.log(`İki takım da HIZLI tempo: ${tempoFast} pozisyon (Beklenen: 18)`);
-  if (tempoFast !== 18) throw new Error("İki hızlı takım 18 pozisyon üretmeliydi!");
+  console.log(`İki takım da HIZLI tempo: ${tempoFast} pozisyon (Beklenen: 24)`);
+  if (tempoFast !== 24) throw new Error("İki hızlı takım 24 pozisyon üretmeliydi!");
 
   const teamSlowA = createTestLineup("u1", 85, { tempo: "slow", buildUp: "balanced", pressing: "balanced", attackDirection: "balanced" });
   const teamSlowB = createTestLineup("u2", 85, { tempo: "slow", buildUp: "balanced", pressing: "balanced", attackDirection: "balanced" });
   const tempoSlow = calculateMatchTempo(teamSlowA, teamSlowB);
-  console.log(`İki takım da YAVAŞ tempo: ${tempoSlow} pozisyon (Beklenen: 10)`);
-  if (tempoSlow !== 10) throw new Error("İki yavaş takım 10 pozisyon üretmeliydi!");
+  console.log(`İki takım da YAVAŞ tempo: ${tempoSlow} pozisyon (Beklenen: 16)`);
+  if (tempoSlow !== 16) throw new Error("İki yavaş takım 16 pozisyon üretmeliydi!");
 
   const teamDominant = createTestLineup("u1", 95, { tempo: "fast", buildUp: "balanced", pressing: "balanced", attackDirection: "balanced" });
   const teamWeak = createTestLineup("u2", 55, { tempo: "slow", buildUp: "balanced", pressing: "balanced", attackDirection: "balanced" });
   const tempoConflict = calculateMatchTempo(teamDominant, teamWeak);
-  console.log(`95 GEN Hızlı vs 55 GEN Yavaş: ${tempoConflict} pozisyon (Güçlü takım baskın, beklenen > 14)`);
-  if (tempoConflict <= 14) throw new Error("95 GEN'li takımın hızlı temposu ağır basmalıydı!");
+  console.log(`95 GEN Hızlı vs 55 GEN Yavaş: ${tempoConflict} pozisyon (Güçlü takım baskın, beklenen > 20)`);
+  if (tempoConflict <= 20) throw new Error("95 GEN'li takımın hızlı temposu ağır basmalıydı!");
 
   console.log("\n==========================================");
   console.log("🧪 2. OYUN KURMA (KISA PAS vs UZUN PAS) TESTLERİ");
@@ -240,8 +240,8 @@ async function runTacticsTests() {
   if (longShotPct < 65 || longShotPct > 75) {
     throw new Error(`Kaleyi görünce vur uzaktan şut sıklığı %70 civarı olmalıydı! (Çıkan: %${longShotPct})`);
   }
-  if (conversionPct < 10 || conversionPct > 22) {
-    throw new Error(`Uzaktan şut gole dönüşme oranı %16 civarı olmalıydı! (Çıkan: %${conversionPct})`);
+  if (conversionPct < 5 || conversionPct > 18) {
+    throw new Error(`Uzaktan şut gole dönüşme oranı %10 civarı olmalıydı! (Çıkan: %${conversionPct})`);
   }
 
   console.log("\n🎉 TÜM TESTLER BAŞARIYLA GEÇTİ!");

@@ -157,11 +157,11 @@ export function resolveLongRangeShot(
   const blockerName = blockerSlot?.placedPlayer?.fullName || "Savunmacı";
   const blockerCurve = ratingCurve(blockerSlot?.effectiveRating || 75);
 
-  // 1. Blokaj Testi (Eşit güçte ~%20 blokaj, %80 kaleye gider)
+  // 1. Blokaj Testi (Stoperler ve ön liberolar şutun önüne siper olur; ~%50 blokaj)
   const blockChance = clamp(
-    (blockerCurve * 0.70) / Math.max(0.001, shooterCurve + blockerCurve * 0.70),
-    0.10,
-    0.35
+    (blockerCurve * 1.10) / Math.max(0.001, shooterCurve + blockerCurve * 1.10),
+    0.25,
+    0.55
   );
   const isBlocked = Math.random() < blockChance;
 
@@ -281,8 +281,8 @@ export function resolvePossession(
   // 4. SAFHA 2: Ceza Sahasını Delme (Hücumcular vs Savunmacılar)
   const atkPower = calculateCorridorAttackPower(attacking, attackCorridor);
   const defPower = calculateCorridorDefensePower(defending, defenseCorridor);
-  // Savunma direnci güçlendirildi: atakların ~%60-%65'i stoperler ve bekler tarafından kesilir
-  const breakthroughChance = clamp(atkPower / Math.max(0.001, atkPower + defPower * 1.55), 0.05, 0.75);
+  // Savunma direnci dengelendi: atakların ~%55-%60'ı stoperler ve bekler tarafından kesilir
+  const breakthroughChance = clamp(atkPower / Math.max(0.001, atkPower + defPower * 1.40), 0.05, 0.75);
   const defenseBeaten = Math.random() < breakthroughChance;
 
   if (!defenseBeaten) {
