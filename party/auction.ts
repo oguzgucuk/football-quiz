@@ -22,6 +22,7 @@ import {
   applyBid,
   applyPass,
   advanceAuctionCard,
+  finishSoldCelebration,
 } from "../lib/auction/auctionRoomEngine";
 import { createInitialSlotsForFormation } from "../lib/auction/formationTemplates";
 import { calculateLineupPowers, calculateSlotRating } from "../lib/auction/positionSuitability";
@@ -238,10 +239,10 @@ export default class AuctionPartyServer implements Party.Server {
   }
 
   private handlePass(userId: string) {
-    if (this.state.status !== "auction" || !this.state.participants[userId]) return;
+    if (this.state.status !== "auction" || this.state.isSoldCelebration || !this.state.participants[userId]) return;
     this.state = applyPass(this.state, userId);
 
-    const activeBidders = Object.values(this.state.participants).filter((p) => p.squad.length < 11);
+    const activeBidders = Object.values(this.state.participants).filter((p) => p.squad.length < 14);
     const passedCount = this.state.passedUserIds.length;
 
     if (passedCount >= activeBidders.length - 1 && this.state.currentHighestBid) {
@@ -440,12 +441,25 @@ export default class AuctionPartyServer implements Party.Server {
 
     this.timerInterval = setInterval(() => {
       if (this.state.status === "auction") {
-        if (this.state.secondsLeft <= 1) {
-          this.state = advanceAuctionCard(this.state);
-          this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
+        if (this.state.isSoldCelebration) {
+          if (
+            this.state.secondsLeft <= 1 ||
+            (this.state.soldCelebrationUntil && Date.now() >= this.state.soldCelebrationUntil)
+          ) {
+            this.state = finishSoldCelebration(this.state);
+            this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
+          } else {
+            this.state.secondsLeft--;
+            this.broadcast({ type: "AUCTION_TIMER_TICK", secondsLeft: this.state.secondsLeft });
+          }
         } else {
-          this.state.secondsLeft--;
-          this.broadcast({ type: "AUCTION_TIMER_TICK", secondsLeft: this.state.secondsLeft });
+          if (this.state.secondsLeft <= 1) {
+            this.state = advanceAuctionCard(this.state);
+            this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
+          } else {
+            this.state.secondsLeft--;
+            this.broadcast({ type: "AUCTION_TIMER_TICK", secondsLeft: this.state.secondsLeft });
+          }
         }
       } else if (this.state.status === "tactics") {
         if (this.state.secondsLeft <= 1) {

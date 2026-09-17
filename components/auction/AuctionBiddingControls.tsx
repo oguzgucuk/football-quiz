@@ -71,7 +71,7 @@ export function AuctionBiddingControls({
       {isGkBlocked && !isCooldownActive && (
         <div className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-amber-950/80 border border-amber-500/60 text-amber-300 font-bold text-xs shadow-md">
           <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
-          <span>Maksimum 1 Kaleci: Kadronuzda zaten bir kaleci bulunuyor.</span>
+          <span>Maksimum 2 Kaleci: Kadronuzda zaten 2 kaleci bulunuyor.</span>
         </div>
       )}
 

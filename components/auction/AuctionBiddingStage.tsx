@@ -2,11 +2,9 @@
 
 /**
  * Müzayede Canlı Teklif Ekranı.
- * - Sol taraf: Kadrom (MySquadDrawer)
- * - Orta taraf: Vitrindeki futbolcu kartı, mevcut lider teklif ve teklif aksiyonları (AuctionBiddingControls)
- * - Sağ taraf: Rakip kadrolar (AuctionBiddingOpponentCard)
- * Yeni tura geçildiğinde 1 saniyelik geçiş tamponu (cooldown) ile önceki turlardan kalan
- * geç tekliflerin sonraki oyuncuya aktarılması önlenir.
+ * - Sol: Kadrom (MySquadDrawer)
+ * - Orta: Vitrin (AuctionShowcaseCard) + Teklif Alanı veya 2 Sn Satış Kutlaması (AuctionSoldCelebrationCard)
+ * - Sağ: Rakip kadrolar (AuctionBiddingOpponentCard)
  */
 
 import React, { useState, useEffect } from "react";
@@ -18,6 +16,8 @@ import { MySquadDrawer } from "./MySquadDrawer";
 import { AuctionBiddingOpponentCard } from "./AuctionBiddingOpponentCard";
 import { AuctionSalesHistoryDropdown } from "./AuctionSalesHistoryDropdown";
 import { AuctionBiddingControls } from "./AuctionBiddingControls";
+import { AuctionSoldCelebrationCard } from "./AuctionSoldCelebrationCard";
+import { AuctionShowcaseCard } from "./AuctionShowcaseCard";
 
 interface AuctionBiddingStageProps {
   state: AuctionRoomState;
@@ -72,8 +72,8 @@ export function AuctionBiddingStage({
 
   const isMyHighestBid = currentBidderId === currentUserId;
   const hasPassed = state.passedUserIds.includes(currentUserId);
-  const isSquadFull = (myParticipant?.squad.length || 0) >= 11;
-  const isGkBlocked = isGoalkeeper(card) && (myParticipant?.squad.some(isGoalkeeper) ?? false);
+  const isSquadFull = (myParticipant?.squad.length || 0) >= 14;
+  const isGkBlocked = isGoalkeeper(card) && ((myParticipant?.squad.filter(isGoalkeeper).length || 0) >= 2);
 
   const handleQuickAdd = (delta: number) => {
     onPlaceBid(currentBid + delta, state.currentCardIndex, card?.id);
@@ -83,11 +83,9 @@ export function AuctionBiddingStage({
     onPlaceBid(amount, state.currentCardIndex, card?.id);
   };
 
-  const cardTier = card ? getRatingTier(card.overallPrime) : null;
-
   return (
     <div className="relative w-full flex flex-col gap-5 select-none animate-fadeIn">
-      {/* Üst Bilgi Çubuğu: Tur & Elmas Sayısı + Ortalanmış Sayaç + Son Satış Dropdown */}
+      {/* Üst Bilgi Çubuğu */}
       <div className="relative z-30 flex items-center justify-between p-3 px-5 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-md gap-4 min-h-[58px]">
         <div className="flex items-center gap-2.5 flex-1 min-w-0">
           <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-emerald-400 bg-emerald-950/80 px-3 py-1.5 rounded-xl border border-emerald-500/40 shrink-0">
@@ -126,80 +124,62 @@ export function AuctionBiddingStage({
           <MySquadDrawer participant={myParticipant} isMyHighestBid={isMyHighestBid} />
         )}
 
-        {/* ORTA BÖLGE (Vitrin & Teklifler) */}
-        <div className={`${isSpectator ? "lg:col-span-5" : "lg:col-span-4"} flex flex-col gap-4 p-5 rounded-3xl bg-black/50 border border-white/10 backdrop-blur-2xl shadow-2xl`}>
-          {card && cardTier ? (
-            <div className={`relative overflow-hidden flex items-center gap-5 p-5 sm:p-6 rounded-3xl bg-gradient-to-r ${cardTier.glowGradient} border-2 ${cardTier.cardBorder} shadow-2xl transition-all duration-300`}>
-              <div className={`absolute -right-8 -top-8 size-44 rounded-full blur-3xl pointer-events-none opacity-40 ${cardTier.ambientBlur}`} />
-              <div className={`relative flex size-20 sm:size-22 shrink-0 items-center justify-center rounded-2xl ${cardTier.badgeClass} font-mono text-3xl sm:text-4xl font-black z-10 shadow-lg`}>
-                {card.overallPrime}
-                {cardTier.tier === "diamond" && (
-                  <span className="absolute -top-2 -right-2 flex size-6 items-center justify-center rounded-full bg-cyan-300 text-slate-950 shadow-md">
-                    <Gem className="size-3.5" />
-                  </span>
-                )}
-              </div>
-              <div className="flex flex-col min-w-0 flex-1 z-10">
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  <span className="text-xl sm:text-2xl font-black text-white tracking-tight">{card.fullName}</span>
-                  <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider ${cardTier.pillClass}`}>{cardTier.tierName}</span>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap mt-2">
-                  {card.positions.map((pos) => (
-                    <span key={pos} className="px-2.5 py-0.5 rounded-lg bg-white/10 border border-white/20 text-xs font-bold text-white font-mono shadow-sm">{pos}</span>
-                  ))}
-                  {card.nationality && <span className="text-xs sm:text-sm text-zinc-300 font-medium">• {card.nationality}</span>}
-                  {card.currentClub && <span className="text-xs sm:text-sm text-zinc-400 font-medium">• {card.currentClub}</span>}
-                </div>
-              </div>
-            </div>
+        {/* ORTA BÖLGE (2 Sn Satış Kutlaması veya Vitrin & Teklifler) */}
+        <div className={`${isSpectator ? "lg:col-span-7" : "lg:col-span-5"} flex flex-col gap-4 p-5 rounded-3xl bg-black/50 border border-white/10 backdrop-blur-2xl shadow-2xl`}>
+          {state.isSoldCelebration && state.lastSoldEvent ? (
+            <AuctionSoldCelebrationCard
+              soldEvent={state.lastSoldEvent}
+              secondsLeft={state.secondsLeft}
+            />
           ) : (
-            <div className="py-12 text-center text-zinc-500 font-bold text-sm">Kart Yükleniyor...</div>
+            <>
+              <AuctionShowcaseCard card={card} />
+
+              {/* MEVCUT TEKLİF */}
+              <div className="flex flex-col items-center justify-center py-5 px-6 rounded-3xl bg-black/60 border border-white/10 shadow-inner">
+                <span className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-1.5">Mevcut Teklif</span>
+                <div className="flex items-center gap-2 px-10 py-3 rounded-2xl bg-gradient-to-b from-yellow-950/50 via-yellow-900/30 to-black/80 border-2 border-yellow-400/80 text-yellow-300 font-mono font-black text-4xl sm:text-5xl shadow-[0_0_35px_rgba(250,204,21,0.35)]">
+                  {currentBid}M $
+                </div>
+                <div className="mt-3 flex items-center justify-center text-center">
+                  {isMyHighestBid ? (
+                    <div className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-yellow-400/20 border border-yellow-400/70 text-yellow-300 font-black text-sm sm:text-base shadow-xs">
+                      <Crown className="size-4 fill-yellow-400 text-yellow-400 shrink-0" />
+                      <span>En Yüksek Teklif Sende! Karşı tarafın hamlesi bekleniyor...</span>
+                    </div>
+                  ) : state.currentHighestBid ? (
+                    <div className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-white/10 border border-white/15 text-zinc-200 font-bold text-sm sm:text-base flex-wrap justify-center">
+                      <span className="text-zinc-400 font-medium">Lider Teklif Sahibi:</span>
+                      <span className="text-white font-black">{state.currentHighestBid.bidderUsername}</span>
+                      <span className="font-mono text-yellow-400 font-black">({currentBid}M $)</span>
+                    </div>
+                  ) : (
+                    <span className="text-sm font-bold text-zinc-500 tracking-wide">Henüz teklif verilmedi</span>
+                  )}
+                </div>
+              </div>
+
+              <AuctionBiddingControls
+                currentBid={currentBid}
+                isSpectator={isSpectator}
+                isGkBlocked={isGkBlocked}
+                isSquadFull={isSquadFull}
+                hasPassed={hasPassed}
+                isMyHighestBid={isMyHighestBid}
+                isCooldownActive={isCooldownActive}
+                onQuickAdd={handleQuickAdd}
+                onCustomSubmit={handleCustomSubmit}
+                onPass={onPass}
+              />
+            </>
           )}
-
-          {/* MEVCUT TEKLİF */}
-          <div className="flex flex-col items-center justify-center py-5 px-6 rounded-3xl bg-black/60 border border-white/10 shadow-inner">
-            <span className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-1.5">Mevcut Teklif</span>
-            <div className="flex items-center gap-2 px-10 py-3 rounded-2xl bg-gradient-to-b from-yellow-950/50 via-yellow-900/30 to-black/80 border-2 border-yellow-400/80 text-yellow-300 font-mono font-black text-4xl sm:text-5xl shadow-[0_0_35px_rgba(250,204,21,0.35)]">
-              {currentBid}M $
-            </div>
-            <div className="mt-3 flex items-center justify-center text-center">
-              {isMyHighestBid ? (
-                <div className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-yellow-400/20 border border-yellow-400/70 text-yellow-300 font-black text-sm sm:text-base shadow-xs">
-                  <Crown className="size-4 fill-yellow-400 text-yellow-400 shrink-0" />
-                  <span>En Yüksek Teklif Sende! Karşı tarafın hamlesi bekleniyor...</span>
-                </div>
-              ) : state.currentHighestBid ? (
-                <div className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-white/10 border border-white/15 text-zinc-200 font-bold text-sm sm:text-base flex-wrap justify-center">
-                  <span className="text-zinc-400 font-medium">Lider Teklif Sahibi:</span>
-                  <span className="text-white font-black">{state.currentHighestBid.bidderUsername}</span>
-                  <span className="font-mono text-yellow-400 font-black">({currentBid}M $)</span>
-                </div>
-              ) : (
-                <span className="text-sm font-bold text-zinc-500 tracking-wide">Henüz teklif verilmedi</span>
-              )}
-            </div>
-          </div>
-
-          <AuctionBiddingControls
-            currentBid={currentBid}
-            isSpectator={isSpectator}
-            isGkBlocked={isGkBlocked}
-            isSquadFull={isSquadFull}
-            hasPassed={hasPassed}
-            isMyHighestBid={isMyHighestBid}
-            isCooldownActive={isCooldownActive}
-            onQuickAdd={handleQuickAdd}
-            onCustomSubmit={handleCustomSubmit}
-            onPass={onPass}
-          />
         </div>
 
         {/* SAĞ BÖLGE (Rakip Kadrolar) */}
-        <div className={`${isSpectator ? "lg:col-span-7" : "lg:col-span-5"} flex flex-col gap-3 p-5 rounded-3xl bg-black/50 border border-white/10 backdrop-blur-2xl shadow-2xl`}>
+        <div className={`${isSpectator ? "lg:col-span-5" : "lg:col-span-4"} flex flex-col gap-3 p-5 rounded-3xl bg-black/50 border border-white/10 backdrop-blur-2xl shadow-2xl`}>
           <div className="flex items-center justify-between mb-1 pb-2 border-b border-white/10">
             <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Rakip Kadrolar</span>
-            <span className="text-xs text-zinc-500 font-mono font-bold">Hedef: 11 Oyuncu</span>
+            <span className="text-xs text-zinc-500 font-mono font-bold">Hedef: 14 Oyuncu</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {Object.values(state.participants)

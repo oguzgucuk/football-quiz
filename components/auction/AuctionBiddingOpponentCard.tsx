@@ -28,7 +28,7 @@ export function AuctionBiddingOpponentCard({
 }: AuctionBiddingOpponentCardProps) {
   const isSelf = participant.userId === currentUserId;
   const holdsHighest = currentBidderId === participant.userId;
-  const isAwaitingBid = !holdsHighest && !isPassed && participant.squad.length < 11;
+  const isAwaitingBid = !holdsHighest && !isPassed && participant.squad.length < 14;
 
   return (
     <div
@@ -72,7 +72,7 @@ export function AuctionBiddingOpponentCard({
           </span>
 
           <span className="text-xs font-mono font-bold text-zinc-300 bg-black/40 border border-white/10 px-2 py-1 rounded-lg">
-            {participant.squad.length}/11
+            {participant.squad.length}/14
           </span>
 
           <div

@@ -219,7 +219,11 @@ export interface AuctionRoomState {
   championUserId: string | null;
   lastSoldEvent?: AuctionSoldEvent | null;
   salesHistory?: AuctionSoldEvent[];
-  /** Yeni karta geçildiğinde son saniye tekliflerinin taşmasını önleyen 1 saniyelik geçiş tamponu (ms) */
+  /** Yeni karta geçildiğinde son saniye tekliflerinin taşmasını önleyen geçiş tamponu (ms) */
   bidCooldownUntil?: number;
+  /** Oyuncu satıldığında vitrinde 2 saniyelik kutlama/bilgilendirme gösteriliyor mu */
+  isSoldCelebration?: boolean;
+  /** Kutlamanın sona ereceği epoch zamanı (ms) */
+  soldCelebrationUntil?: number;
 }
 

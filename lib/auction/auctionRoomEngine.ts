@@ -9,6 +9,7 @@ import {
   AuctionParticipant,
   AuctionPlayerCard,
   AuctionBid,
+  AuctionSoldEvent,
 } from "./auctionTypes";
 
 export const DEFAULT_LOBBY_SETTINGS: AuctionLobbySettings = {
@@ -147,7 +148,12 @@ export function applyBid(
 ): { success: boolean; error?: string; state: AuctionRoomState } {
   const p = state.participants[bidderUserId];
   if (!p) return { success: false, error: "Oyuncu bulunamadı", state };
-  if (p.squad.length >= 11) return { success: false, error: "Kadronuz tamamlandı!", state };
+  if (p.squad.length >= 14) return { success: false, error: "Kadronuz tamamlandı!", state };
+
+  // Satış kutlama fazı (2 saniye): Oyuncu satıldığında vitrin kutlama durumundadır, teklif kabul edilmez
+  if (state.isSoldCelebration || (state.soldCelebrationUntil && Date.now() < state.soldCelebrationUntil)) {
+    return { success: false, error: "Oyuncu satıldı, yeni tur bekleniyor...", state };
+  }
 
   // Son saniye yarış koşulu koruması: Belirtilen kart ile anlık kart uyuşmalı
   if (cardIndex !== undefined && cardIndex !== state.currentCardIndex) {
@@ -157,17 +163,17 @@ export function applyBid(
     return { success: false, error: "Teklif önceki oyuncuya aitti, yeni tura yetişmedi.", state };
   }
 
-  // Yeni oyuncu geçiş tamponu (1 saniye): Son saniye tekliflerinin sonraki oyuncuya aktarılmasını önle
+  // Yeni oyuncu geçiş tamponu: Son saniye tekliflerinin sonraki oyuncuya aktarılmasını önle
   if (state.bidCooldownUntil && Date.now() < state.bidCooldownUntil) {
-    return { success: false, error: "Yeni oyuncu açılıyor, lütfen 1 saniye bekleyin.", state };
+    return { success: false, error: "Yeni oyuncu açılıyor, lütfen bekleyin.", state };
   }
 
-  // Kaleci Limiti: En fazla 1 kaleci transfer edilebilir
+  // Kaleci Limiti: Her takım en fazla 2 kaleci transfer edebilir
   const isCurrentCardGk = isGoalkeeper(state.currentCard);
-  if (isCurrentCardGk && p.squad.some(isGoalkeeper)) {
+  if (isCurrentCardGk && p.squad.filter(isGoalkeeper).length >= 2) {
     return {
       success: false,
-      error: "Zaten bir kaleciniz var! Bir takımda en fazla 1 kaleci bulunabilir.",
+      error: "Zaten 2 kaleciniz var! Bir takımda en fazla 2 kaleci bulunabilir.",
       state,
     };
   }
@@ -177,8 +183,8 @@ export function applyBid(
     return { success: false, error: "Teklif mevcut tekliften yüksek olmalıdır", state };
   }
 
-  // İflas Güvenliği: Kalan her boş oyuncu için en az 1$ saklanmalı
-  const neededPlayers = 11 - p.squad.length;
+  // İflas Güvenliği: Kalan her boş oyuncu için en az 1$ saklanmalı (14 oyuncu hedefi)
+  const neededPlayers = 14 - p.squad.length;
   const reserveNeeded = Math.max(0, neededPlayers - 1);
   const maxAllowedBid = p.budget - reserveNeeded;
 
@@ -238,7 +244,7 @@ export function advanceAuctionCard(state: AuctionRoomState): AuctionRoomState {
     };
   }
 
-  const soldEvent = {
+  const soldEvent: AuctionSoldEvent = {
     playerName: state.currentCard.fullName,
     buyerUserId: winnerId,
     buyerUsername: winner?.username || state.currentHighestBid.bidderUsername || "Oyuncu",
@@ -247,21 +253,34 @@ export function advanceAuctionCard(state: AuctionRoomState): AuctionRoomState {
     timestamp: Date.now(),
   };
 
-  return finishOrNextTurn({
+  // 2 Saniyelik Satış Bildirim & Kutlama Durumu:
+  // Kart henüz değiştirilmez; butonlar gizlenir ve ortada satış kartı gösterilir.
+  return {
     ...state,
     participants: updatedParticipants,
     lastSoldEvent: soldEvent,
     salesHistory: [...(state.salesHistory || []), soldEvent],
+    isSoldCelebration: true,
+    soldCelebrationUntil: Date.now() + 2000,
+    secondsLeft: 2,
+  };
+}
+
+export function finishSoldCelebration(state: AuctionRoomState): AuctionRoomState {
+  return finishOrNextTurn({
+    ...state,
+    isSoldCelebration: false,
+    soldCelebrationUntil: undefined,
   });
 }
 
 function finishOrNextTurn(state: AuctionRoomState): AuctionRoomState {
   const activeBidders = Object.values(state.participants).filter(
-    (p) => Boolean(p.userId && p.userId.trim()) && p.squad.length < 11
+    (p) => Boolean(p.userId && p.userId.trim()) && p.squad.length < 14
   );
 
-  // Odadaki aktif oyuncuların kaleciye ihtiyacı var mı?
-  const anyActiveNeedsGk = activeBidders.some((p) => !p.squad.some(isGoalkeeper));
+  // Odadaki aktif oyuncuların kaleciye ihtiyacı var mı? (Her oyuncu en fazla 2 kaleci alabilir)
+  const anyActiveNeedsGk = activeBidders.some((p) => p.squad.filter(isGoalkeeper).length < 2);
 
   // Sıradaki uygun kartı bul: Eğer kart kaleciyse ve kimsenin kaleciye ihtiyacı kalmadıysa o kartı doğrudan atla!
   let nextCardIndex = state.currentCardIndex + 1;
@@ -305,9 +324,9 @@ function finishOrNextTurn(state: AuctionRoomState): AuctionRoomState {
   for (let i = 0; i < total; i++) {
     const candId = validTurnOrder[(startSearch + i) % total];
     const cand = candId ? state.participants[candId] : null;
-    if (cand && cand.squad.length < 11) {
-      if (isNextCardGk && cand.squad.some(isGoalkeeper)) {
-        continue; // Zaten kalecisi varsa asla bu kalecinin açılış teklifçisi olamaz!
+    if (cand && cand.squad.length < 14) {
+      if (isNextCardGk && cand.squad.filter(isGoalkeeper).length >= 2) {
+        continue; // 2 kalecisi dolmuş oyuncu yeni kalecinin açılış teklifçisi olamaz!
       }
       nextTurnUserId = candId;
       break;
@@ -316,7 +335,7 @@ function finishOrNextTurn(state: AuctionRoomState): AuctionRoomState {
 
   if (!nextTurnUserId && activeBidders.length > 0) {
     if (isNextCardGk) {
-      const bidderWithoutGk = activeBidders.find((b) => !b.squad.some(isGoalkeeper));
+      const bidderWithoutGk = activeBidders.find((b) => b.squad.filter(isGoalkeeper).length < 2);
       if (bidderWithoutGk) {
         nextTurnUserId = bidderWithoutGk.userId;
       }
@@ -345,5 +364,7 @@ function finishOrNextTurn(state: AuctionRoomState): AuctionRoomState {
     passedUserIds: [],
     secondsLeft: 8,
     bidCooldownUntil: Date.now() + 1000, // 1 saniyelik geçiş tamponu
+    isSoldCelebration: false,
+    soldCelebrationUntil: undefined,
   };
 }

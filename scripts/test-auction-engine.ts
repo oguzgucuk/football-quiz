@@ -9,7 +9,7 @@ import { FORMATION_CONFIGS, createInitialSlotsForFormation } from "../lib/auctio
 import { simulateMatch } from "../lib/auction/simulateMatch";
 import { generateLeagueFixtures, calculateStandings, simulateEntireTournament } from "../lib/auction/auctionTournament";
 import { AuctionPlayerCard, TeamLineup, PitchPosition, AuctionRoomState } from "../lib/auction/auctionTypes";
-import { startAuctionStage, applyBid, advanceAuctionCard } from "../lib/auction/auctionRoomEngine";
+import { startAuctionStage, applyBid, advanceAuctionCard, finishSoldCelebration } from "../lib/auction/auctionRoomEngine";
 
 async function runTests() {
   console.log("==========================================");
@@ -18,16 +18,20 @@ async function runTests() {
 
   const pool = await generateAuctionPool({
     playerCount: 2,
-    ratingMin: 75,
+    ratingMin: 70,
     ratingMax: 99,
   });
 
-  console.log(`✅ 2 Kişilik Havuz Boyutu: ${pool.length} (Beklenen: 22)`);
-  if (pool.length !== 22) throw new Error("Havuz boyutu 22 olmalıydı!");
+  console.log(`✅ 2 Kişilik Havuz Boyutu: ${pool.length} (Beklenen: 28)`);
+  if (pool.length !== 28) throw new Error("Havuz boyutu 28 olmalıydı!");
 
   const gks = pool.filter((p) => p.positions.includes("GK"));
-  console.log(`✅ Kaleci Sayısı: ${gks.length} (En az 2 olmalı)`);
-  if (gks.length < 2) throw new Error("Yetersiz kaleci!");
+  console.log(`✅ Kaleci Sayısı: ${gks.length} (En az 4 olmalı - kişi başı 2 kaleci)`);
+  if (gks.length < 4) throw new Error("Yetersiz kaleci!");
+
+  const diamonds = pool.filter((p) => p.overallPrime >= 90);
+  console.log(`✅ Elmas Oyuncu Sayısı (90+): ${diamonds.length} / ${pool.length} (Beklenen: ~3 adet)`);
+  if (diamonds.length > 5) throw new Error("Havuzda çok fazla elmas var! Dengeleme çalışmadı.");
 
   console.log("Örnek Havuz Oyuncuları:");
   pool.slice(0, 5).forEach((p, i) => {
@@ -177,33 +181,57 @@ async function runTests() {
   roomState = bidRes1.state;
   console.log("✅ Kart 0 (Messi): 21$ teklif kabul edildi.");
 
-  // Kart 0 süresi biter veya herkes pas geçer, sıradaki karta (Mbappe) geçilir
+  // Kart 0 süresi biter veya herkes pas geçer -> 2 SANİYELİK SATIŞ KUTLAMASI BAŞLAR
   roomState = advanceAuctionCard(roomState);
+  console.log(`✅ Kart satıldı! 2 saniyelik kutlama başladı: isSoldCelebration=${roomState.isSoldCelebration}, Son Satılan=${roomState.lastSoldEvent?.playerName} (${roomState.lastSoldEvent?.amount}$)`);
+  if (!roomState.isSoldCelebration) throw new Error("isSoldCelebration true olmalıydı!");
+
+  // SENARYO A: 2 saniyelik kutlama esnasında teklif verilmeye çalışıldı
+  const duringCelebrationBid = applyBid(roomState, "user2", 25, 0, "messi");
+  if (duringCelebrationBid.success) {
+    throw new Error("HATA! 2 saniyelik kutlama esnasında teklif kabul edildi!");
+  }
+  console.log("✅ KORUMA 1 BAŞARILI: Satış kutlamasında teklif reddedildi ->", duringCelebrationBid.error);
+
+  // 2 saniyelik kutlama biter, sıradaki karta geçilir
+  roomState = finishSoldCelebration(roomState);
   console.log(`✅ Kart 1'e geçildi: ${roomState.currentCard?.fullName} - Mevcut Teklif: ${roomState.currentHighestBid?.amount}$`);
   if (roomState.currentCardIndex !== 1) throw new Error("Kart indeksi 1 olmalıydı!");
   if (roomState.currentHighestBid?.amount !== 1) throw new Error("Yeni kart 1$ ile başlamalıydı!");
 
-  // SENARYO A: Mehmet son saniyede Messi'ye (Kart 0) 22$ teklif göndermişti, ağ gecikmesiyle yeni kartta geldi
+  // SENARYO B: Eski karta (Kart 0) ait son saniye teklifi yeni kartta gecikmeli geldi
   const staleBid = applyBid(roomState, "user2", 22, 0, "messi");
   if (staleBid.success) {
     throw new Error("HATA! Eski karta ait son saniye teklifi yeni karta aktarıldı!");
   }
-  console.log("✅ KORUMA 1 BAŞARILI: Önceki karta ait geç teklif reddedildi ->", staleBid.error);
+  console.log("✅ KORUMA 2 BAŞARILI: Önceki karta ait geç teklif reddedildi ->", staleBid.error);
 
-  // SENARYO B: Yeni kart açılır açılmaz (cooldown süresi içinde) teklif verilmeye çalışıldı
-  const cooldownBid = applyBid(roomState, "user2", 15, 1, "mbappe");
-  if (cooldownBid.success) {
-    throw new Error("HATA! 1 saniyelik geçiş tamponu sırasında teklif kabul edildi!");
-  }
-  console.log("✅ KORUMA 2 BAŞARILI: 1 saniyelik geçiş tamponu teklifi engelledi ->", cooldownBid.error);
-
-  // SENARYO C: 1 saniye geçtikten sonra normal teklif verilir
-  roomState.bidCooldownUntil = Date.now() - 50; // 1 saniye geçtiğini simüle et
+  // SENARYO C: 1 saniyelik geçiş tamponu sonrasında geçerli teklif
+  roomState.bidCooldownUntil = Date.now() - 50;
   const validBid = applyBid(roomState, "user2", 5, 1, "mbappe");
   if (!validBid.success) {
     throw new Error("1 saniye sonra geçerli teklif reddedildi: " + validBid.error);
   }
-  console.log(`✅ KORUMA 3 BAŞARILI: Cooldown sonrası yeni kart teklifi (5$) kabul edildi. (Yeni Fiyat: ${validBid.state.currentHighestBid?.amount}$)`);
+  console.log(`✅ KORUMA 3 BAŞARILI: Yeni kart teklifi (5$) kabul edildi. (Yeni Fiyat: ${validBid.state.currentHighestBid?.amount}$)`);
+
+  // SENARYO D: Kaleci Kontenjanı Testi (2 Kaleciye Kadar İzin Verilir, 3. Kaleci Engellenir)
+  let gkRoomState = { ...roomState };
+  gkRoomState.participants.user1.squad = [
+    { id: "gk1", fullName: "Kaleci 1", overallPrime: 85, positions: ["GK"] },
+    { id: "gk2", fullName: "Kaleci 2", overallPrime: 82, positions: ["GK"] },
+  ];
+  gkRoomState.currentCardIndex = 2;
+  gkRoomState.bidCooldownUntil = Date.now() - 50;
+  gkRoomState.currentCard = { id: "gk3", fullName: "Kaleci 3", overallPrime: 80, positions: ["GK"] };
+  gkRoomState.currentHighestBid = { amount: 1, bidderUserId: "user2", bidderUsername: "Mehmet", timestamp: Date.now(), cardIndex: 2, cardId: "gk3" };
+  const thirdGkBid = applyBid(gkRoomState, "user1", 3, 2, "gk3");
+  if (thirdGkBid.success) {
+    throw new Error("HATA! 2 kalecisi olan oyuncuya 3. kaleci teklifi kabul edildi!");
+  }
+  if (!thirdGkBid.error?.includes("2 kaleciniz")) {
+    throw new Error("Beklenen 2 kaleci hatası gelmedi: " + thirdGkBid.error);
+  }
+  console.log("✅ KORUMA 4 BAŞARILI: 3. kaleci teklifi engellendi ->", thirdGkBid.error);
 
   console.log("\n🎉 TÜM TESTLER BAŞARIYLA GEÇTİ!");
 }

@@ -64,71 +64,71 @@ export function partitionSpan(span: number, parts: number, weights: number[]): n
 }
 
 /**
- * Lobide seçilen reyting aralığını dengeli kotalara sahip 4 (veya dar aralıklarda 2-3) kademeye böler.
+ * Lobide seçilen reyting aralığını dengeli taktiksel piramide böler:
+ * - 💎 Elmas (90+ OVR): Toplam havuzun %10-12'si ile sınırlandırılır (~1.5 adet/oyuncu).
+ * - 🥇 Üst Altın (85-89 OVR): %28
+ * - 🥈 Normal Altın (80-84 OVR): %40
+ * - 🥉 Taban / Fırsat (75-79 OVR): %21
  */
 export function calculateRatingTiers(
   ratingMin: number,
   ratingMax: number,
   targetTotal: number
 ): RatingTier[] {
-  const span = ratingMax - ratingMin + 1;
+  // Eğer tavan 90 veya üstüyse Elmas kademesi (90+) havuzun %11'i ile sınırlandırılır
+  if (ratingMax >= 90) {
+    const diamondMin = 90;
+    const diamondMax = ratingMax;
+    // Havuzun %11'i (28 kartta 3, 56 kartta 6)
+    const diamondCount = Math.max(1, Math.round(targetTotal * 0.11));
 
-  if (span >= 4) {
-    // 4 Kademeli Dağılım: T1 (%20 taban), T2 (%35 omurga), T3 (%30 yıldız), T4 (%15 zirve)
-    const parts = partitionSpan(span, 4, [0.25, 0.35, 0.25, 0.15]);
+    const remainingCount = targetTotal - diamondCount;
+    const subMax = 89;
+    const subMin = Math.min(ratingMin, subMax);
+    const subSpan = subMax - subMin + 1;
 
-    const t1Min = ratingMin;
-    const t1Max = t1Min + parts[0] - 1;
+    if (subSpan >= 3 && subMin <= 84) {
+      const t3Min = 85;
+      const t3Max = 89;
+      const t3Count = Math.max(1, Math.round(targetTotal * 0.28));
 
-    const t2Min = t1Max + 1;
-    const t2Max = t2Min + parts[1] - 1;
+      const t2Min = 80;
+      const t2Max = 84;
+      const t2Count = Math.max(1, Math.round(targetTotal * 0.40));
 
-    const t3Min = t2Max + 1;
-    const t3Max = t3Min + parts[2] - 1;
+      const t1Min = subMin;
+      const t1Max = Math.max(subMin, 79);
+      const t1Count = Math.max(1, remainingCount - (t3Count + t2Count));
 
-    const t4Min = t3Max + 1;
-    const t4Max = ratingMax;
-
-    let t1Count = Math.max(1, Math.round(targetTotal * 0.20));
-    let t2Count = Math.max(1, Math.round(targetTotal * 0.35));
-    let t3Count = Math.max(1, Math.round(targetTotal * 0.30));
-    let t4Count = Math.max(1, targetTotal - (t1Count + t2Count + t3Count));
-
-    // 96+ reyting kademesinde veritabanında sadece 2 oyuncu (Messi ve Ronaldo) bulunmaktadır.
-    // Kotanın eksik kalmasını engellemek için t4'ü 2 ile sınırla, kalanı yıldızlar kademesine (Tier 3) aktar.
-    if (t4Min >= 96 && t4Count > 2) {
-      const excess = t4Count - 2;
-      t4Count = 2;
-      t3Count += excess;
+      return [
+        { id: "tier1", name: "Taban / Fırsat", min: t1Min, max: t1Max, targetRatio: 0.21, targetCount: t1Count },
+        { id: "tier2", name: "Normal Altın", min: t2Min, max: t2Max, targetRatio: 0.40, targetCount: t2Count },
+        { id: "tier3", name: "Üst Altın Omurga", min: t3Min, max: t3Max, targetRatio: 0.28, targetCount: t3Count },
+        { id: "tier4", name: "Zirve Elmas", min: diamondMin, max: diamondMax, targetRatio: 0.11, targetCount: diamondCount },
+      ];
+    } else {
+      const midPoint = Math.floor((subMin + subMax) / 2);
+      const t1Count = Math.round(remainingCount * 0.45);
+      const t2Count = Math.max(1, remainingCount - t1Count);
+      return [
+        { id: "tier1", name: "Taban", min: subMin, max: midPoint, targetRatio: 0.45, targetCount: t1Count },
+        { id: "tier2", name: "Omurga", min: midPoint + 1, max: subMax, targetRatio: 0.45, targetCount: t2Count },
+        { id: "tier4", name: "Zirve Elmas", min: diamondMin, max: diamondMax, targetRatio: 0.10, targetCount: diamondCount },
+      ];
     }
-
-    return [
-      { id: "tier1", name: "Taban / Fırsat", min: t1Min, max: t1Max, targetRatio: 0.20, targetCount: t1Count },
-      { id: "tier2", name: "Omurga Kadro", min: t2Min, max: t2Max, targetRatio: 0.35, targetCount: t2Count },
-      { id: "tier3", name: "Yıldızlar", min: t3Min, max: t3Max, targetRatio: 0.30, targetCount: t3Count },
-      { id: "tier4", name: "Zirve Elit", min: t4Min, max: t4Max, targetRatio: 0.15, targetCount: t4Count },
-    ];
-  } else if (span === 3) {
-    const t1Count = Math.max(1, Math.round(targetTotal * 0.30));
-    const t2Count = Math.max(1, Math.round(targetTotal * 0.40));
-    const t3Count = Math.max(1, targetTotal - (t1Count + t2Count));
-    return [
-      { id: "tier1", name: "Taban", min: ratingMin, max: ratingMin, targetRatio: 0.30, targetCount: t1Count },
-      { id: "tier2", name: "Orta", min: ratingMin + 1, max: ratingMin + 1, targetRatio: 0.40, targetCount: t2Count },
-      { id: "tier3", name: "Zirve", min: ratingMax, max: ratingMax, targetRatio: 0.30, targetCount: t3Count },
-    ];
-  } else if (span === 2) {
-    const t1Count = Math.max(1, Math.round(targetTotal * 0.50));
-    const t2Count = Math.max(1, targetTotal - t1Count);
-    return [
-      { id: "tier1", name: "Alt", min: ratingMin, max: ratingMin, targetRatio: 0.50, targetCount: t1Count },
-      { id: "tier2", name: "Üst", min: ratingMax, max: ratingMax, targetRatio: 0.50, targetCount: t2Count },
-    ];
-  } else {
-    return [
-      { id: "tier1", name: "Sabit", min: ratingMin, max: ratingMax, targetRatio: 1.0, targetCount: targetTotal },
-    ];
   }
+
+  // ratingMax < 90 ise standart bölme
+  const span = ratingMax - ratingMin + 1;
+  const parts = partitionSpan(span, 3, [0.3, 0.4, 0.3]);
+  const t1Count = Math.round(targetTotal * 0.3);
+  const t2Count = Math.round(targetTotal * 0.4);
+  const t3Count = Math.max(1, targetTotal - (t1Count + t2Count));
+  return [
+    { id: "tier1", name: "Taban", min: ratingMin, max: ratingMin + parts[0] - 1, targetRatio: 0.3, targetCount: t1Count },
+    { id: "tier2", name: "Orta", min: ratingMin + parts[0], max: ratingMin + parts[0] + parts[1] - 1, targetRatio: 0.4, targetCount: t2Count },
+    { id: "tier3", name: "Zirve", min: ratingMin + parts[0] + parts[1], max: ratingMax, targetRatio: 0.3, targetCount: t3Count },
+  ];
 }
 
 export function matchesCategory(player: CandidatePlayer, cat: PositionCategory): boolean {
@@ -222,13 +222,19 @@ function pickPlayersFromTiers(
   targetTotal: number,
   playerCount: number
 ): CandidatePlayer[] {
+  const gkCount = playerCount * 2;
+  const defCount = playerCount * 5;
+  const midCount = Math.round(playerCount * 4.5);
+  const fwdCount = Math.max(playerCount * 2, targetTotal - (gkCount + defCount + midCount));
+
   const neededPositions: Record<PositionCategory, number> = {
-    GK: playerCount * 1,
-    DEF: playerCount * 4,
-    MID: playerCount * 4,
-    FWD: playerCount * 2,
+    GK: gkCount,
+    DEF: defCount,
+    MID: midCount,
+    FWD: fwdCount,
   };
 
+  let diamondGkCount = 0;
   const selectedList: CandidatePlayer[] = [];
   const selectedIds = new Set<string>();
 
@@ -257,12 +263,18 @@ function pickPlayersFromTiers(
 
       if (neededPositions[cat] <= 0) continue;
 
-      const player = list.find((p) => !selectedIds.has(p.id) && matchesCategory(p, cat));
+      const player = list.find((p) => {
+        if (selectedIds.has(p.id)) return false;
+        if (!matchesCategory(p, cat)) return false;
+        if (cat === "GK" && p.overallPrime >= 90 && diamondGkCount >= 1) return false;
+        return true;
+      });
       if (player) {
         selectedList.push(player);
         selectedIds.add(player.id);
         neededPositions[cat]--;
         pickedInTier++;
+        if (cat === "GK" && player.overallPrime >= 90) diamondGkCount++;
       }
     }
 
@@ -271,12 +283,18 @@ function pickPlayersFromTiers(
       if (pickedInTier >= targetInTier) break;
       if (selectedIds.has(player.id)) continue;
 
-      const neededCat = posCycle.find((cat) => neededPositions[cat] > 0 && matchesCategory(player, cat));
+      const neededCat = posCycle.find((cat) => {
+        if (neededPositions[cat] <= 0) return false;
+        if (!matchesCategory(player, cat)) return false;
+        if (cat === "GK" && player.overallPrime >= 90 && diamondGkCount >= 1) return false;
+        return true;
+      });
       if (neededCat) {
         selectedList.push(player);
         selectedIds.add(player.id);
         neededPositions[neededCat]--;
         pickedInTier++;
+        if (neededCat === "GK" && player.overallPrime >= 90) diamondGkCount++;
       }
     }
   }
@@ -285,11 +303,17 @@ function pickPlayersFromTiers(
   const randomFallbackPool = shuffleArray(shuffledAllCandidates);
   for (const cat of posCycle) {
     while (neededPositions[cat] > 0) {
-      const p = randomFallbackPool.find((c) => !selectedIds.has(c.id) && matchesCategory(c, cat));
+      const p = randomFallbackPool.find((c) => {
+        if (selectedIds.has(c.id)) return false;
+        if (!matchesCategory(c, cat)) return false;
+        if (cat === "GK" && c.overallPrime >= 90 && diamondGkCount >= 1) return false;
+        return true;
+      });
       if (!p) break;
       selectedList.push(p);
       selectedIds.add(p.id);
       neededPositions[cat]--;
+      if (cat === "GK" && p.overallPrime >= 90) diamondGkCount++;
     }
   }
 
@@ -360,7 +384,7 @@ async function populateTeamDetails(selected: CandidatePlayer[]): Promise<Auction
  */
 export async function generateAuctionPool(options: PoolFilterOptions): Promise<AuctionPlayerCard[]> {
   const { playerCount, ratingMin, ratingMax } = options;
-  const targetTotal = Math.max(22, playerCount * 11);
+  const targetTotal = Math.max(28, playerCount * 14);
 
   const tiers = calculateRatingTiers(ratingMin, ratingMax, targetTotal);
   const candidates = await fetchCandidates(ratingMin, ratingMax, targetTotal);

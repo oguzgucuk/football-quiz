@@ -74,7 +74,7 @@ export function MySquadDrawer({ participant, isMyHighestBid = false }: MySquadDr
             </div>
             <div className="text-right font-mono">
               <p className="text-lg sm:text-xl font-black text-yellow-400">${participant.budget}M</p>
-              <p className="text-[11px] text-zinc-300 font-bold">{count}/11 Oyuncu</p>
+              <p className="text-[11px] text-zinc-300 font-bold">{count}/14 Oyuncu</p>
             </div>
           </div>
 

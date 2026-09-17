@@ -13,7 +13,6 @@ import { AuctionLobbyView } from "./AuctionLobbyView";
 import { AuctionBiddingStage } from "./AuctionBiddingStage";
 import { AuctionPitchBuilder } from "./AuctionPitchBuilder";
 import { AuctionSimulationStage } from "./AuctionSimulationStage";
-import { AuctionSoldNotification } from "./AuctionSoldNotification";
 import { StadiumBackground } from "@/components/ui/StadiumBackground";
 import { Loader2, ArrowLeft, AlertTriangle, AlertCircle } from "lucide-react";
 import { generateLeagueSchedule, getOpponentForUserInRound } from "@/lib/auction/auctionTournament";
@@ -79,9 +78,6 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
   return (
     <main className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-[#0d1611] text-white font-sans select-none">
       <StadiumBackground variant="light" />
-
-      {/* Oyuncu Satıldı Bildirimi (Tüm Ekranın En Üstünde Herkese Canlı Çıkar) */}
-      <AuctionSoldNotification soldEvent={state.lastSoldEvent} />
 
       {/* Üst Çubuk */}
       <header className="relative z-20 w-full border-b border-white/10 bg-black/40 backdrop-blur-md px-4 sm:px-8 lg:px-12 py-3.5">
