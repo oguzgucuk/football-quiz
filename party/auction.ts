@@ -82,7 +82,13 @@ export default class AuctionPartyServer implements Party.Server {
           }
           break;
         case "AUCTION_BID":
-          this.handleBid(sender, msg.userId, Number(msg.amount));
+          this.handleBid(
+            sender,
+            msg.userId,
+            Number(msg.amount),
+            msg.cardIndex !== undefined ? Number(msg.cardIndex) : undefined,
+            msg.cardId
+          );
           break;
         case "AUCTION_PASS":
           this.handlePass(msg.userId);
@@ -214,9 +220,15 @@ export default class AuctionPartyServer implements Party.Server {
     this.startAuctionTimer();
   }
 
-  private handleBid(sender: Party.Connection, userId: string, amount: number) {
+  private handleBid(
+    sender: Party.Connection,
+    userId: string,
+    amount: number,
+    cardIndex?: number,
+    cardId?: string
+  ) {
     if (this.state.status !== "auction" || !this.state.participants[userId]) return;
-    const res = applyBid(this.state, userId, amount);
+    const res = applyBid(this.state, userId, amount, cardIndex, cardId);
     if (!res.success) {
       sender.send(JSON.stringify({ type: "AUCTION_ERROR", message: res.error }));
       return;

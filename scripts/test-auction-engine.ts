@@ -8,7 +8,8 @@ import { calculateSlotRating, calculateLineupPowers } from "../lib/auction/posit
 import { FORMATION_CONFIGS, createInitialSlotsForFormation } from "../lib/auction/formationTemplates";
 import { simulateMatch } from "../lib/auction/simulateMatch";
 import { generateLeagueFixtures, calculateStandings, simulateEntireTournament } from "../lib/auction/auctionTournament";
-import { AuctionPlayerCard, TeamLineup, PitchPosition } from "../lib/auction/auctionTypes";
+import { AuctionPlayerCard, TeamLineup, PitchPosition, AuctionRoomState } from "../lib/auction/auctionTypes";
+import { startAuctionStage, applyBid, advanceAuctionCard } from "../lib/auction/auctionRoomEngine";
 
 async function runTests() {
   console.log("==========================================");
@@ -121,6 +122,88 @@ async function runTests() {
   console.log("\n🏆 Turnuva Şampiyonu:", tournament.championUserId);
   console.log("Lig Puan Tablosu:");
   console.table(tournament.standings);
+
+  console.log("\n==========================================");
+  console.log("🧪 5. SON SANİYE TEKLİF & GEÇİŞ TAMPONU (COOLDOWN) TESTİ");
+  console.log("==========================================");
+
+  const testPool: AuctionPlayerCard[] = [
+    { id: "messi", fullName: "Lionel Messi", overallPrime: 95, positions: ["RW", "CAM"] },
+    { id: "mbappe", fullName: "Kylian Mbappe", overallPrime: 93, positions: ["ST", "LW"] },
+    { id: "courtois", fullName: "Thibaut Courtois", overallPrime: 90, positions: ["GK"] },
+  ];
+
+  let roomState: AuctionRoomState = {
+    roomId: "test_room",
+    status: "lobby",
+    hostUserId: "user1",
+    settings: {
+      budget: 100,
+      startingBudget: 100,
+      roundDuration: 8,
+      ratingMin: 75,
+      ratingMax: 99,
+      maxParticipants: 8,
+      turnDurationSeconds: 8,
+      poolPlayerCount: 22,
+      tacticsDurationSeconds: 180,
+    },
+    participants: {
+      user1: { userId: "user1", username: "Ahmet", budget: 100, squad: [], isReady: true, isHost: true },
+      user2: { userId: "user2", username: "Mehmet", budget: 100, squad: [], isReady: true, isHost: false },
+    },
+    turnOrder: ["user1", "user2"],
+    pool: testPool,
+    currentCardIndex: 0,
+    currentCard: null,
+    currentTurnUserId: "user1",
+    currentHighestBid: null,
+    passedUserIds: [],
+    secondsLeft: 8,
+    lineups: {},
+    simulationMatches: [],
+    currentSimMatchIndex: 0,
+    currentSimMinute: 0,
+  };
+
+  // Açık artırmayı başlat (Kart 0: Messi, Açılış: 1$)
+  roomState = startAuctionStage(roomState, testPool);
+  // Cooldown'ı test için sıfırla ki Messi'ye teklif verilebilsin
+  roomState.bidCooldownUntil = Date.now() - 100;
+
+  // Ahmet 21$ teklif verir
+  const bidRes1 = applyBid(roomState, "user1", 21, 0, "messi");
+  if (!bidRes1.success) throw new Error("Ahmet 21$ veremedi: " + bidRes1.error);
+  roomState = bidRes1.state;
+  console.log("✅ Kart 0 (Messi): 21$ teklif kabul edildi.");
+
+  // Kart 0 süresi biter veya herkes pas geçer, sıradaki karta (Mbappe) geçilir
+  roomState = advanceAuctionCard(roomState);
+  console.log(`✅ Kart 1'e geçildi: ${roomState.currentCard?.fullName} - Mevcut Teklif: ${roomState.currentHighestBid?.amount}$`);
+  if (roomState.currentCardIndex !== 1) throw new Error("Kart indeksi 1 olmalıydı!");
+  if (roomState.currentHighestBid?.amount !== 1) throw new Error("Yeni kart 1$ ile başlamalıydı!");
+
+  // SENARYO A: Mehmet son saniyede Messi'ye (Kart 0) 22$ teklif göndermişti, ağ gecikmesiyle yeni kartta geldi
+  const staleBid = applyBid(roomState, "user2", 22, 0, "messi");
+  if (staleBid.success) {
+    throw new Error("HATA! Eski karta ait son saniye teklifi yeni karta aktarıldı!");
+  }
+  console.log("✅ KORUMA 1 BAŞARILI: Önceki karta ait geç teklif reddedildi ->", staleBid.error);
+
+  // SENARYO B: Yeni kart açılır açılmaz (cooldown süresi içinde) teklif verilmeye çalışıldı
+  const cooldownBid = applyBid(roomState, "user2", 15, 1, "mbappe");
+  if (cooldownBid.success) {
+    throw new Error("HATA! 1 saniyelik geçiş tamponu sırasında teklif kabul edildi!");
+  }
+  console.log("✅ KORUMA 2 BAŞARILI: 1 saniyelik geçiş tamponu teklifi engelledi ->", cooldownBid.error);
+
+  // SENARYO C: 1 saniye geçtikten sonra normal teklif verilir
+  roomState.bidCooldownUntil = Date.now() - 50; // 1 saniye geçtiğini simüle et
+  const validBid = applyBid(roomState, "user2", 5, 1, "mbappe");
+  if (!validBid.success) {
+    throw new Error("1 saniye sonra geçerli teklif reddedildi: " + validBid.error);
+  }
+  console.log(`✅ KORUMA 3 BAŞARILI: Cooldown sonrası yeni kart teklifi (5$) kabul edildi. (Yeni Fiyat: ${validBid.state.currentHighestBid?.amount}$)`);
 
   console.log("\n🎉 TÜM TESTLER BAŞARIYLA GEÇTİ!");
 }

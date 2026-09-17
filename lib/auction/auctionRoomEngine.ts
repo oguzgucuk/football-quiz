@@ -134,6 +134,7 @@ export function startAuctionStage(
     secondsLeft: 8,
     turnOrder: userIds,
     participants: updatedParticipants,
+    bidCooldownUntil: Date.now() + 1000,
   };
 }
 
@@ -150,10 +151,15 @@ export function applyBid(
 
   // Son saniye yarış koşulu koruması: Belirtilen kart ile anlık kart uyuşmalı
   if (cardIndex !== undefined && cardIndex !== state.currentCardIndex) {
-    return { success: false, error: "Süre dolduğu için teklif yetişmedi.", state };
+    return { success: false, error: "Teklif önceki oyuncuya aitti, yeni tura yetişmedi.", state };
   }
   if (cardId && state.currentCard && cardId !== state.currentCard.id) {
-    return { success: false, error: "Süre dolduğu için teklif yetişmedi.", state };
+    return { success: false, error: "Teklif önceki oyuncuya aitti, yeni tura yetişmedi.", state };
+  }
+
+  // Yeni oyuncu geçiş tamponu (1 saniye): Son saniye tekliflerinin sonraki oyuncuya aktarılmasını önle
+  if (state.bidCooldownUntil && Date.now() < state.bidCooldownUntil) {
+    return { success: false, error: "Yeni oyuncu açılıyor, lütfen 1 saniye bekleyin.", state };
   }
 
   // Kaleci Limiti: En fazla 1 kaleci transfer edilebilir
@@ -338,5 +344,6 @@ function finishOrNextTurn(state: AuctionRoomState): AuctionRoomState {
     currentHighestBid: mandatoryBid,
     passedUserIds: [],
     secondsLeft: 8,
+    bidCooldownUntil: Date.now() + 1000, // 1 saniyelik geçiş tamponu
   };
 }
