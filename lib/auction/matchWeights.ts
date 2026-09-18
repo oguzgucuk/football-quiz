@@ -4,7 +4,7 @@ import { PitchPosition, SquadSlot } from "./auctionTypes";
  * ============================================================================
  * TEK DOĞRULUK KAYNAĞI (SINGLE SOURCE OF TRUTH) - MEVKİ TABAN AĞIRLIKLARI
  * ============================================================================
- * Tüm simülasyon motoru (corridorPowers, corridorActors, possessionResolver)
+ * Tüm simülasyon motoru (zonePowers, zoneActors, matchStateMachine)
  * mevkilerin taban güçlerini bu tablolardan alır.
  * Değerleri değiştirmek doğrudan tüm simülasyon dengesini günceller.
  */

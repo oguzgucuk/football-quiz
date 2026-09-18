@@ -253,7 +253,7 @@ export function AuctionSimulationStage({
 
         {/* Ortadaki Canlı Dakika */}
         <div className="flex items-center gap-2 px-4 py-1 rounded-xl bg-black/80 border border-white/15 shadow-md">
-          <Timer className={`w-4 h-4 text-amber-400 ${!isRoundOver ? "animate-spin" : ""}`} />
+          <Timer className="w-4 h-4 text-zinc-400" />
           <span className="font-mono font-black text-amber-400 text-base tabular-nums">
             {currentRoundMinute}&apos; / 90&apos;
           </span>
@@ -300,7 +300,7 @@ export function AuctionSimulationStage({
       </div>
 
       {/* ── 4 KOLONLU ANA MAÇ DÜZENİ (ÇİZİME BİREBİR SADIK - SCROLLSUZ) ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-2.5 flex-1 min-h-0 w-full">
+      <div className="grid grid-cols-1 lg:grid-cols-[0.85fr_0.85fr_1.4fr_1fr] gap-2.5 flex-1 min-h-0 w-full">
         {/* ============================================================ */}
         {/* KOLON 1: BENİM KADROM (DİKEY MİNİ SAHA + TAKTİKLERİM)        */}
         {/* ============================================================ */}
@@ -346,28 +346,37 @@ export function AuctionSimulationStage({
         {/* ============================================================ */}
         <div className="order-first lg:order-none min-w-0 flex flex-col gap-2 h-[520px] lg:h-full min-h-0 overflow-hidden">
           {/* ÜST: SKOR - DAKİKA */}
-          <div className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-black/50 border border-white/10 backdrop-blur-xl shrink-0">
+          <div className="relative flex flex-col items-center justify-center px-3 pt-3 pb-4 rounded-xl bg-zinc-950/90 border border-white/10 shrink-0 overflow-hidden">
             <div className="flex items-center justify-between w-full px-2 text-xs font-bold text-zinc-300">
               <span className="truncate max-w-[90px] text-emerald-300 font-black">{leftUsername}</span>
-              <span className="font-mono text-[10px] text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-500/30">
+              <span className="font-mono text-[10px] text-zinc-400 px-2 py-0.5 whitespace-nowrap">
                 {isRoundOver ? "Maç sonu" : `${currentRoundMinute}′ Canlı`}
               </span>
               <span className="truncate max-w-[90px] text-cyan-300 font-black">{rightUsername}</span>
             </div>
 
-            <div className="flex items-center gap-3 mt-1">
+            <div className="flex items-center gap-5 mt-2 tabular-nums">
               <span className="font-mono font-black text-3xl sm:text-4xl text-white">{leftUserId === myMatch?.homeUserId ? homeGoals : awayGoals}</span>
               <span className="text-zinc-500 text-lg font-mono font-bold">-</span>
               <span className="font-mono font-black text-3xl sm:text-4xl text-white">{leftUserId === myMatch?.homeUserId ? awayGoals : homeGoals}</span>
             </div>
+            <div className="mt-2 flex gap-2 text-[10px] text-zinc-500">
+              <span>{isRoundOver ? "90 dakika tamamlandı" : currentRoundMinute < 45 ? "İlk yarı" : "İkinci yarı"}</span>
+              <span aria-hidden="true">·</span>
+              <span>{visibleEvents.length} anlatım</span>
+            </div>
+            <div className="absolute inset-x-0 bottom-0 h-0.5 bg-white/5" aria-hidden="true">
+              <div className="h-full bg-emerald-400/70 transition-[width] duration-1000 ease-linear motion-reduce:transition-none" style={{ width: `${currentRoundMinute / 90 * 100}%` }} />
+            </div>
           </div>
 
           {/* ORTA: MAÇ ANLATIMI (CANLI SPİKER AKIŞI) */}
-          <div className="flex-1 flex flex-col min-h-0 rounded-2xl bg-black/40 border border-white/10 p-2.5 backdrop-blur-xl overflow-hidden">
-            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1.5 pb-1 border-b border-white/10">
-              Önemli Pozisyonlar · En yeni üstte
-            </span>
-            <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-1.5 custom-scrollbar">
+          <div className="flex-1 flex flex-col min-h-0 rounded-xl bg-zinc-950/80 border border-white/10 overflow-hidden">
+            <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/10">
+              <span className="text-xs font-semibold text-zinc-200">Maç akışı</span>
+              <span className="text-[10px] text-zinc-500">En yeni üstte</span>
+            </div>
+            <div className="flex-1 overflow-y-auto flex flex-col custom-scrollbar [overflow-anchor:none]">
               {visibleEvents.length === 0 ? (
                 <div className="h-full flex items-center justify-center text-center text-zinc-500 text-xs font-medium py-8">
                   {isRoundOver ? "Maç tamamlandı. Öne çıkan pozisyon oluşmadı." : currentRoundMinute === 0 ? "Maç başlamak üzere…" : "Oyun sürüyor. İlk önemli pozisyon bekleniyor…"}
@@ -375,23 +384,21 @@ export function AuctionSimulationStage({
               ) : (
                 visibleEvents.map((ev, i) => (
                   <div
-                    key={`${ev.minute}_${ev.type}_${i}`}
-                    className={`p-2 rounded-xl text-xs flex items-start gap-2 border transition-all ${
+                    key={`${myMatch?.matchId}_${visibleEvents.length - 1 - i}`}
+                    className={`px-3 py-3 text-xs flex items-start gap-3 border-b border-white/5 border-l-2 ${
                       ev.type === "goal"
-                        ? "bg-emerald-950/70 border-emerald-500/50 text-emerald-200 shadow-sm"
-                        : ev.type === "save"
-                        ? "bg-cyan-950/40 border-cyan-500/30 text-cyan-200"
-                        : "bg-white/5 border-white/5 text-zinc-300"
+                        ? "bg-emerald-500/10 border-l-emerald-400 text-white"
+                        : "border-l-transparent text-zinc-300"
                     }`}
                   >
-                    <span className="font-mono font-black text-[11px] text-amber-400 shrink-0 mt-0.5">
+                    <span className="font-mono text-[11px] text-zinc-500 w-6 text-right shrink-0 mt-0.5 tabular-nums">
                       {ev.minute}&apos;
                     </span>
-                    <span className="leading-snug text-xs font-medium">
+                    <span className="leading-relaxed text-xs">
                       <span className={`block mb-0.5 text-[10px] font-bold ${ev.teamUserId === leftUserId ? "text-emerald-300" : "text-cyan-300"}`}>
                         {state.participants[ev.teamUserId]?.username || "Takım"}
                       </span>
-                      {ev.description}
+                      {ev.description.replace(/^[^\p{L}\p{N}]+/u, "")}
                     </span>
                   </div>
                 ))

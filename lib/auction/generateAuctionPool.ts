@@ -65,22 +65,23 @@ export function partitionSpan(span: number, parts: number, weights: number[]): n
 
 /**
  * Lobide seçilen reyting aralığını dengeli taktiksel piramide böler:
- * - 💎 Elmas (90+ OVR): Toplam havuzun %10-12'si ile sınırlandırılır (~1.5 adet/oyuncu).
- * - 🥇 Üst Altın (85-89 OVR): %28
- * - 🥈 Normal Altın (80-84 OVR): %40
- * - 🥉 Taban / Fırsat (75-79 OVR): %21
+ * - Elmas (90+ OVR): Kişi başına 3 hedef kart (havuzun yaklaşık %21'i).
+ * - Kalan kartlar üst altın / altın / taban arasında 28:40:21 oranında dağılır.
+ * - Bunlar seçim hedefleridir; aday ve mevki yeterliliği gerçek sayıyı etkileyebilir.
  */
 export function calculateRatingTiers(
   ratingMin: number,
   ratingMax: number,
   targetTotal: number
 ): RatingTier[] {
-  // Eğer tavan 90 veya üstüyse Elmas kademesi (90+) havuzun %11'i ile sınırlandırılır
+  // Eğer tavan 90 veya üstüyse Elmas kademesi (90+) kişi başı 3 elmas düşecek şekilde hesaplanır
   if (ratingMax >= 90) {
     const diamondMin = 90;
     const diamondMax = ratingMax;
-    // Havuzun %11'i (28 kartta 3, 56 kartta 6)
-    const diamondCount = Math.max(1, Math.round(targetTotal * 0.11));
+    const playerCount = Math.max(1, Math.round(targetTotal / 14));
+    // Kişi başı tam 3 elmas (2 oyuncuda 6, 4 oyuncuda 12)
+    const diamondCount = Math.max(1, playerCount * 3);
+    const diamondRatio = Number((diamondCount / targetTotal).toFixed(2));
 
     const remainingCount = targetTotal - diamondCount;
     const subMax = 89;
@@ -90,30 +91,31 @@ export function calculateRatingTiers(
     if (subSpan >= 3 && subMin <= 84) {
       const t3Min = 85;
       const t3Max = 89;
-      const t3Count = Math.max(1, Math.round(targetTotal * 0.28));
+      // Kalan kartlar orijinal 28 : 40 : 21 oranına sadık kalınarak diğer aralıklar bozulmadan paylaştırılır
+      const t3Count = Math.max(1, Math.round(remainingCount * (0.28 / 0.89)));
 
       const t2Min = 80;
       const t2Max = 84;
-      const t2Count = Math.max(1, Math.round(targetTotal * 0.40));
+      const t2Count = Math.max(1, Math.round(remainingCount * (0.40 / 0.89)));
 
       const t1Min = subMin;
       const t1Max = Math.max(subMin, 79);
       const t1Count = Math.max(1, remainingCount - (t3Count + t2Count));
 
       return [
-        { id: "tier1", name: "Taban / Fırsat", min: t1Min, max: t1Max, targetRatio: 0.21, targetCount: t1Count },
-        { id: "tier2", name: "Normal Altın", min: t2Min, max: t2Max, targetRatio: 0.40, targetCount: t2Count },
-        { id: "tier3", name: "Üst Altın Omurga", min: t3Min, max: t3Max, targetRatio: 0.28, targetCount: t3Count },
-        { id: "tier4", name: "Zirve Elmas", min: diamondMin, max: diamondMax, targetRatio: 0.11, targetCount: diamondCount },
+        { id: "tier1", name: "Taban / Fırsat", min: t1Min, max: t1Max, targetRatio: Number((t1Count / targetTotal).toFixed(2)), targetCount: t1Count },
+        { id: "tier2", name: "Normal Altın", min: t2Min, max: t2Max, targetRatio: Number((t2Count / targetTotal).toFixed(2)), targetCount: t2Count },
+        { id: "tier3", name: "Üst Altın Omurga", min: t3Min, max: t3Max, targetRatio: Number((t3Count / targetTotal).toFixed(2)), targetCount: t3Count },
+        { id: "tier4", name: "Zirve Elmas", min: diamondMin, max: diamondMax, targetRatio: diamondRatio, targetCount: diamondCount },
       ];
     } else {
       const midPoint = Math.floor((subMin + subMax) / 2);
-      const t1Count = Math.round(remainingCount * 0.45);
+      const t1Count = Math.round(remainingCount * 0.50);
       const t2Count = Math.max(1, remainingCount - t1Count);
       return [
-        { id: "tier1", name: "Taban", min: subMin, max: midPoint, targetRatio: 0.45, targetCount: t1Count },
-        { id: "tier2", name: "Omurga", min: midPoint + 1, max: subMax, targetRatio: 0.45, targetCount: t2Count },
-        { id: "tier4", name: "Zirve Elmas", min: diamondMin, max: diamondMax, targetRatio: 0.10, targetCount: diamondCount },
+        { id: "tier1", name: "Taban", min: subMin, max: midPoint, targetRatio: Number((t1Count / targetTotal).toFixed(2)), targetCount: t1Count },
+        { id: "tier2", name: "Omurga", min: midPoint + 1, max: subMax, targetRatio: Number((t2Count / targetTotal).toFixed(2)), targetCount: t2Count },
+        { id: "tier4", name: "Zirve Elmas", min: diamondMin, max: diamondMax, targetRatio: diamondRatio, targetCount: diamondCount },
       ];
     }
   }
@@ -234,6 +236,7 @@ function pickPlayersFromTiers(
     FWD: fwdCount,
   };
 
+  const maxDiamondGk = Math.max(1, Math.floor(playerCount / 2));
   let diamondGkCount = 0;
   const selectedList: CandidatePlayer[] = [];
   const selectedIds = new Set<string>();
@@ -266,7 +269,7 @@ function pickPlayersFromTiers(
       const player = list.find((p) => {
         if (selectedIds.has(p.id)) return false;
         if (!matchesCategory(p, cat)) return false;
-        if (cat === "GK" && p.overallPrime >= 90 && diamondGkCount >= 1) return false;
+        if (cat === "GK" && p.overallPrime >= 90 && diamondGkCount >= maxDiamondGk) return false;
         return true;
       });
       if (player) {
@@ -286,7 +289,7 @@ function pickPlayersFromTiers(
       const neededCat = posCycle.find((cat) => {
         if (neededPositions[cat] <= 0) return false;
         if (!matchesCategory(player, cat)) return false;
-        if (cat === "GK" && player.overallPrime >= 90 && diamondGkCount >= 1) return false;
+        if (cat === "GK" && player.overallPrime >= 90 && diamondGkCount >= maxDiamondGk) return false;
         return true;
       });
       if (neededCat) {
@@ -306,7 +309,7 @@ function pickPlayersFromTiers(
       const p = randomFallbackPool.find((c) => {
         if (selectedIds.has(c.id)) return false;
         if (!matchesCategory(c, cat)) return false;
-        if (cat === "GK" && c.overallPrime >= 90 && diamondGkCount >= 1) return false;
+        if (cat === "GK" && c.overallPrime >= 90 && diamondGkCount >= maxDiamondGk) return false;
         return true;
       });
       if (!p) break;

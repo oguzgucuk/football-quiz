@@ -133,7 +133,7 @@ bağımlı olması) baştan engeller.
   event tipi olsun, string literal'larla dağınık `if (type === "foo")`
   kontrolleri yerine bir `enum`/union type kullanılsın.
 - **Simülasyon Motoru ve Mevki Ağırlıkları (KRİTİK - Tek Doğruluk Kaynağı):**
-  Tüm mevkisel taban güçleri (top kapma `MID_WEIGHTS`, ceza sahası savunması `DEF_WEIGHTS`, hücum `ATK_WEIGHTS`, asist `ASSIST_WEIGHTS`) **YALNIZCA ve DAİMA** `/lib/auction/matchWeights.ts` dosyasında tanımlanır. `corridorPowers.ts` veya başka simülasyon dosyalarında asla mevkisel taban katsayısı hardcoded (sabit sayı) olarak yazılamaz; oradan import edilip koridor/taktik çarpanlarıyla çarpılmak zorundadır. Yapılan her simülasyon değişikliğinden sonra `pnpm verify:sim` çalıştırılarak CAM vs CM savunma hiyerarşisi ve bek/forvet pres katkısı doğrulanmalıdır.
+  Tüm mevkisel taban güçleri (top kapma `MID_WEIGHTS`, ceza sahası savunması `DEF_WEIGHTS`, hücum `ATK_WEIGHTS`, asist `ASSIST_WEIGHTS`) **YALNIZCA ve DAİMA** `/lib/auction/matchWeights.ts` dosyasında tanımlanır. `zonePowers.ts` veya başka simülasyon dosyalarında asla mevkisel taban katsayısı hardcoded (sabit sayı) olarak yazılamaz; oradan import edilip koridor/taktik çarpanlarıyla çarpılmak zorundadır. Yapılan her simülasyon değişikliğinden sonra `pnpm verify:sim` çalıştırılarak CAM vs CM savunma hiyerarşisi ve bek/forvet pres katkısı doğrulanmalıdır.
 
 ---
 

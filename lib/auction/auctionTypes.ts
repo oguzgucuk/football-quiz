@@ -116,14 +116,16 @@ export interface TeamLineup {
   isConfirmed: boolean;
 }
 
+export type { ZoneId, PitchThird, BallPhase, BallState, SubstitutionAction, HalftimeTacticsAction } from "./zoneTypes";
+
 export interface MatchEvent {
   minute: number;
-  type: "goal" | "save" | "chance" | "attack_start" | "counter" | "miss" | "corner" | "turnover";
+  type: "goal" | "save" | "chance" | "attack_start" | "counter" | "miss" | "corner" | "turnover" | "sub" | "halftime" | "foul" | "penalty" | "free_kick" | "yellow_card";
   teamUserId: string;
   playerName?: string;
   assistPlayerName?: string;
   phase?: MatchPhase;
-  zone?: MatchZone;
+  zone?: MatchZone | import("./zoneTypes").ZoneId;
   corridor?: PitchCorridor;
   description: string;
 }

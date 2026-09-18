@@ -1,3 +1,4 @@
+import { matchMinuteAt, matchStartAtMinute } from "./matchClock";
 /**
  * Müzayede Realtime WebSocket Sunucu Yöneticisi.
  * Canlı açık artırma sayaçları, teklif senkronizasyonu ve maç simülasyon akışı.
@@ -57,6 +58,8 @@ export function handleAuctionSocketConnection(ws: WebSocket, roomId: string) {
   }
 
   room.clients.set(ws, { userId: "", username: "" });
+  syncSimulationProgress(room);
+  ws.send(JSON.stringify({ type: "AUCTION_STATE_SYNC", state: stateForAuctionViewer(room.state, "") }));
 
   ws.on("message", async (raw: string) => {
     try {
@@ -94,14 +97,14 @@ export function handleAuctionSocketConnection(ws: WebSocket, roomId: string) {
         broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
       }
 
-      // 20 saniyelik yeniden bağlanma hoşgörü süresi (F5 ve anlık kopma koruması)
+      // 25 saniyelik yeniden bağlanma hoşgörü süresi (F5 ve anlık kopma koruması)
       const timer = setTimeout(() => {
         disconnectGraceTimers.delete(graceKey);
         const currentRoom = auctionRooms.get(room.roomId);
         if (currentRoom) {
           handleUserDisconnect(currentRoom, clientMeta.userId, clientMeta.username || "Bir oyuncu");
         }
-      }, 20000);
+      }, 25000);
 
       disconnectGraceTimers.set(graceKey, timer);
     }
@@ -117,6 +120,9 @@ type IncomingAuctionMessage = {
   cardIndex?: number;
   cardId?: string;
   lineup?: TeamLineup;
+  outPlayerId?: string;
+  inPlayerId?: string;
+  tactics?: Partial<import("./auctionTypes").TeamTactics>;
 };
 
 async function processAuctionMessage(
@@ -149,14 +155,10 @@ async function processAuctionMessage(
       break;
     }
     case "AUCTION_BID": {
-      handleBid(
-        room,
-        ws,
-        msg.userId,
-        Number(msg.amount),
-        msg.cardIndex !== undefined ? Number(msg.cardIndex) : undefined,
-        msg.cardId
-      );
+      const amount = typeof msg.amount === "string" ? parseInt(msg.amount, 10) : msg.amount;
+      if (typeof amount === "number") {
+        handleBid(room, ws, msg.userId, amount, msg.cardIndex, msg.cardId);
+      }
       break;
     }
     case "AUCTION_PASS": {
@@ -403,10 +405,9 @@ function updateStandingsAfterRound(room: AuctionPartyRoom) {
 }
 
 function handleRoundComplete(room: AuctionPartyRoom, userId: string) {
-  // Client'tan gelen "round bitti" bildirimi.
-  // Server currentRoundMinute'u hiç artırmıyor (client-side timer mimarisi);
-  // dolayısıyla >= 90 kontrolü her zaman false olur. Sadece status kontrolü yeterli.
   if (!room.state.participants[userId] || room.state.status !== "simulation") return;
+  syncSimulationProgress(room);
+  if (room.state.currentRoundMinute < 90) return;
 
   // İdempotent: birden fazla çağrıda güvenli
   room.state.currentRoundMinute = 90;
@@ -416,8 +417,6 @@ function handleRoundComplete(room: AuctionPartyRoom, userId: string) {
 }
 
 function handleSimReady(room: AuctionPartyRoom, userId: string) {
-  // currentRoundMinute < 90 kontrolü kaldırıldı: server minute'u artırmıyor,
-  // client gönderdiğinde server zaten 90'a setlemiş olacak (handleRoundComplete ile).
   if (!room.state.participants[userId] || room.state.status !== "simulation") return;
   // Round henüz bitmemişse hazır sayma (server 90'a setlemediyse)
   if (room.state.currentRoundMinute < 90) return;
@@ -512,11 +511,10 @@ function startTimer(room: AuctionPartyRoom) {
       }
     } else if (room.state.status === "simulation") {
       if (!room.state.simulationStartedAt) {
-        room.state.simulationStartedAt = Date.now() - Math.floor(((room.state.currentRoundMinute || 0) / 90) * 30 * 1000);
+        room.state.simulationStartedAt = matchStartAtMinute(room.state.currentRoundMinute || 0, Date.now());
       }
       const startedAt = room.state.simulationStartedAt;
-      const elapsedSeconds = Math.max(0, (Date.now() - startedAt) / 1000);
-      const calculatedMinute = Math.min(90, Math.floor((elapsedSeconds / 30) * 90));
+      const calculatedMinute = matchMinuteAt(startedAt, Date.now());
 
       const prevMinute = room.state.currentRoundMinute || 0;
       room.state.currentRoundMinute = Math.max(prevMinute, calculatedMinute);
@@ -538,10 +536,9 @@ function startTimer(room: AuctionPartyRoom) {
 function syncSimulationProgress(room: AuctionPartyRoom) {
   if (room.state.status === "simulation") {
     if (!room.state.simulationStartedAt) {
-      room.state.simulationStartedAt = Date.now() - Math.floor(((room.state.currentRoundMinute || 0) / 90) * 30 * 1000);
+      room.state.simulationStartedAt = matchStartAtMinute(room.state.currentRoundMinute || 0, Date.now());
     }
-    const elapsedSeconds = Math.max(0, (Date.now() - room.state.simulationStartedAt) / 1000);
-    const minute = Math.min(90, Math.floor((elapsedSeconds / 30) * 90));
+    const minute = matchMinuteAt(room.state.simulationStartedAt, Date.now());
     room.state.currentRoundMinute = Math.max(room.state.currentRoundMinute || 0, minute);
     room.state.currentSimMinute = room.state.currentRoundMinute;
     if (room.state.currentRoundMinute >= 90 && (!room.state.standings || room.state.standings.length === 0)) {

@@ -29,6 +29,7 @@ async function testSoldEvent() {
   };
 
   state = startAuctionStage(state, [dummyCard, dummyCard2]);
+  state.bidCooldownUntil = undefined;
 
   console.log("Initial state status:", state.status);
   console.log("Initial card:", state.currentCard?.fullName);

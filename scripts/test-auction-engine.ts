@@ -30,8 +30,8 @@ async function runTests() {
   if (gks.length < 4) throw new Error("Yetersiz kaleci!");
 
   const diamonds = pool.filter((p) => p.overallPrime >= 90);
-  console.log(`✅ Elmas Oyuncu Sayısı (90+): ${diamonds.length} / ${pool.length} (Beklenen: ~3 adet)`);
-  if (diamonds.length > 5) throw new Error("Havuzda çok fazla elmas var! Dengeleme çalışmadı.");
+  console.log(`✅ Elmas Oyuncu Sayısı (90+): ${diamonds.length} / ${pool.length} (Kişi başı 3 elmas -> Beklenen: 6 adet)`);
+  if (diamonds.length !== 6) throw new Error(`2 kişilik odada tam 6 elmas olmalıydı! (Çıkan: ${diamonds.length})`);
 
   console.log("Örnek Havuz Oyuncuları:");
   pool.slice(0, 5).forEach((p, i) => {

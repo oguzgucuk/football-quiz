@@ -5,10 +5,9 @@
  */
 
 import {
-  calculateCorridorAttackPower,
-  calculateCorridorDefensePower,
-  calculateCorridorMidfieldScore,
-} from "../lib/auction/corridorEngine";
+  calculateZonePossessionPower,
+  calculateZoneStealPower,
+} from "../lib/auction/zonePowers";
 import { simulateMatch } from "../lib/auction/simulateMatch";
 import {
   ASSIST_WEIGHTS,
@@ -79,18 +78,18 @@ async function runVerification() {
   }
   console.log("✅ 2. Savunma hiyerarşisi doğrulandı: CDM (0.90) > CM (0.65) > CAM (0.20)");
 
-  // 3. Koridor Savunma Gücü Entegrasyonu Testi
+  // 3. Bölgesel Savunma Gücü Entegrasyonu Testi
   const defaultTac: TeamTactics = { tempo: "balanced", buildUp: "balanced", pressing: "balanced", attackDirection: "balanced" };
   
   // 4-3-3 dizilişinde kadrolar
   const team433 = createTeam("t1", 80, "4-3-3", defaultTac);
-  const defCenter = calculateCorridorDefensePower(team433, "center");
+  const defCenter = calculateZoneStealPower(team433, "def_center");
 
   console.log(`\n✅ 3. Takım Merkez Savunma Gücü (4-3-3, 80 OVR): ${defCenter.toFixed(3)}`);
 
   // 4. Beklerin Kanat Top Kapma (Orta Saha) Katkısı Testi
   // 4-3-3 dizilişinde sol koridorda LB ve LW'nin top kapmaya katkısını kontrol edelim
-  const midLeftScore = calculateCorridorMidfieldScore(team433, "left");
+  const midLeftScore = calculateZoneStealPower(team433, "mid_left");
   console.log(`\n📊 4. KANAT ORTA SAHA / TOP KAPMA GÜCÜ:`);
   console.log(`- 4-3-3 Sol Koridor Top Kapma Puanı (LB + LW desteğiyle): ${midLeftScore.toFixed(3)}`);
   if (midLeftScore <= 0.05) {
@@ -102,8 +101,8 @@ async function runVerification() {
   const balancedTeam = createTeam("t_bal", 80, "4-3-3", { ...defaultTac, pressing: "balanced" });
   const highPressTeam = createTeam("t_press", 80, "4-3-3", { ...defaultTac, pressing: "high_press" });
 
-  const midBalanced = calculateCorridorMidfieldScore(balancedTeam, "center");
-  const midHighPress = calculateCorridorMidfieldScore(highPressTeam, "center");
+  const midBalanced = calculateZoneStealPower(balancedTeam, "mid_center");
+  const midHighPress = calculateZoneStealPower(highPressTeam, "mid_center");
 
   console.log(`\n📊 5. TAKTİKSEL PRES ETKİSİ:`);
   console.log(`- Dengeli Pres Merkez Top Kapma: ${midBalanced.toFixed(3)}`);

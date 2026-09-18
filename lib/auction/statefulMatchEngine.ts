@@ -373,6 +373,18 @@ function simulateSequence(
       if (gameplayRandom() < progressionChance(state, minute)) {
         state.phase = state.phase === "build_up" ? "progression" : "chance_creation";
         state.zone = state.phase === "progression" ? "middle_third" : "final_third";
+        if (state.phase === "chance_creation") {
+          const route = state.corridor === "left" ? "sol kanattan" : state.corridor === "right" ? "sağ kanattan" : "merkezden";
+          const plan = tacticsOf(state.attacking).chanceCreation;
+          const description = state.isCounter
+            ? `${state.attackingUsername}, ${route} hızla çıktı; savunma yerleşmeden ceza sahasına yaklaşıyor.`
+            : plan === "early_cross" && state.corridor !== "center"
+              ? `${state.attackingUsername}, ${route} geldi. Ceza sahasında ortayı bekleyen oyuncular var.`
+              : plan === "patient"
+                ? `${state.attackingUsername} ceza sahası çevresine yerleşti, son pas için boşluk arıyor.`
+                : `${state.attackingUsername}, ${route} rakip kaleye yaklaşıyor. Savunma geri çekiliyor.`;
+          addEvent(match, state, minute, "attack_start", description);
+        }
         continue;
       }
 
