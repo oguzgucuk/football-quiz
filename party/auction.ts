@@ -15,6 +15,7 @@ import {
   FormationName,
   AuctionPlayerCard,
   AuctionLobbySettings,
+  TeamTactics,
 } from "../lib/auction/auctionTypes";
 import {
   createInitialAuctionState,
@@ -99,6 +100,16 @@ export default class AuctionPartyServer implements Party.Server {
           break;
         case "AUCTION_UNCONFIRM_LINEUP":
           this.handleUnconfirmLineup(msg.userId);
+          break;
+        case "AUCTION_SUBSTITUTE":
+          if (msg.outPlayerId && msg.inPlayerId) {
+            this.handleSubstitute(msg.userId, msg.outPlayerId, msg.inPlayerId);
+          }
+          break;
+        case "AUCTION_UPDATE_TACTICS":
+          if (msg.tactics) {
+            this.handleUpdateTactics(msg.userId, msg.tactics);
+          }
           break;
         case "AUCTION_SIM_READY":
           this.handleSimReady(msg.userId);
@@ -318,7 +329,68 @@ export default class AuctionPartyServer implements Party.Server {
     this.state.simulationStartedAt = Date.now();
     this.state.currentRoundMinute = 0;
     this.state.currentSimMinute = 0;
+    this.state.isHalftime = false;
+    this.state.halftimeEndsAt = undefined;
+    this.state.halftimeSecondsLeft = undefined;
     this.state.confirmedLineupUserIds = [];
+    this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
+  }
+
+  private handleSubstitute(userId: string, outPlayerId: string, inPlayerId: string) {
+    const participant = this.state.participants[userId];
+    const lineup = this.state.lineups[userId];
+    if (!participant || !lineup || !outPlayerId || !inPlayerId) return;
+
+    const targetSlotIndex = lineup.slots.findIndex((s) => s.placedPlayer?.id === outPlayerId);
+    if (targetSlotIndex === -1) return;
+
+    const inPlayer = participant.squad.find((p) => p.id === inPlayerId);
+    if (!inPlayer) return;
+
+    const targetSlot = lineup.slots[targetSlotIndex];
+    const { effectiveRating, penalty } = calculateSlotRating(inPlayer, targetSlot.targetPosition);
+
+    lineup.slots[targetSlotIndex] = {
+      ...targetSlot,
+      placedPlayer: inPlayer,
+      effectiveRating,
+      penalty,
+    };
+
+    const updatedLineup = calculateLineupPowers(userId, lineup.formation, lineup.slots);
+    updatedLineup.tactics = lineup.tactics;
+    this.state.lineups[userId] = updatedLineup;
+
+    const roundIdx = this.state.currentRoundIndex ?? 0;
+    const currentScheduleItem = this.state.leagueSchedule?.[roundIdx];
+    if (currentScheduleItem) {
+      const simulatedRound = simulateSingleRoundMatches(currentScheduleItem, this.state.lineups, this.state.participants);
+      if (!this.state.simulationRounds) this.state.simulationRounds = [];
+      this.state.simulationRounds[roundIdx] = simulatedRound;
+      this.state.simulationMatches = this.state.simulationRounds.flatMap((r) => r.matches);
+    }
+
+    this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
+  }
+
+  private handleUpdateTactics(userId: string, tactics: Partial<TeamTactics>) {
+    const lineup = this.state.lineups[userId];
+    if (!lineup || !tactics) return;
+
+    lineup.tactics = {
+      ...(lineup.tactics || { tempo: "balanced", buildUp: "balanced", pressing: "balanced", attackDirection: "balanced" }),
+      ...tactics,
+    };
+
+    const roundIdx = this.state.currentRoundIndex ?? 0;
+    const currentScheduleItem = this.state.leagueSchedule?.[roundIdx];
+    if (currentScheduleItem) {
+      const simulatedRound = simulateSingleRoundMatches(currentScheduleItem, this.state.lineups, this.state.participants);
+      if (!this.state.simulationRounds) this.state.simulationRounds = [];
+      this.state.simulationRounds[roundIdx] = simulatedRound;
+      this.state.simulationMatches = this.state.simulationRounds.flatMap((r) => r.matches);
+    }
+
     this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
   }
 
@@ -475,26 +547,56 @@ export default class AuctionPartyServer implements Party.Server {
         }
       } else if (this.state.status === "simulation") {
         if (!this.state.simulationStartedAt) {
-          this.state.simulationStartedAt = Date.now() - Math.floor(((this.state.currentRoundMinute || 0) / 90) * 30 * 1000);
+          this.state.simulationStartedAt = Date.now() - Math.floor(((this.state.currentRoundMinute || 0) / 45) * 18 * 1000);
         }
-        const startedAt = this.state.simulationStartedAt;
-        const elapsedSeconds = Math.max(0, (Date.now() - startedAt) / 1000);
-        const calculatedMinute = Math.min(90, Math.floor((elapsedSeconds / 30) * 90));
 
-        const prevMinute = this.state.currentRoundMinute || 0;
-        this.state.currentRoundMinute = Math.max(prevMinute, calculatedMinute);
-        this.state.currentSimMinute = this.state.currentRoundMinute;
+        if (this.state.isHalftime) {
+          const now = Date.now();
+          const endsAt = this.state.halftimeEndsAt || (now + 10000);
+          const secLeft = Math.max(0, Math.ceil((endsAt - now) / 1000));
+          this.state.halftimeSecondsLeft = secLeft;
 
-        if (this.state.currentRoundMinute >= 90) {
-          if (prevMinute < 90) {
-            this.updateStandingsAfterRound();
+          if (secLeft <= 0) {
+            this.state.isHalftime = false;
+            this.state.halftimeEndsAt = undefined;
+            this.state.halftimeSecondsLeft = undefined;
+            this.state.simulationStartedAt = Date.now() - (18 * 1000);
             this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
+          } else {
+            this.broadcast({ type: "AUCTION_HALFTIME_TICK", secondsLeft: secLeft });
           }
         } else {
-          this.broadcast({
-            type: "AUCTION_SIM_TICK",
-            currentRoundMinute: this.state.currentRoundMinute,
-          });
+          const startedAt = this.state.simulationStartedAt;
+          const elapsedSeconds = Math.max(0, (Date.now() - startedAt) / 1000);
+
+          let calculatedMinute = 0;
+          if (elapsedSeconds <= 18) {
+            calculatedMinute = Math.min(45, Math.floor((elapsedSeconds / 18) * 45));
+          } else {
+            const secondHalfElapsed = elapsedSeconds - 18;
+            calculatedMinute = Math.min(90, 45 + Math.floor((secondHalfElapsed / 18) * 45));
+          }
+
+          const prevMinute = this.state.currentRoundMinute || 0;
+          this.state.currentRoundMinute = Math.max(prevMinute, calculatedMinute);
+          this.state.currentSimMinute = this.state.currentRoundMinute;
+
+          if (prevMinute < 45 && this.state.currentRoundMinute >= 45 && !this.state.isHalftime) {
+            this.state.isHalftime = true;
+            this.state.halftimeEndsAt = Date.now() + 10 * 1000;
+            this.state.halftimeSecondsLeft = 10;
+            this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
+          } else if (this.state.currentRoundMinute >= 90) {
+            if (prevMinute < 90) {
+              this.updateStandingsAfterRound();
+              this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
+            }
+          } else {
+            this.broadcast({
+              type: "AUCTION_SIM_TICK",
+              currentRoundMinute: this.state.currentRoundMinute,
+            });
+          }
         }
       }
     }, 1000);

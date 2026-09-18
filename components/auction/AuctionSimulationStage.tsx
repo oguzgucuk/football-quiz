@@ -19,7 +19,11 @@ import {
   TeamLineup,
   PitchPosition,
   FormationName,
+  TeamTactics,
+  ZoneId,
 } from "@/lib/auction/auctionTypes";
+import { AuctionHalftimeModal } from "@/components/auction/AuctionHalftimeModal";
+import { mirrorZone } from "@/lib/auction/zoneGrid";
 import { calculateStandings, collectCompletedRoundMatches } from "@/lib/auction/auctionTournament";
 import { FORMATION_CONFIGS, FormationSlotDefinition } from "@/lib/auction/formationTemplates";
 import { calculateSlotRating } from "@/lib/auction/positionSuitability";
@@ -39,6 +43,18 @@ import {
   Compass,
 } from "lucide-react";
 
+const ZONE_LABELS: Record<ZoneId, string> = {
+  def_left: "Savunma Sol",
+  def_center: "Savunma Merkez",
+  def_right: "Savunma Sağ",
+  mid_left: "Orta Saha Sol",
+  mid_center: "Orta Saha Merkez",
+  mid_right: "Orta Saha Sağ",
+  att_left: "Hücum Sol",
+  att_center: "Ceza Sahası Çevresi",
+  att_right: "Hücum Sağ",
+};
+
 interface AuctionSimulationStageProps {
   state: AuctionRoomState;
   currentUserId: string;
@@ -46,6 +62,8 @@ interface AuctionSimulationStageProps {
   onNextMatch: () => void;
   onReadyForNextMatch: () => void;
   onReturnToLobby: () => void;
+  onSubstitute?: (outPlayerId: string, inPlayerId: string) => void;
+  onUpdateTactics?: (tactics: Partial<TeamTactics>) => void;
 }
 
 export function AuctionSimulationStage({
@@ -55,6 +73,8 @@ export function AuctionSimulationStage({
   onNextMatch,
   onReadyForNextMatch,
   onReturnToLobby,
+  onSubstitute,
+  onUpdateTactics,
 }: AuctionSimulationStageProps) {
   const router = useRouter();
 
@@ -233,8 +253,25 @@ export function AuctionSimulationStage({
         .reverse()
     : [];
 
+  const latestEvent = visibleEvents[0];
+  const activeZone = latestEvent?.zone;
+  const isLeftHome = myMatch ? myMatch.homeUserId === leftUserId : true;
+  const activeZoneForLeft = isLeftHome ? activeZone : (activeZone ? mirrorZone(activeZone) : undefined);
+  const activeZoneForRight = !isLeftHome ? activeZone : (activeZone ? mirrorZone(activeZone) : undefined);
+
   return (
     <div className="w-full h-[calc(100vh-100px)] min-h-[640px] max-h-[860px] flex flex-col gap-2.5 select-none animate-fadeIn overflow-hidden">
+      {/* Devre Arası Modalı */}
+      {state.isHalftime && !isSpectator && (
+        <AuctionHalftimeModal
+          secondsLeft={state.halftimeSecondsLeft ?? 10}
+          myLineup={state.lineups[currentUserId]}
+          mySquad={state.participants[currentUserId]?.squad || []}
+          onSubstitute={onSubstitute}
+          onUpdateTactics={onUpdateTactics}
+        />
+      )}
+
       {/* ── ÜST ÇUBUK: Tur Başlığı + Canlı Sayaç + Tur Geçiş Butonu ── */}
       <div className="relative flex items-center justify-between p-2.5 px-4 rounded-2xl bg-black/60 border border-white/10 backdrop-blur-xl shrink-0">
         <div className="flex items-center gap-3">
@@ -251,12 +288,23 @@ export function AuctionSimulationStage({
           )}
         </div>
 
-        {/* Ortadaki Canlı Dakika */}
+        {/* Ortadaki Canlı Dakika / Devre Arası */}
         <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-1 rounded-xl bg-black/80 border border-white/15 shadow-md">
-          <Timer className={`w-4 h-4 text-amber-400 ${!isRoundOver ? "animate-spin" : ""}`} />
-          <span className="font-mono font-black text-amber-400 text-base tabular-nums">
-            {currentRoundMinute}&apos; / 90&apos;
-          </span>
+          {state.isHalftime ? (
+            <div className="flex items-center gap-2">
+              <span className="flex size-2 rounded-full bg-amber-400 animate-ping" />
+              <span className="font-mono font-black text-amber-400 text-xs sm:text-sm tracking-wider animate-pulse">
+                ⏸️ DEVRE ARASI ({state.halftimeSecondsLeft ?? 10}s)
+              </span>
+            </div>
+          ) : (
+            <>
+              <Timer className={`w-4 h-4 text-amber-400 ${!isRoundOver ? "animate-spin" : ""}`} />
+              <span className="font-mono font-black text-amber-400 text-base tabular-nums">
+                {currentRoundMinute}&apos; / 90&apos;
+              </span>
+            </>
+          )}
         </div>
 
         {/* Tur Bittiğinde Geçiş Kontrolü */}
@@ -315,7 +363,7 @@ export function AuctionSimulationStage({
           </div>
 
           {/* Dikey Mini Yeşil Saha */}
-          <MiniPitchView lineup={leftLineup} formation={leftLineup?.formation || "4-3-3"} />
+          <MiniPitchView lineup={leftLineup} formation={leftLineup?.formation || "4-3-3"} activeZone={activeZoneForLeft} />
 
           {/* Sahanın Altındaki Taktik Rozetleri */}
           <TacticsBadgesBar tactics={leftLineup?.tactics} />
@@ -335,7 +383,7 @@ export function AuctionSimulationStage({
           </div>
 
           {/* Dikey Mini Yeşil Saha */}
-          <MiniPitchView lineup={rightLineup} formation={rightLineup?.formation || "4-3-3"} isOpponent />
+          <MiniPitchView lineup={rightLineup} formation={rightLineup?.formation || "4-3-3"} isOpponent activeZone={activeZoneForRight} />
 
           {/* Sahanın Altındaki Taktik Rozetleri */}
           <TacticsBadgesBar tactics={rightLineup?.tactics} isOpponent />
@@ -364,9 +412,17 @@ export function AuctionSimulationStage({
 
           {/* ORTA: MAÇ ANLATIMI (CANLI SPİKER AKIŞI) */}
           <div className="flex-1 flex flex-col min-h-0 rounded-2xl bg-black/40 border border-white/10 p-2.5 backdrop-blur-xl overflow-hidden">
-            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1.5 pb-1 border-b border-white/10">
-              Maç Anlatımı
-            </span>
+            <div className="flex items-center justify-between mb-1.5 pb-1 border-b border-white/10">
+              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                Maç Anlatımı
+              </span>
+              {activeZone && (
+                <span className="text-[9px] font-mono font-bold text-amber-400 bg-amber-950/70 border border-amber-500/30 px-2 py-0.5 rounded-md flex items-center gap-1">
+                  <span className="size-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  {ZONE_LABELS[activeZone] || activeZone}
+                </span>
+              )}
+            </div>
             <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-1.5 custom-scrollbar">
               {visibleEvents.length === 0 ? (
                 <div className="h-full flex items-center justify-center text-center text-zinc-500 text-xs font-medium py-8">
@@ -497,6 +553,18 @@ export function AuctionSimulationStage({
   );
 }
 
+const ZONE_BOXES: Record<ZoneId, { top: string; left: string; width: string; height: string }> = {
+  att_left: { top: "2%", left: "2%", width: "31%", height: "31%" },
+  att_center: { top: "2%", left: "34.5%", width: "31%", height: "31%" },
+  att_right: { top: "2%", left: "67%", width: "31%", height: "31%" },
+  mid_left: { top: "34.5%", left: "2%", width: "31%", height: "31%" },
+  mid_center: { top: "34.5%", left: "34.5%", width: "31%", height: "31%" },
+  mid_right: { top: "34.5%", left: "67%", width: "31%", height: "31%" },
+  def_left: { top: "67%", left: "2%", width: "31%", height: "31%" },
+  def_center: { top: "67%", left: "34.5%", width: "31%", height: "31%" },
+  def_right: { top: "67%", left: "67%", width: "31%", height: "31%" },
+};
+
 // ---------------------------------------------------------------------------
 // Dikey Mini Yeşil Saha Bileşeni (Kolon 1 ve Kolon 2)
 // ---------------------------------------------------------------------------
@@ -504,10 +572,12 @@ function MiniPitchView({
   lineup,
   formation,
   isOpponent = false,
+  activeZone,
 }: {
   lineup?: TeamLineup;
   formation?: FormationName | string;
   isOpponent?: boolean;
+  activeZone?: ZoneId;
 }) {
   const formKey = (formation as FormationName) in FORMATION_CONFIGS ? (formation as FormationName) : "4-3-3";
   const formationConfig = FORMATION_CONFIGS[formKey];
@@ -522,6 +592,39 @@ function MiniPitchView({
       <div className="absolute inset-2 border border-white/15 rounded-xl pointer-events-none" />
       <div className="absolute top-1/2 inset-x-2 h-[1px] bg-white/15 pointer-events-none" />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-12 rounded-full border border-white/15 pointer-events-none" />
+
+      {/* 9 Bölge Izgara Çizgileri */}
+      <div className="absolute inset-2 grid grid-cols-3 grid-rows-3 pointer-events-none opacity-15">
+        <div className="border-r border-b border-white/20" />
+        <div className="border-r border-b border-white/20" />
+        <div className="border-b border-white/20" />
+        <div className="border-r border-b border-white/20" />
+        <div className="border-r border-b border-white/20" />
+        <div className="border-b border-white/20" />
+        <div className="border-r border-white/20" />
+        <div className="border-r border-white/20" />
+        <div />
+      </div>
+
+      {/* Aktif Bölge Vurgusu */}
+      {activeZone && ZONE_BOXES[activeZone] && (
+        <div
+          className={`absolute rounded-xl border pointer-events-none transition-all duration-500 z-10 animate-pulse ${
+            isOpponent
+              ? "border-cyan-400/60 bg-cyan-400/15 shadow-[0_0_15px_rgba(6,182,212,0.25)]"
+              : "border-amber-400/60 bg-amber-400/15 shadow-[0_0_15px_rgba(245,158,11,0.25)]"
+          }`}
+          style={ZONE_BOXES[activeZone]}
+        >
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span
+              className={`size-2 rounded-full animate-ping ${
+                isOpponent ? "bg-cyan-300" : "bg-amber-300"
+              }`}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Sahanın Sağ Üstünde Ortalama GEN */}
       {typeof lineup?.teamOvr === "number" && lineup.teamOvr > 0 && (

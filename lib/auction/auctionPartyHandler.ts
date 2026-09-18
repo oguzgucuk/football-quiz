@@ -115,6 +115,9 @@ type IncomingAuctionMessage = {
   cardIndex?: number;
   cardId?: string;
   lineup?: TeamLineup;
+  outPlayerId?: string;
+  inPlayerId?: string;
+  tactics?: Partial<import("./auctionTypes").TeamTactics>;
 };
 
 async function processAuctionMessage(
@@ -141,14 +144,10 @@ async function processAuctionMessage(
       break;
     }
     case "AUCTION_BID": {
-      handleBid(
-        room,
-        ws,
-        msg.userId,
-        Number(msg.amount),
-        msg.cardIndex !== undefined ? Number(msg.cardIndex) : undefined,
-        msg.cardId
-      );
+      const amount = typeof msg.amount === "string" ? parseInt(msg.amount, 10) : msg.amount;
+      if (typeof amount === "number") {
+        handleBid(room, ws, msg.userId, amount, msg.cardIndex, msg.cardId);
+      }
       break;
     }
     case "AUCTION_PASS": {
@@ -163,6 +162,18 @@ async function processAuctionMessage(
     }
     case "AUCTION_UNCONFIRM_LINEUP": {
       handleUnconfirmLineup(room, msg.userId);
+      break;
+    }
+    case "AUCTION_SUBSTITUTE": {
+      if (msg.outPlayerId && msg.inPlayerId) {
+        handleSubstitute(room, msg.userId, msg.outPlayerId, msg.inPlayerId);
+      }
+      break;
+    }
+    case "AUCTION_UPDATE_TACTICS": {
+      if (msg.tactics) {
+        handleUpdateTactics(room, msg.userId, msg.tactics);
+      }
       break;
     }
     case "AUCTION_SIM_READY": {
@@ -327,6 +338,65 @@ function handleUnconfirmLineup(room: AuctionPartyRoom, userId: string) {
   broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
 }
 
+function handleSubstitute(room: AuctionPartyRoom, userId: string, outPlayerId: string, inPlayerId: string) {
+  const participant = room.state.participants[userId];
+  const lineup = room.state.lineups[userId];
+  if (!participant || !lineup || !outPlayerId || !inPlayerId) return;
+
+  const targetSlotIndex = lineup.slots.findIndex((s) => s.placedPlayer?.id === outPlayerId);
+  if (targetSlotIndex === -1) return;
+
+  const inPlayer = participant.squad.find((p) => p.id === inPlayerId);
+  if (!inPlayer) return;
+
+  const targetSlot = lineup.slots[targetSlotIndex];
+  const { effectiveRating, penalty } = calculateSlotRating(inPlayer, targetSlot.targetPosition);
+
+  lineup.slots[targetSlotIndex] = {
+    ...targetSlot,
+    placedPlayer: inPlayer,
+    effectiveRating,
+    penalty,
+  };
+
+  const updatedLineup = calculateLineupPowers(userId, lineup.formation, lineup.slots);
+  updatedLineup.tactics = lineup.tactics;
+  room.state.lineups[userId] = updatedLineup;
+
+  // Maçları güncel kadrolarla tekrar simüle et
+  const roundIdx = room.state.currentRoundIndex ?? 0;
+  const currentScheduleItem = room.state.leagueSchedule?.[roundIdx];
+  if (currentScheduleItem) {
+    const simulatedRound = simulateSingleRoundMatches(currentScheduleItem, room.state.lineups, room.state.participants);
+    if (!room.state.simulationRounds) room.state.simulationRounds = [];
+    room.state.simulationRounds[roundIdx] = simulatedRound;
+    room.state.simulationMatches = room.state.simulationRounds.flatMap((r) => r.matches);
+  }
+
+  broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
+}
+
+function handleUpdateTactics(room: AuctionPartyRoom, userId: string, tactics: Partial<import("./auctionTypes").TeamTactics>) {
+  const lineup = room.state.lineups[userId];
+  if (!lineup || !tactics) return;
+
+  lineup.tactics = {
+    ...(lineup.tactics || { tempo: "balanced", buildUp: "balanced", pressing: "balanced", attackDirection: "balanced" }),
+    ...tactics,
+  };
+
+  const roundIdx = room.state.currentRoundIndex ?? 0;
+  const currentScheduleItem = room.state.leagueSchedule?.[roundIdx];
+  if (currentScheduleItem) {
+    const simulatedRound = simulateSingleRoundMatches(currentScheduleItem, room.state.lineups, room.state.participants);
+    if (!room.state.simulationRounds) room.state.simulationRounds = [];
+    room.state.simulationRounds[roundIdx] = simulatedRound;
+    room.state.simulationMatches = room.state.simulationRounds.flatMap((r) => r.matches);
+  }
+
+  broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
+}
+
 function proceedToSimulationRound(room: AuctionPartyRoom) {
   const uids = Object.keys(room.state.participants).filter((id) => Boolean(id && id.trim()));
   if (!room.state.leagueSchedule || room.state.leagueSchedule.length === 0) {
@@ -485,26 +555,58 @@ function startTimer(room: AuctionPartyRoom) {
       }
     } else if (room.state.status === "simulation") {
       if (!room.state.simulationStartedAt) {
-        room.state.simulationStartedAt = Date.now() - Math.floor(((room.state.currentRoundMinute || 0) / 90) * 30 * 1000);
+        room.state.simulationStartedAt = Date.now() - Math.floor(((room.state.currentRoundMinute || 0) / 45) * 18 * 1000);
       }
-      const startedAt = room.state.simulationStartedAt;
-      const elapsedSeconds = Math.max(0, (Date.now() - startedAt) / 1000);
-      const calculatedMinute = Math.min(90, Math.floor((elapsedSeconds / 30) * 90));
 
-      const prevMinute = room.state.currentRoundMinute || 0;
-      room.state.currentRoundMinute = Math.max(prevMinute, calculatedMinute);
-      room.state.currentSimMinute = room.state.currentRoundMinute;
+      if (room.state.isHalftime) {
+        const now = Date.now();
+        const endsAt = room.state.halftimeEndsAt || (now + 10000);
+        const secLeft = Math.max(0, Math.ceil((endsAt - now) / 1000));
+        room.state.halftimeSecondsLeft = secLeft;
 
-      if (room.state.currentRoundMinute >= 90) {
-        if (prevMinute < 90) {
-          updateStandingsAfterRound(room);
+        if (secLeft <= 0) {
+          // Devre arası bitti! 2. yarı başlıyor (18s sürer)
+          room.state.isHalftime = false;
+          room.state.halftimeEndsAt = undefined;
+          room.state.halftimeSecondsLeft = undefined;
+          room.state.simulationStartedAt = Date.now() - (18 * 1000);
           broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
+        } else {
+          broadcast(room, { type: "AUCTION_HALFTIME_TICK", secondsLeft: secLeft });
         }
       } else {
-        broadcast(room, {
-          type: "AUCTION_SIM_TICK",
-          currentRoundMinute: room.state.currentRoundMinute,
-        });
+        const startedAt = room.state.simulationStartedAt;
+        const elapsedSeconds = Math.max(0, (Date.now() - startedAt) / 1000);
+
+        let calculatedMinute = 0;
+        if (elapsedSeconds <= 18) {
+          calculatedMinute = Math.min(45, Math.floor((elapsedSeconds / 18) * 45));
+        } else {
+          const secondHalfElapsed = elapsedSeconds - 18;
+          calculatedMinute = Math.min(90, 45 + Math.floor((secondHalfElapsed / 18) * 45));
+        }
+
+        const prevMinute = room.state.currentRoundMinute || 0;
+        room.state.currentRoundMinute = Math.max(prevMinute, calculatedMinute);
+        room.state.currentSimMinute = room.state.currentRoundMinute;
+
+        if (prevMinute < 45 && room.state.currentRoundMinute >= 45 && !room.state.isHalftime) {
+          // 45. dakikada Devre Arası Molası (10s)
+          room.state.isHalftime = true;
+          room.state.halftimeEndsAt = Date.now() + 10 * 1000;
+          room.state.halftimeSecondsLeft = 10;
+          broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
+        } else if (room.state.currentRoundMinute >= 90) {
+          if (prevMinute < 90) {
+            updateStandingsAfterRound(room);
+            broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
+          }
+        } else {
+          broadcast(room, {
+            type: "AUCTION_SIM_TICK",
+            currentRoundMinute: room.state.currentRoundMinute,
+          });
+        }
       }
     }
   }, 1000);

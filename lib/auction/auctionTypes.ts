@@ -102,13 +102,17 @@ export interface TeamLineup {
   isConfirmed: boolean;
 }
 
+import { ZoneId } from "./zoneTypes";
+export type { ZoneId, PitchThird, BallPhase, BallState, SubstitutionAction, HalftimeTacticsAction } from "./zoneTypes";
+
 export interface MatchEvent {
   minute: number;
-  type: "goal" | "save" | "chance" | "attack_start";
+  type: "goal" | "save" | "chance" | "attack_start" | "corner" | "turnover" | "sub" | "halftime";
   teamUserId: string;
   playerName?: string;
   assistPlayerName?: string;
   description: string;
+  zone?: ZoneId;
 }
 
 export interface PossessionResult {
@@ -223,7 +227,13 @@ export interface AuctionRoomState {
   bidCooldownUntil?: number;
   /** Oyuncu satıldığında vitrinde 2 saniyelik kutlama/bilgilendirme gösteriliyor mu */
   isSoldCelebration?: boolean;
-  /** Kutlamanın sona ereceği epoch zamanı (ms) */
+  /** Satış kutlamasının biteceği zaman damgası (ms) */
   soldCelebrationUntil?: number;
+  /** Maç 45. dakikada devre arası molasında mı (10s) */
+  isHalftime?: boolean;
+  /** Devre arasının biteceği epoch zamanı (ms) */
+  halftimeEndsAt?: number;
+  /** Devre arasında kalan saniye (0-10) */
+  halftimeSecondsLeft?: number;
 }
 

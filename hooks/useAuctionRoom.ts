@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { AuctionRoomState, AuctionLobbySettings, TeamLineup } from "@/lib/auction/auctionTypes";
+import { AuctionRoomState, AuctionLobbySettings, TeamLineup, TeamTactics } from "@/lib/auction/auctionTypes";
 import { createInitialAuctionState } from "@/lib/auction/auctionRoomEngine";
 import { getWebSocketUrl } from "@/lib/realtime/getWebSocketUrl";
 
@@ -146,6 +146,20 @@ export function useAuctionRoom({ roomId, userId, username }: UseAuctionRoomProps
     sendMessage({ type: "AUCTION_LEAVE", userId });
   }, [userId, sendMessage]);
 
+  const substitutePlayer = useCallback(
+    (outPlayerId: string, inPlayerId: string) => {
+      sendMessage({ type: "AUCTION_SUBSTITUTE", userId, outPlayerId, inPlayerId });
+    },
+    [userId, sendMessage]
+  );
+
+  const updateHalftimeTactics = useCallback(
+    (tactics: Partial<TeamTactics>) => {
+      sendMessage({ type: "AUCTION_UPDATE_TACTICS", userId, tactics });
+    },
+    [userId, sendMessage]
+  );
+
   return {
     state,
     isConnected,
@@ -165,6 +179,8 @@ export function useAuctionRoom({ roomId, userId, username }: UseAuctionRoomProps
     readyForNextSimMatch,
     returnToLobby,
     leaveRoom,
+    substitutePlayer,
+    updateHalftimeTactics,
   };
 }
 
@@ -226,6 +242,12 @@ function handleIncomingMessage(
     });
   } else if (data.type === "AUCTION_TIMER_TICK" && typeof data.secondsLeft === "number") {
     setState((prev) => ({ ...prev, secondsLeft: data.secondsLeft! }));
+  } else if (data.type === "AUCTION_HALFTIME_TICK" && typeof data.secondsLeft === "number") {
+    setState((prev) => ({
+      ...prev,
+      isHalftime: true,
+      halftimeSecondsLeft: data.secondsLeft!,
+    }));
   } else if (data.type === "AUCTION_ERROR") {
     setErrorMessage(data.message || "İşlem gerçekleştirilemedi");
     setTimeout(() => setErrorMessage(null), 4000);

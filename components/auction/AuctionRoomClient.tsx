@@ -52,6 +52,8 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
     readyForNextSimMatch,
     returnToLobby,
     leaveRoom,
+    substitutePlayer,
+    updateHalftimeTactics,
   } = useAuctionRoom({ roomId, userId: currentUserId, username });
 
   useEffect(() => {
@@ -227,6 +229,8 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
             onNextMatch={nextSimMatch}
             onReadyForNextMatch={readyForNextSimMatch}
             onReturnToLobby={returnToLobby}
+            onSubstitute={substitutePlayer}
+            onUpdateTactics={updateHalftimeTactics}
           />
         )}
       </div>
