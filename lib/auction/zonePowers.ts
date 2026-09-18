@@ -194,3 +194,93 @@ export function resolveShooterVsGk(
   const isGoal = Math.random() < goalChance;
   return { isGoal, goalChance };
 }
+
+/**
+ * Mücadele esnasında faul olup olmadığını ve faulün türünü (Penaltı, Tehlikeli Frikik, Normal Faul) belirler.
+ */
+export function resolveFoulCheck(
+  zone: ZoneId,
+  isHighPress: boolean = false,
+  isFastTempo: boolean = false
+): {
+  isFoul: boolean;
+  isPenalty: boolean;
+  isDangerousFreeKick: boolean;
+  isYellowCard: boolean;
+} {
+  // Taban faul olasılığı: ~%12
+  let foulChance = 0.12;
+  if (isHighPress) foulChance += 0.06; // Önde agresif pres faul riskini artırır
+  if (isFastTempo) foulChance += 0.03; // Hızlı tempo sert ikili mücadeleleri artırır
+
+  const isFoul = Math.random() < foulChance;
+  if (!isFoul) {
+    return { isFoul: false, isPenalty: false, isDangerousFreeKick: false, isYellowCard: false };
+  }
+
+  // Faul düştü: Bölgeye göre ciddiyet
+  const isPenalty = zone === "att_center"; // Ceza sahası içi
+  const isDangerousFreeKick = !isPenalty && (zone === "mid_center" || zone === "att_left" || zone === "att_right");
+
+  // Sarı kart olasılığı: Penaltıda %30, tehlikeli frikikte %20, diğerlerinde %8
+  const cardChance = isPenalty ? 0.30 : isDangerousFreeKick ? 0.20 : 0.08;
+  const isYellowCard = Math.random() < cardChance;
+
+  return { isFoul: true, isPenalty, isDangerousFreeKick, isYellowCard };
+}
+
+/**
+ * Penaltı Düellosu (Penaltıcı vs Kaleci).
+ * Taban gol şansı %76 (Modern futbol standardı).
+ */
+export function resolvePenaltyDuel(
+  shooterRating: number,
+  gkRating: number
+): { isGoal: boolean; isSave: boolean; isWoodwork: boolean; goalChance: number } {
+  const shooterCurve = ratingCurve(shooterRating);
+  const gkCurve = ratingCurve(gkRating);
+
+  const goalChance = clamp(0.76 + (shooterCurve - gkCurve) * 0.20, 0.55, 0.92);
+  const roll = Math.random();
+
+  if (roll < goalChance) {
+    return { isGoal: true, isSave: false, isWoodwork: false, goalChance };
+  }
+
+  // Kaçan penaltı: %75 kaleci kurtardı, %25 direk/aut
+  const isSave = Math.random() < 0.75;
+  return { isGoal: false, isSave, isWoodwork: !isSave, goalChance };
+}
+
+/**
+ * Baraj Üstü / Doğrudan Frikik Düellosu.
+ * Taban gol şansı %22.
+ */
+export function resolveFreeKickDuel(
+  shooterRating: number,
+  gkRating: number
+): { isGoal: boolean; isSave: boolean; isCorner: boolean; isRebound: boolean; isWallBlock: boolean } {
+  const shooterCurve = ratingCurve(shooterRating);
+  const gkCurve = ratingCurve(gkRating);
+
+  const goalChance = clamp(0.22 + (shooterCurve - gkCurve) * 0.28, 0.08, 0.45);
+  const roll = Math.random();
+
+  if (roll < goalChance) {
+    return { isGoal: true, isSave: false, isCorner: false, isRebound: false, isWallBlock: false };
+  }
+
+  // Gol olmadıysa:
+  // %35 kaleci kornere çeldi
+  // %25 barajdan sekti (karambol / rebound)
+  // %40 kaleci kontrol etti / aut
+  const nonGoalRoll = Math.random();
+  if (nonGoalRoll < 0.35) {
+    return { isGoal: false, isSave: true, isCorner: true, isRebound: false, isWallBlock: false };
+  }
+  if (nonGoalRoll < 0.60) {
+    return { isGoal: false, isSave: false, isCorner: false, isRebound: true, isWallBlock: true };
+  }
+
+  return { isGoal: false, isSave: true, isCorner: false, isRebound: false, isWallBlock: false };
+}

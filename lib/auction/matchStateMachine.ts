@@ -12,6 +12,15 @@ import {
   generateReboundCommentary,
   generateSaveCommentary,
   generateTurnoverCommentary,
+  generatePenaltyAwardedCommentary,
+  generatePenaltyScoredCommentary,
+  generatePenaltySavedCommentary,
+  generatePenaltyWoodworkCommentary,
+  generateFreeKickAwardedCommentary,
+  generateFreeKickGoalCommentary,
+  generateFreeKickSavedCommentary,
+  generateFreeKickWallCommentary,
+  generateFoulCommentary,
 } from "./matchCommentary";
 import {
   pickGoalkeeper,
@@ -20,6 +29,10 @@ import {
   pickZonePasser,
   pickZoneShooter,
   pickZoneStealer,
+  pickPenaltyTaker,
+  pickFreeKickTaker,
+  pickCornerTaker,
+  pickCornerAerialThreat,
 } from "./zoneActors";
 import { buildZoneId, determineNextProgressionZone, mirrorZone, parseZone } from "./zoneGrid";
 import {
@@ -28,6 +41,9 @@ import {
   calculateZoneStealPower,
   resolveShooterVsGk,
   resolveZoneTurnoverChance,
+  resolveFoulCheck,
+  resolvePenaltyDuel,
+  resolveFreeKickDuel,
 } from "./zonePowers";
 import { BallState, ZoneId } from "./zoneTypes";
 
@@ -164,7 +180,49 @@ export function resolveNextState(
     const turnover = resolveZoneTurnoverChance(retention, steal);
 
     if (turnover.isStolen) {
-      // Orta alanda top kaybı -> Rakip atağa kalkar
+      // Top çalınırken faul olup olmadığını kontrol et
+      const foulCheck = resolveFoulCheck(
+        currentZone,
+        def.tactics?.pressing === "high_press",
+        def.tactics?.tempo === "fast"
+      );
+
+      if (foulCheck.isFoul) {
+        const stealer = pickZoneStealer(def, defZone);
+        const stealerName = stealer?.placedPlayer?.fullName || "Orta Saha";
+        const passer = pickZonePasser(atk, currentZone);
+        const passerName = passer?.placedPlayer?.fullName || "Orta Saha";
+
+        if (foulCheck.isDangerousFreeKick) {
+          const event: MatchEvent = {
+            minute,
+            type: "free_kick",
+            teamUserId: atk.userId,
+            playerName: passerName,
+            zone: currentZone,
+            description: generateFreeKickAwardedCommentary(passerName, stealerName, foulCheck.isYellowCard),
+          };
+          return {
+            nextState: { possessingTeamUserId: atk.userId, zone: currentZone, phase: "free_kick", actionCount: (state.actionCount || 0) + 1 },
+            event, isGoal: false, isSave: false, defenderName: stealerName,
+          };
+        }
+
+        const event: MatchEvent = {
+          minute,
+          type: "foul",
+          teamUserId: atk.userId,
+          playerName: passerName,
+          zone: currentZone,
+          description: generateFoulCommentary(passerName, stealerName),
+        };
+        return {
+          nextState: { possessingTeamUserId: atk.userId, zone: currentZone, phase: "transition", actionCount: (state.actionCount || 0) + 1 },
+          event, isGoal: false, isSave: false, defenderName: stealerName,
+        };
+      }
+
+      // Temiz top çalma -> Rakip atağa kalkar
       const stealer = pickZoneStealer(def, defZone);
       const stealerName = stealer?.placedPlayer?.fullName || "Orta Saha";
       const event: MatchEvent = {
@@ -201,10 +259,12 @@ export function resolveNextState(
   // 4. KORNER (Corner Kick)
   // ---------------------------------------------------------------------------
   if (phase === "corner") {
-    const kicker = pickZonePasser(atk, currentZone);
-    const target = pickZoneShooter(atk, currentZone);
+    const kicker = pickCornerTaker(atk);
     const kickerName = kicker?.placedPlayer?.fullName || "Kanat";
-    const targetName = target?.placedPlayer?.fullName || "Forvet";
+
+    // Ceza sahasında kafa vurmaya ileri çıkan kule stoper veya santrafor
+    const threat = pickCornerAerialThreat(atk, kickerName);
+    const targetName = threat.slot?.placedPlayer?.fullName || "Forvet";
 
     const event: MatchEvent = {
       minute,
@@ -212,7 +272,7 @@ export function resolveNextState(
       teamUserId: atk.userId,
       playerName: kickerName,
       zone: currentZone,
-      description: generateCornerCommentary(kickerName, targetName),
+      description: generateCornerCommentary(kickerName, targetName, threat.isDefenderThreat),
     };
 
     // Korner doğrudan kafa vuruşuna / şuta bağlanır
@@ -245,9 +305,195 @@ export function resolveNextState(
   }
 
   // ---------------------------------------------------------------------------
-  // 6. FIRSAT YARATMA (Chance Creation)
+  // 6. PENALTI VURUŞU (Penalty Kick)
+  // ---------------------------------------------------------------------------
+  if (phase === "penalty") {
+    const penaltyTakerSlot = pickPenaltyTaker(atk);
+    const penaltyTaker = penaltyTakerSlot?.placedPlayer?.fullName || "Forvet";
+    const penaltyRating = penaltyTakerSlot?.effectiveRating || 75;
+
+    const gk = pickGoalkeeper(def);
+    const duel = resolvePenaltyDuel(penaltyRating, gk.rating);
+
+    if (duel.isGoal) {
+      const event: MatchEvent = {
+        minute,
+        type: "goal",
+        teamUserId: atk.userId,
+        playerName: penaltyTaker,
+        zone: "att_center",
+        description: generatePenaltyScoredCommentary(penaltyTaker, atkName),
+      };
+      return {
+        nextState: { possessingTeamUserId: def.userId, zone: "mid_center", phase: "kick_off", actionCount: (state.actionCount || 0) + 1 },
+        event, isGoal: true, isSave: false, goalScorerName: penaltyTaker, gkName: gk.name,
+      };
+    }
+
+    if (duel.isSave) {
+      const event: MatchEvent = {
+        minute,
+        type: "save",
+        teamUserId: def.userId,
+        playerName: gk.name,
+        zone: "def_center",
+        description: generatePenaltySavedCommentary(gk.name, penaltyTaker),
+      };
+      const isCorner = Math.random() < 0.60;
+      return {
+        nextState: {
+          possessingTeamUserId: isCorner ? atk.userId : def.userId,
+          zone: isCorner ? "att_center" : "def_center",
+          phase: isCorner ? "corner" : "goal_kick",
+          actionCount: (state.actionCount || 0) + 1,
+        },
+        event, isGoal: false, isSave: true, gkName: gk.name,
+      };
+    }
+
+    // Direkten döndü!
+    const event: MatchEvent = {
+      minute,
+      type: "chance",
+      teamUserId: atk.userId,
+      playerName: penaltyTaker,
+      zone: "att_center",
+      description: generatePenaltyWoodworkCommentary(penaltyTaker),
+    };
+    return {
+      nextState: { possessingTeamUserId: def.userId, zone: "def_center", phase: "goal_kick", actionCount: (state.actionCount || 0) + 1 },
+      event, isGoal: false, isSave: false,
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // 7. TEHLİKELİ FRİKİK / SERBEST VURUŞ (Direct Free Kick)
+  // ---------------------------------------------------------------------------
+  if (phase === "free_kick") {
+    const fkTakerSlot = pickFreeKickTaker(atk);
+    const fkTaker = fkTakerSlot?.placedPlayer?.fullName || "Frikikçi";
+    const fkRating = fkTakerSlot?.effectiveRating || 75;
+
+    const gk = pickGoalkeeper(def);
+    const duel = resolveFreeKickDuel(fkRating, gk.rating);
+
+    if (duel.isGoal) {
+      const event: MatchEvent = {
+        minute,
+        type: "goal",
+        teamUserId: atk.userId,
+        playerName: fkTaker,
+        zone: currentZone,
+        description: generateFreeKickGoalCommentary(fkTaker, atkName),
+      };
+      return {
+        nextState: { possessingTeamUserId: def.userId, zone: "mid_center", phase: "kick_off", actionCount: (state.actionCount || 0) + 1 },
+        event, isGoal: true, isSave: false, goalScorerName: fkTaker, gkName: gk.name,
+      };
+    }
+
+    if (duel.isSave) {
+      const event: MatchEvent = {
+        minute,
+        type: "save",
+        teamUserId: def.userId,
+        playerName: gk.name,
+        zone: defZone,
+        description: generateFreeKickSavedCommentary(gk.name, fkTaker, duel.isCorner),
+      };
+      return {
+        nextState: {
+          possessingTeamUserId: duel.isCorner ? atk.userId : def.userId,
+          zone: duel.isCorner ? currentZone : "def_center",
+          phase: duel.isCorner ? "corner" : "goal_kick",
+          actionCount: (state.actionCount || 0) + 1,
+        },
+        event, isGoal: false, isSave: true, gkName: gk.name,
+      };
+    }
+
+    if (duel.isWallBlock) {
+      const event: MatchEvent = {
+        minute,
+        type: "chance",
+        teamUserId: atk.userId,
+        playerName: fkTaker,
+        zone: currentZone,
+        description: generateFreeKickWallCommentary(fkTaker),
+      };
+      return {
+        nextState: { possessingTeamUserId: atk.userId, zone: currentZone, phase: "rebound", actionCount: (state.actionCount || 0) + 1 },
+        event, isGoal: false, isSave: false,
+      };
+    }
+
+    // Aut / dışarı
+    return {
+      nextState: { possessingTeamUserId: def.userId, zone: "def_center", phase: "goal_kick", actionCount: (state.actionCount || 0) + 1 },
+      isGoal: false, isSave: false,
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // 8. FIRSAT YARATMA (Chance Creation)
   // ---------------------------------------------------------------------------
   if (phase === "chance_creation") {
+    // Mücadelede faul kontrolü
+    const foulCheck = resolveFoulCheck(
+      currentZone,
+      def.tactics?.pressing === "high_press",
+      atk.tactics?.tempo === "fast" || def.tactics?.tempo === "fast"
+    );
+
+    if (foulCheck.isFoul) {
+      const defPlayer = pickZoneDefender(def, defZone);
+      const atkPlayer = pickZoneShooter(atk, currentZone)?.placedPlayer?.fullName || "Forvet";
+
+      if (foulCheck.isPenalty) {
+        // 🚨 PENALTI! Ceza sahasında müdahale faul
+        const event: MatchEvent = {
+          minute,
+          type: "penalty",
+          teamUserId: atk.userId,
+          playerName: atkPlayer,
+          zone: currentZone,
+          description: generatePenaltyAwardedCommentary(atkPlayer, defPlayer, foulCheck.isYellowCard),
+        };
+        return {
+          nextState: { possessingTeamUserId: atk.userId, zone: "att_center", phase: "penalty", actionCount: (state.actionCount || 0) + 1 },
+          event, isGoal: false, isSave: false, defenderName: defPlayer,
+        };
+      } else if (foulCheck.isDangerousFreeKick) {
+        // ⚠️ TEHLİKELİ FRİKİK! Ceza sahası yayında faul
+        const event: MatchEvent = {
+          minute,
+          type: "free_kick",
+          teamUserId: atk.userId,
+          playerName: atkPlayer,
+          zone: currentZone,
+          description: generateFreeKickAwardedCommentary(atkPlayer, defPlayer, foulCheck.isYellowCard),
+        };
+        return {
+          nextState: { possessingTeamUserId: atk.userId, zone: currentZone, phase: "free_kick", actionCount: (state.actionCount || 0) + 1 },
+          event, isGoal: false, isSave: false, defenderName: defPlayer,
+        };
+      } else {
+        // Normal serbest vuruş
+        const event: MatchEvent = {
+          minute,
+          type: "foul",
+          teamUserId: atk.userId,
+          playerName: atkPlayer,
+          zone: currentZone,
+          description: generateFoulCommentary(atkPlayer, defPlayer),
+        };
+        return {
+          nextState: { possessingTeamUserId: atk.userId, zone: currentZone, phase: "chance_creation", actionCount: (state.actionCount || 0) + 1 },
+          event, isGoal: false, isSave: false, defenderName: defPlayer,
+        };
+      }
+    }
+
     const penetration = resolveBoxPenetration(atk, def, currentZone, defZone);
 
     if (!penetration.defenseBeaten) {

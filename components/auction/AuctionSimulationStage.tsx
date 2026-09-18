@@ -437,6 +437,12 @@ export function AuctionSimulationStage({
                         ? "bg-emerald-950/70 border-emerald-500/50 text-emerald-200 shadow-sm"
                         : ev.type === "save"
                         ? "bg-cyan-950/40 border-cyan-500/30 text-cyan-200"
+                        : ev.type === "penalty"
+                        ? "bg-rose-950/70 border-rose-500/50 text-rose-200 shadow-sm animate-pulse"
+                        : ev.type === "free_kick"
+                        ? "bg-amber-950/60 border-amber-500/40 text-amber-200"
+                        : ev.type === "corner"
+                        ? "bg-blue-950/50 border-blue-500/30 text-blue-200"
                         : "bg-white/5 border-white/5 text-zinc-300"
                     }`}
                   >

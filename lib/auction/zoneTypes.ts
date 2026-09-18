@@ -27,7 +27,9 @@ export type BallPhase =
   | "chance_creation"
   | "finishing"
   | "corner"
-  | "rebound";
+  | "rebound"
+  | "free_kick"
+  | "penalty";
 
 export interface BallState {
   possessingTeamUserId: string;

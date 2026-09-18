@@ -107,7 +107,7 @@ export type { ZoneId, PitchThird, BallPhase, BallState, SubstitutionAction, Half
 
 export interface MatchEvent {
   minute: number;
-  type: "goal" | "save" | "chance" | "attack_start" | "corner" | "turnover" | "sub" | "halftime";
+  type: "goal" | "save" | "chance" | "attack_start" | "corner" | "turnover" | "sub" | "halftime" | "foul" | "penalty" | "free_kick" | "yellow_card";
   teamUserId: string;
   playerName?: string;
   assistPlayerName?: string;
