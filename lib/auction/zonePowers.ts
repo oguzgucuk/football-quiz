@@ -59,12 +59,12 @@ export function calculateZonePossessionPower(lineup: TeamLineup, zone: ZoneId): 
 
   // Taktik Çarpanları (Top Koruma)
   if (third === "def" && tactics?.buildUp === "short_pass") {
-    total *= 1.15; // Kısa pasla çıkışta pas istasyonları hazır
+    total *= 1.08; // Kısa pasla çıkışta pas istasyonları
   }
   if (tactics?.tempo === "slow") {
-    total *= 1.20; // Sabırlı yavaş paslaşma: top koruma artar
+    total *= 1.15; // Sabırlı yavaş paslaşma: top koruma artar
   } else if (tactics?.tempo === "fast") {
-    total *= 0.88; // Hızlı dikine oynama: pas hatası riski artar
+    total *= 0.92; // Hızlı dikine oynama: pas hatası riski
   }
 
   return Math.max(0.1, total);
@@ -100,7 +100,7 @@ export function calculateZoneStealPower(lineup: TeamLineup, defendingZone: ZoneI
 
   // Taktiksel Pres Çarpanları
   if (tactics?.pressing === "high_press") {
-    if (third === "att") total *= 1.30;
+    if (third === "att") total *= 1.45; // Rakip ceza sahası önünde boğucu pres
     else if (third === "mid") total *= 1.25;
     else if (third === "def") total *= 0.75; // Önde basan takım arkada boşluk bırakır (-%25)
   } else if (tactics?.pressing === "park_bus") {
@@ -162,6 +162,14 @@ export function resolveBoxPenetration(
   }
 
   if (defLineup.tactics?.pressing === "park_bus") defPower *= 1.35;
+
+  // Hızlı Tempo: Savunma yerleşmeye fırsat bulamaz, hücum delici olur (+%18)
+  if (atkLineup.tactics?.tempo === "fast") {
+    atkPower *= 1.18;
+  } else if (atkLineup.tactics?.tempo === "slow") {
+    // Yavaş Tempo: Savunma yerleşip blok kurar
+    defPower *= 1.10;
+  }
 
   // Atakların ~%55-%60'ı stoperlerce kesilir
   const breakthroughChance = clamp(atkPower / Math.max(0.001, atkPower + defPower * 1.35), 0.10, 0.80);

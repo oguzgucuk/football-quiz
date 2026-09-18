@@ -88,12 +88,36 @@ export function resolveNextState(
     const isLongBall = atk.tactics?.buildUp === "long_ball";
 
     if (isLongBall) {
-      // Uzun top: Önde pres tamamen baypas edilir, top havadan rakip 3. bölgeye uçar
-      const targetZone: ZoneId = "att_center";
-      return {
-        nextState: { possessingTeamUserId: atk.userId, zone: targetZone, phase: "chance_creation", actionCount: (state.actionCount || 0) + 1 },
-        isGoal: false, isSave: false,
-      };
+      // Uzun top: Rakibin savunma çizgisiyle kapışır
+      // Rakip Önde Pres yapıyorsa arkada boşluk geniştir (%68 forvete ulaşır).
+      // Rakip Otobüsü Çek yapmışsa ceza sahası kalabalıktır (%38 forvete ulaşır).
+      // Rakip Dengeli ise %54 forvete ulaşır.
+      const isOpponentHighPress = def.tactics?.pressing === "high_press";
+      const isOpponentParkBus = def.tactics?.pressing === "park_bus";
+      const successChance = isOpponentHighPress ? 0.68 : isOpponentParkBus ? 0.38 : 0.54;
+
+      if (Math.random() < successChance) {
+        const targetZone: ZoneId = "att_center";
+        return {
+          nextState: { possessingTeamUserId: atk.userId, zone: targetZone, phase: "chance_creation", actionCount: (state.actionCount || 0) + 1 },
+          isGoal: false, isSave: false,
+        };
+      } else {
+        // Savunma veya kaleci havada karşıladı -> Dönen top orta alana düşer
+        const defPlayer = pickZoneDefender(def, "def_center");
+        const event: MatchEvent = {
+          minute,
+          type: "chance",
+          teamUserId: def.userId,
+          playerName: defPlayer,
+          zone: "def_center",
+          description: `🛡️ ${atkName} uzun top denedi, ancak ${defPlayer} (${defName}) hava topunu kafayla uzaklaştırdı.`,
+        };
+        return {
+          nextState: { possessingTeamUserId: def.userId, zone: "mid_center", phase: "transition", actionCount: (state.actionCount || 0) + 1 },
+          event, isGoal: false, isSave: false, defenderName: defPlayer,
+        };
+      }
     }
 
     // Kısa pas veya dengeli çıkış: Rakip presiyle düello
@@ -276,7 +300,9 @@ export function resolveNextState(
   const shooterRating = shooterSlot?.effectiveRating || 75;
 
   const gk = pickGoalkeeper(def);
-  const duel = resolveShooterVsGk(shooterRating, gk.rating, 0.55);
+  const tempoBonus = atk.tactics?.tempo === "fast" ? 0.07 : atk.tactics?.tempo === "slow" ? -0.04 : 0;
+  const baseOpportunity = isLongShot ? 0.42 : 0.55;
+  const duel = resolveShooterVsGk(shooterRating, gk.rating, baseOpportunity + tempoBonus);
 
   if (duel.isGoal) {
     const assistName = pickZoneAssister(atk, currentZone, shooterName);
@@ -299,7 +325,8 @@ export function resolveNextState(
 
   // Kaleci kurtardı!
   const roll = Math.random();
-  const isCorner = roll < 0.60;
+  const isCorner = roll < 0.50;
+  const isRebound = !isCorner && roll < 0.78;
   const event: MatchEvent = {
     minute,
     type: "save",
@@ -312,6 +339,13 @@ export function resolveNextState(
   if (isCorner) {
     return {
       nextState: { possessingTeamUserId: atk.userId, zone: currentZone, phase: "corner", actionCount: (state.actionCount || 0) + 1 },
+      event, isGoal: false, isSave: true, gkName: gk.name,
+    };
+  }
+
+  if (isRebound) {
+    return {
+      nextState: { possessingTeamUserId: atk.userId, zone: currentZone, phase: "rebound", actionCount: (state.actionCount || 0) + 1 },
       event, isGoal: false, isSave: true, gkName: gk.name,
     };
   }

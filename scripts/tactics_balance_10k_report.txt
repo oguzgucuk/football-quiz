@@ -1,0 +1,120 @@
+================================================================================
+⚽ 10,000 MAÇLIK TAKTİKSEL VARYASYON VE DENGE ANALİZİ (10K BENCHMARK)
+================================================================================
+Motor: 9 Bölgeli Markov Durum Makinesi (State Machine)
+Tarih: 18.09.2026 22:57:12
+Her senaryoda 1,000 maç simüle edilerek toplam 10,000 maç analizi çıkarılmaktadır.
+
+--------------------------------------------------------------------------------
+📌 SENARYO: 1. Temel Çizgi (Dengeli vs Dengeli)
+   Tanım: İki takım da 80 GEN, Dengeli tempo, Dengeli pas, Dengeli pres. (Baz çizgi)
+--------------------------------------------------------------------------------
+   Sonuç Dağılımı: Ev Sahibi %31.6  |  Beraberlik %37.8  |  Deplasman %30.6
+   Ortalama Skor:  0.87 - 0.86  (Toplam Gol: 1.72 / maç)
+   Gol Yememe:     Ev Sahibi: %29.1  |  Deplasman: %29.4
+   Defansta Top Kaybı: Ev: 0.22 / maç  |  Dep: 0.27 / maç
+   Gol Dağılımı:   0 Gol: %4.0 | 1-2 Gol: %83.3 | 3-4 Gol: %12.7 | 5+ Gol: %0.0
+   En Çok Çıkan Skorlar: 1-1 (%33.4), 0-1 (%16.5), 1-0 (%16.2), 0-2 (%8.6)
+
+--------------------------------------------------------------------------------
+📌 SENARYO: 2. Tempo Çatışması (Hızlı vs Yavaş)
+   Tanım: Ev Sahibi: Hızlı Tempo (fazla pozisyon ve risk) | Deplasman: Yavaş Tempo (topu tutma)
+--------------------------------------------------------------------------------
+   Sonuç Dağılımı: Ev Sahibi %29.7  |  Beraberlik %36.9  |  Deplasman %33.4
+   Ortalama Skor:  0.82 - 0.86  (Toplam Gol: 1.68 / maç)
+   Gol Yememe:     Ev Sahibi: %29.6  |  Deplasman: %33.4
+   Defansta Top Kaybı: Ev: 0.29 / maç  |  Dep: 0.17 / maç
+   Gol Dağılımı:   0 Gol: %5.2 | 1-2 Gol: %83.6 | 3-4 Gol: %11.2 | 5+ Gol: %0.0
+   En Çok Çıkan Skorlar: 1-1 (%31.5), 0-1 (%18.3), 1-0 (%14.4), 0-2 (%9.8)
+
+--------------------------------------------------------------------------------
+📌 SENARYO: 3. Kısa Pas vs Önde Pres
+   Tanım: Ev Sahibi: Kısa Pas (kendi yarı sahasından oyun kurma) | Deplasman: Önde Pres (yüksek baskı)
+--------------------------------------------------------------------------------
+   Sonuç Dağılımı: Ev Sahibi %26.9  |  Beraberlik %39.4  |  Deplasman %33.7
+   Ortalama Skor:  0.80 - 0.88  (Toplam Gol: 1.68 / maç)
+   Gol Yememe:     Ev Sahibi: %26.7  |  Deplasman: %31.3
+   Defansta Top Kaybı: Ev: 0.30 / maç  |  Dep: 0.22 / maç
+   Gol Dağılımı:   0 Gol: %4.4 | 1-2 Gol: %83.3 | 3-4 Gol: %12.3 | 5+ Gol: %0.0
+   En Çok Çıkan Skorlar: 1-1 (%34.5), 0-1 (%20.1), 1-0 (%16.3), 1-2 (%6.7)
+
+--------------------------------------------------------------------------------
+📌 SENARYO: 4. Uzun Top vs Önde Pres
+   Tanım: Ev Sahibi: Uzun Top (orta sahayı ve presi dikine aşma) | Deplasman: Önde Pres (savunma arkasında boşluk)
+--------------------------------------------------------------------------------
+   Sonuç Dağılımı: Ev Sahibi %47.6  |  Beraberlik %28.1  |  Deplasman %24.3
+   Ortalama Skor:  1.05 - 0.67  (Toplam Gol: 1.72 / maç)
+   Gol Yememe:     Ev Sahibi: %43.5  |  Deplasman: %23.7
+   Defansta Top Kaybı: Ev: 0.00 / maç  |  Dep: 0.30 / maç
+   Gol Dağılımı:   0 Gol: %4.2 | 1-2 Gol: %80.5 | 3-4 Gol: %15.3 | 5+ Gol: %0.0
+   En Çok Çıkan Skorlar: 1-1 (%23.8), 1-0 (%21.2), 2-0 (%16.1), 0-1 (%14.0)
+
+--------------------------------------------------------------------------------
+📌 SENARYO: 5. Kısa Pas vs Otobüsü Çek
+   Tanım: Ev Sahibi: Kısa Pas (sabırlı pas oyunu) | Deplasman: Otobüsü Çek (derin blok ve alan daraltma)
+--------------------------------------------------------------------------------
+   Sonuç Dağılımı: Ev Sahibi %32.7  |  Beraberlik %34.1  |  Deplasman %33.2
+   Ortalama Skor:  0.68 - 0.68  (Toplam Gol: 1.36 / maç)
+   Gol Yememe:     Ev Sahibi: %40.0  |  Deplasman: %40.0
+   Defansta Top Kaybı: Ev: 0.18 / maç  |  Dep: 0.21 / maç
+   Gol Dağılımı:   0 Gol: %8.5 | 1-2 Gol: %88.6 | 3-4 Gol: %2.9 | 5+ Gol: %0.0
+   En Çok Çıkan Skorlar: 1-1 (%25.6), 0-1 (%25.5), 1-0 (%24.8), 0-0 (%8.5)
+
+--------------------------------------------------------------------------------
+📌 SENARYO: 6. Kaleyi Görünce Vur vs Otobüsü Çek
+   Tanım: Ev Sahibi: Kaleyi Görünce Vur (uzaktan şutlarla kilidi açma) | Deplasman: Otobüsü Çek
+--------------------------------------------------------------------------------
+   Sonuç Dağılımı: Ev Sahibi %32.6  |  Beraberlik %32.0  |  Deplasman %35.4
+   Ortalama Skor:  0.65 - 0.66  (Toplam Gol: 1.31 / maç)
+   Gol Yememe:     Ev Sahibi: %41.7  |  Deplasman: %43.6
+   Defansta Top Kaybı: Ev: 0.16 / maç  |  Dep: 0.20 / maç
+   Gol Dağılımı:   0 Gol: %10.1 | 1-2 Gol: %86.9 | 3-4 Gol: %3.0 | 5+ Gol: %0.0
+   En Çok Çıkan Skorlar: 0-1 (%27.9), 1-0 (%24.1), 1-1 (%21.9), 0-0 (%10.1)
+
+--------------------------------------------------------------------------------
+📌 SENARYO: 7. Kanatlara Yüklen vs Merkeze Yüklen
+   Tanım: Ev Sahibi: Kanatlar (Wings) | Deplasman: Merkez (Center)
+--------------------------------------------------------------------------------
+   Sonuç Dağılımı: Ev Sahibi %32.3  |  Beraberlik %36.2  |  Deplasman %31.5
+   Ortalama Skor:  0.83 - 0.82  (Toplam Gol: 1.65 / maç)
+   Gol Yememe:     Ev Sahibi: %32.8  |  Deplasman: %31.4
+   Defansta Top Kaybı: Ev: 0.24 / maç  |  Dep: 0.23 / maç
+   Gol Dağılımı:   0 Gol: %4.9 | 1-2 Gol: %84.8 | 3-4 Gol: %10.3 | 5+ Gol: %0.0
+   En Çok Çıkan Skorlar: 1-1 (%30.8), 1-0 (%18.2), 0-1 (%17.8), 2-0 (%9.5)
+
+--------------------------------------------------------------------------------
+📌 SENARYO: 8. Zayıf Bek Madeni (92 LW vs 65 RB)
+   Tanım: Ev Sahibi: 92 LW ile 'Sola Yüklen' taktiği | Deplasman: 65 RB zayıf halkası
+--------------------------------------------------------------------------------
+   Sonuç Dağılımı: Ev Sahibi %40.2  |  Beraberlik %35.1  |  Deplasman %24.7
+   Ortalama Skor:  1.03 - 0.80  (Toplam Gol: 1.83 / maç)
+   Gol Yememe:     Ev Sahibi: %32.2  |  Deplasman: %21.4
+   Defansta Top Kaybı: Ev: 0.25 / maç  |  Dep: 0.26 / maç
+   Gol Dağılımı:   0 Gol: %2.3 | 1-2 Gol: %80.8 | 3-4 Gol: %16.9 | 5+ Gol: %0.0
+   En Çok Çıkan Skorlar: 1-1 (%32.2), 1-0 (%16.8), 0-1 (%13.6), 2-0 (%12.7)
+
+--------------------------------------------------------------------------------
+📌 SENARYO: 9. Kalite vs Taktik (85 GEN Kısa Pas vs 75 GEN Pres)
+   Tanım: Ev Sahibi: 85 GEN (Kısa Pas) | Deplasman: 75 GEN (Önde Pres - taktiksel kontra ama kalite farkı)
+--------------------------------------------------------------------------------
+   Sonuç Dağılımı: Ev Sahibi %59.0  |  Beraberlik %28.9  |  Deplasman %12.1
+   Ortalama Skor:  1.23 - 0.51  (Toplam Gol: 1.74 / maç)
+   Gol Yememe:     Ev Sahibi: %52.6  |  Deplasman: %13.0
+   Defansta Top Kaybı: Ev: 0.18 / maç  |  Dep: 0.30 / maç
+   Gol Dağılımı:   0 Gol: %2.9 | 1-2 Gol: %84.3 | 3-4 Gol: %12.8 | 5+ Gol: %0.0
+   En Çok Çıkan Skorlar: 1-1 (%26.0), 1-0 (%24.4), 2-0 (%23.8), 2-1 (%9.3)
+
+--------------------------------------------------------------------------------
+📌 SENARYO: 10. Zayıf Takımın Umudu (75 GEN Otobüs vs 85 GEN Pres)
+   Tanım: Ev Sahibi: 75 GEN (Otobüsü Çek + Yavaş Tempo) | Deplasman: 85 GEN (Önde Pres + Hızlı Tempo)
+--------------------------------------------------------------------------------
+   Sonuç Dağılımı: Ev Sahibi %8.7  |  Beraberlik %23.8  |  Deplasman %67.5
+   Ortalama Skor:  0.42 - 1.37  (Toplam Gol: 1.80 / maç)
+   Gol Yememe:     Ev Sahibi: %9.8  |  Deplasman: %59.5
+   Defansta Top Kaybı: Ev: 0.32 / maç  |  Dep: 0.13 / maç
+   Gol Dağılımı:   0 Gol: %2.2 | 1-2 Gol: %83.6 | 3-4 Gol: %14.2 | 5+ Gol: %0.0
+   En Çok Çıkan Skorlar: 0-2 (%31.3), 0-1 (%23.3), 1-1 (%21.4), 1-2 (%10.1)
+
+================================================================================
+🏁 TOPLAM 10,000 MAÇ 695ms İÇİNDE SİMÜLE EDİLDİ (Ortalama 0.07ms / maç)
+================================================================================
