@@ -4,7 +4,7 @@
  * mevkisel ağırlıklarına ve reytinglerine göre seçer.
  */
 
-import { SquadSlot, TeamLineup } from "./auctionTypes";
+import { PitchPosition, SquadSlot, TeamLineup } from "./auctionTypes";
 import { ASSIST_WEIGHTS, ATK_WEIGHTS, DEF_WEIGHTS, LONG_SHOT_WEIGHTS, MID_WEIGHTS, ratingCurve } from "./matchWeights";
 import { getPositionZoneWeight } from "./zoneGrid";
 import { ZoneId } from "./zoneTypes";
@@ -34,6 +34,7 @@ function getSafeFallbackSlot(lineup: TeamLineup, defaultPos: PitchPosition = "ST
   if (existing && existing.placedPlayer) return existing;
 
   return {
+    slotId: `fallback_${defaultPos.toLowerCase()}`,
     targetPosition: defaultPos,
     placedPlayer: {
       id: `fallback_${defaultPos.toLowerCase()}`,
