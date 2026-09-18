@@ -1,18 +1,19 @@
 /**
- * 4 Boyutlu Taktik ve Koridor Motoru Test Scripti.
+ * 4 Boyutlu Taktik ve 9 Bölge Motoru Test Scripti.
  * Tempo, Oyun Kurma, Pres ve Yön mekaniklerinin doğruluğunu test eder.
  */
 
 import {
-  calculateCorridorAttackPower,
-  calculateCorridorDefensePower,
-  calculateCorridorMidfieldScore,
+  calculateZonePossessionPower,
+  calculateZoneStealPower,
+} from "../lib/auction/zonePowers";
+import {
   calculateMatchTempo,
-  determineAttackCorridor,
-  getSlotCorridor,
-} from "../lib/auction/corridorEngine";
+  pickNextCorridor,
+  getPositionZoneWeight,
+} from "../lib/auction/zoneGrid";
 import { simulateMatch } from "../lib/auction/simulateMatch";
-import { resolvePossession } from "../lib/auction/possessionResolver";
+import { resolveNextState } from "../lib/auction/matchStateMachine";
 import { FormationName, TeamLineup, TeamTactics } from "../lib/auction/auctionTypes";
 import { createInitialSlotsForFormation } from "../lib/auction/formationTemplates";
 import { calculateLineupPowers } from "../lib/auction/positionSuitability";
@@ -70,20 +71,20 @@ async function runTacticsTests() {
   const shortPassTeam = createTestLineup("u2", 80, { tempo: "balanced", buildUp: "short_pass", pressing: "balanced", attackDirection: "balanced" });
   const longBallTeam = createTestLineup("u3", 80, { tempo: "balanced", buildUp: "long_ball", pressing: "balanced", attackDirection: "balanced" });
 
-  const baseAtk = calculateCorridorAttackPower(baseTeam, "left");
-  const shortAtk = calculateCorridorAttackPower(shortPassTeam, "left");
-  const longAtk = calculateCorridorAttackPower(longBallTeam, "left");
+  const baseAtk = calculateZonePossessionPower(baseTeam, "att_left");
+  const shortAtk = calculateZonePossessionPower(shortPassTeam, "att_left");
+  const longAtk = calculateZonePossessionPower(longBallTeam, "att_left");
 
-  console.log(`Standart Hücum Gücü: ${baseAtk.toFixed(3)}`);
+  console.log(`Standart Hücum Gücü (att_left): ${baseAtk.toFixed(3)}`);
   console.log(`Kısa Pas Hücum Gücü (Forvetler Nerf: 0.85x, Orta Saha Buff): ${shortAtk.toFixed(3)}`);
   console.log(`Uzun Pas Hücum Gücü (Orta Saha Baypas: 0.30x, Forvet Buff): ${longAtk.toFixed(3)}`);
 
   if (shortAtk >= baseAtk) throw new Error("Kısa pasta direkt bitirici hücum gücü nerf yemeliydi!");
   if (longAtk >= baseAtk) throw new Error("Uzun pasta orta saha hücuma katılmadığı için delme gücü düşmeliydi!");
 
-  const baseDef = calculateCorridorDefensePower(baseTeam, "left");
-  const shortDef = calculateCorridorDefensePower(shortPassTeam, "left");
-  console.log(`Standart Defans Gücü: ${baseDef.toFixed(3)}`);
+  const baseDef = calculateZoneStealPower(baseTeam, "def_left");
+  const shortDef = calculateZoneStealPower(shortPassTeam, "def_left");
+  console.log(`Standart Defans Gücü (def_left): ${baseDef.toFixed(3)}`);
   console.log(`Kısa Pas Defans Gücü (%5 Takım Nerf'ü): ${shortDef.toFixed(3)}`);
   if (Math.abs(shortDef - baseDef * 0.95) > 0.001) throw new Error("Kısa pas savunma gücüne %5 nerf uygulanmalı!");
 
@@ -94,22 +95,22 @@ async function runTacticsTests() {
   const highPressTeam = createTestLineup("u1", 80, { tempo: "balanced", buildUp: "balanced", pressing: "high_press", attackDirection: "balanced" });
   const parkBusTeam = createTestLineup("u2", 80, { tempo: "balanced", buildUp: "balanced", pressing: "park_bus", attackDirection: "balanced" });
 
-  const normalMid = calculateCorridorMidfieldScore(baseTeam, "center");
-  const pressMid = calculateCorridorMidfieldScore(highPressTeam, "center");
-  const busMid = calculateCorridorMidfieldScore(parkBusTeam, "center");
+  const normalMid = calculateZoneStealPower(baseTeam, "mid_center");
+  const pressMid = calculateZoneStealPower(highPressTeam, "mid_center");
+  const busMid = calculateZoneStealPower(parkBusTeam, "mid_center");
 
-  console.log(`Standart Orta Saha: ${normalMid.toFixed(3)}`);
+  console.log(`Standart Orta Saha (mid_center): ${normalMid.toFixed(3)}`);
   console.log(`Önde Pres Orta Saha (+%25): ${pressMid.toFixed(3)}`);
   console.log(`Otobüsü Park Et Orta Saha (-%30): ${busMid.toFixed(3)}`);
 
   if (pressMid <= normalMid) throw new Error("Yüksek pres orta saha gücünü artırmalıydı!");
   if (busMid >= normalMid) throw new Error("Park bus orta saha gücünü düşürmeliydi!");
 
-  const normalDef = calculateCorridorDefensePower(baseTeam, "center");
-  const pressDef = calculateCorridorDefensePower(highPressTeam, "center");
-  const busDef = calculateCorridorDefensePower(parkBusTeam, "center");
+  const normalDef = calculateZoneStealPower(baseTeam, "def_center");
+  const pressDef = calculateZoneStealPower(highPressTeam, "def_center");
+  const busDef = calculateZoneStealPower(parkBusTeam, "def_center");
 
-  console.log(`Standart Defans: ${normalDef.toFixed(3)}`);
+  console.log(`Standart Defans (def_center): ${normalDef.toFixed(3)}`);
   console.log(`Önde Pres Defans (Arkada Boşluk -%25): ${pressDef.toFixed(3)}`);
   console.log(`Otobüsü Park Et Defans (+%40): ${busDef.toFixed(3)}`);
 
@@ -117,20 +118,19 @@ async function runTacticsTests() {
   if (busDef <= normalDef) throw new Error("Park bus defans gücünü artırmalıydı!");
 
   console.log("\n==========================================");
-  console.log("🧪 4. HÜCUM YÖNÜ VE KORİDOR ZARI TESTİ (1000 Deneme)");
+  console.log("🧪 4. HÜCUM YÖNÜ VE KORİDOR SEÇİMİ TESTİ (1000 Deneme)");
   console.log("==========================================");
 
   const leftTeam = createTestLineup("u1", 90, { tempo: "balanced", buildUp: "balanced", pressing: "balanced", attackDirection: "left" });
-  const balancedTeam = createTestLineup("u2", 70, { tempo: "balanced", buildUp: "balanced", pressing: "balanced", attackDirection: "balanced" });
 
   let leftCount = 0, centerCount = 0, rightCount = 0;
   for (let i = 0; i < 1000; i++) {
-    const corridor = determineAttackCorridor(leftTeam, balancedTeam);
+    const corridor = pickNextCorridor("center", leftTeam.tactics);
     if (corridor === "left") leftCount++;
     else if (corridor === "center") centerCount++;
     else rightCount++;
   }
-  console.log(`Sol Kanat Odaklı Takım (90 GEN) Dağılımı:`);
+  console.log(`Sol Kanat Odaklı Takım Dağılımı (Merkezden sonraki adım):`);
   console.log(`  Sol Koridor: %${((leftCount / 1000) * 100).toFixed(1)}`);
   console.log(`  Merkez Koridor: %${((centerCount / 1000) * 100).toFixed(1)}`);
   console.log(`  Sağ Koridor: %${((rightCount / 1000) * 100).toFixed(1)}`);
@@ -143,18 +143,18 @@ async function runTacticsTests() {
   const wingsTeam = createTestLineup("u3", 90, { tempo: "balanced", buildUp: "balanced", pressing: "balanced", attackDirection: "wings" });
   let wLeft = 0, wCenter = 0, wRight = 0;
   for (let i = 0; i < 1000; i++) {
-    const corridor = determineAttackCorridor(wingsTeam, balancedTeam);
+    const corridor = pickNextCorridor("center", wingsTeam.tactics);
     if (corridor === "left") wLeft++;
     else if (corridor === "center") wCenter++;
     else wRight++;
   }
-  console.log(`\nKanatlar (Wings) Odaklı Takım (90 GEN) Dağılımı:`);
+  console.log(`\nKanatlar (Wings) Odaklı Takım Dağılımı:`);
   console.log(`  Sol Koridor: %${((wLeft / 1000) * 100).toFixed(1)}`);
   console.log(`  Sağ Koridor: %${((wRight / 1000) * 100).toFixed(1)}`);
   console.log(`  Merkez Koridor: %${((wCenter / 1000) * 100).toFixed(1)}`);
 
-  if (wCenter >= wLeft || wCenter >= wRight || (wLeft + wRight) < 700) {
-    throw new Error("Kanatlar taktiği atakları iki kanada dağıtmalı ve merkez atakları baskılamalıydı!");
+  if (wCenter !== 0 || (wLeft + wRight) !== 1000) {
+    throw new Error("Kanatlar taktiği merkezden atağı mutlaka iki kanattan birine açmalıdır!");
   }
 
   console.log("\n==========================================");
@@ -164,84 +164,72 @@ async function runTacticsTests() {
   const match = simulateMatch("match_test_1", leftTeam, "Ev Sahibi", parkBusTeam, "Deplasman");
   console.log(`Maç Sonucu: Ev Sahibi ${match.homeScore} - ${match.awayScore} Deplasman`);
   console.log(`Toplam Olay: ${match.events.length}`);
-  console.log("Örnek Koridor Spiker Anlatımları:");
+  console.log("Örnek Spiker Anlatımları:");
   match.events.slice(0, 4).forEach((e) => {
     console.log(`  [${e.minute}'] (${e.type.toUpperCase()}) ${e.description}`);
   });
 
   console.log("\n==========================================");
-  console.log("🧪 6. MEVKİLERİN KANAT ETKİ ORANLARI DOĞRULAMASI");
+  console.log("🧪 6. 9 BÖLGELİ MEVKİ DOĞAL ETKİNLİK KATSAYILARI (zoneGrid)");
   console.log("==========================================");
 
-  // 1. Tek ST (4-3-3) vs Çift ST (3-5-2 veya 4-4-2) ST kanat atağı etkisi
-  // Sadece ST'lerin sol kanada ürettiği hücum gücünü izole kontrol edelim:
-  const singleStTeam = createTestLineup("u1", 80, { tempo: "balanced", buildUp: "balanced", pressing: "balanced", attackDirection: "balanced" }, "4-3-3");
-  const doubleStTeam = createTestLineup("u2", 80, { tempo: "balanced", buildUp: "balanced", pressing: "balanced", attackDirection: "balanced" }, "3-5-2");
+  // ST santrafor ağırlıkları
+  const stCenter = getPositionZoneWeight("ST", "att_center");
+  const stWing = getPositionZoneWeight("ST", "att_left");
+  const stMid = getPositionZoneWeight("ST", "mid_center");
+  console.log(`ST Doğal Etkinlikleri -> att_center: ${stCenter}, att_left: ${stWing}, mid_center: ${stMid}`);
+  if (stCenter !== 1.0 || stWing !== 0.50 || stMid !== 0.20) {
+    throw new Error("ST bölge ağırlıkları beklenen değerlerle uyuşmuyor!");
+  }
 
-  // 4-3-3'teki tek ST'nin sol kanada katkısı: 1.5 * 0.30 = 0.45 * curve
-  // 3-5-2'deki sol ST'nin sol kanada katkısı: 1.5 * 0.60 = 0.90 * curve
-  const singleStSlot = singleStTeam.slots.find((s) => s.targetPosition === "ST")!;
-  const doubleStSlot = doubleStTeam.slots.find((s) => s.targetPosition === "ST" && getSlotCorridor(s.slotId, s.targetPosition, "3-5-2") === "left")!;
+  // CB stoper ağırlıkları
+  const cbCenter = getPositionZoneWeight("CB", "def_center");
+  const cbWing = getPositionZoneWeight("CB", "def_left");
+  console.log(`CB Doğal Etkinlikleri -> def_center: ${cbCenter}, def_left: ${cbWing}`);
+  if (cbCenter !== 1.0 || cbWing !== 0.40) {
+    throw new Error("CB bölge ağırlıkları beklenen değerlerle uyuşmuyor!");
+  }
 
-  const curve = ratingCurve(80);
-  const singleStContrib = curve * 1.5 * 0.30;
-  const doubleStContrib = curve * 1.5 * 0.60;
-
-  console.log(`Tek ST Kanat Katkısı (%30 tabanlı): ${singleStContrib.toFixed(3)}`);
-  console.log(`Çift ST Sol ST Katkısı (%60 tabanlı): ${doubleStContrib.toFixed(3)}`);
-  if (doubleStContrib !== singleStContrib * 2) throw new Error("Çift ST dizilişinde o taraftaki ST tam 2 kat (%60 vs %30) katkı sağlamalıydı!");
-
-  // 2. 3'lü Savunma (3-5-2) vs 4'lü Savunma (4-4-2) Sol Stoper (CB) kanat karşılama etkisi
-  // 3'lü savunmadaki sol CB katkısı: 1.5 * 0.70 = 1.05 * curve
-  // 4'lü savunmadaki sol CB katkısı: 1.5 * 0.35 = 0.525 * curve
-  const cb3BackContrib = curve * 1.5 * 0.70;
-  const cb4BackContrib = curve * 1.5 * 0.35;
-  console.log(`3'lü Savunma Sol CB Kanat Katkısı (%70 tabanlı): ${cb3BackContrib.toFixed(3)}`);
-  console.log(`4'lü Savunma Stoper Kanat Kademesi (%35 tabanlı): ${cb4BackContrib.toFixed(3)}`);
-  if (cb3BackContrib !== cb4BackContrib * 2) throw new Error("3'lü savunmada o taraftaki CB tam 2 kat (%70 vs %35) etkili olmalıydı!");
-
-  // 3. Çoklu Orta Saha (3-4 CM) vs Az Orta Saha (2 CM) kanat orta saha desteği
-  // Çoklu orta sahadaki sol CM katkısı: 0.60 * curve
-  // 2 orta sahadaki sol CM katkısı: 0.20 * curve
-  const multiMidContrib = curve * 0.60;
-  const fewMidContrib = curve * 0.20;
-  console.log(`Çoklu Orta Saha (3-4 CM) Kanat Katkısı (%60 tabanlı): ${multiMidContrib.toFixed(3)}`);
-  console.log(`2 Orta Saha Kanat Katkısı (%20 tabanlı): ${fewMidContrib.toFixed(3)}`);
-  if (Math.abs(multiMidContrib - fewMidContrib * 3) > 0.0001) throw new Error("Çoklu orta sahada ilgili CM tam 3 kat (%60 vs %20) etkili olmalıydı!");
+  // CM orta saha ağırlıkları
+  const cmCenter = getPositionZoneWeight("CM", "mid_center");
+  const cmWing = getPositionZoneWeight("CM", "mid_left");
+  console.log(`CM Doğal Etkinlikleri -> mid_center: ${cmCenter}, mid_left: ${cmWing}`);
+  if (cmCenter !== 1.0 || cmWing !== 0.65) {
+    throw new Error("CM bölge ağırlıkları beklenen değerlerle uyuşmuyor!");
+  }
 
   console.log("\n==========================================");
-  console.log("🧪 7. UZAKTAN ŞUT & 'KALEYİ GÖRÜNCE VUR' TESTLERİ");
+  console.log("🧪 7. UZAKTAN ŞUT & 'KALEYİ GÖRÜNCE VUR' MOTOR TESTİ");
   console.log("==========================================");
 
   const shootOnSightTeam = createTestLineup("u1", 80, { tempo: "balanced", buildUp: "shoot_on_sight", pressing: "balanced", attackDirection: "balanced" });
   const normalOpponent = createTestLineup("u2", 80, { tempo: "balanced", buildUp: "balanced", pressing: "balanced", attackDirection: "balanced" });
 
-  let shootOnSightAttacks = 0;
-  let longShotCount = 0;
-  let longShotGoals = 0;
-  const N = 2000;
-
+  let retainedPossessionCount = 0;
+  let shootOnSightTriggerCount = 0;
+  const N = 1000;
   for (let i = 0; i < N; i++) {
-    const res = resolvePossession(10, shootOnSightTeam, "Ev Sahibi", normalOpponent, "Deplasman");
-    if (res.attackingTeamUserId === shootOnSightTeam.userId) {
-      shootOnSightAttacks++;
-      if (res.isLongRangeShot) {
-        longShotCount++;
-        if (res.isGoal) longShotGoals++;
+    const res = resolveNextState(
+      { possessingTeamUserId: shootOnSightTeam.userId, zone: "mid_center", phase: "midfield_possession", actionCount: 1 },
+      10,
+      shootOnSightTeam,
+      "Ev Sahibi",
+      normalOpponent,
+      "Deplasman"
+    );
+    if (res.nextState.possessingTeamUserId === shootOnSightTeam.userId) {
+      retainedPossessionCount++;
+      if (res.nextState.phase === "finishing" && res.nextState.zone === "mid_center") {
+        shootOnSightTriggerCount++;
       }
     }
   }
 
-  const longShotPct = (longShotCount / shootOnSightAttacks) * 100;
-  const conversionPct = longShotCount > 0 ? (longShotGoals / longShotCount) * 100 : 0;
-  console.log(`Kaleyi Görünce Vur Takımı Uzaktan Şut Sıklığı (Beklenen: ~%70): %${longShotPct.toFixed(1)} (${longShotCount}/${shootOnSightAttacks})`);
-  console.log(`Uzaktan Şutların Gole Dönüşme Oranı (Beklenen: ~%16): %${conversionPct.toFixed(1)} (${longShotGoals}/${longShotCount})`);
+  const triggerPct = (shootOnSightTriggerCount / retainedPossessionCount) * 100;
+  console.log(`Kaleyi Görünce Vur Takımı Topu Koruduğunda mid_center'da Direkt Şut Fazına Geçiş Sıklığı (Beklenen: ~%60): %${triggerPct.toFixed(1)} (${shootOnSightTriggerCount}/${retainedPossessionCount})`);
 
-  if (longShotPct < 65 || longShotPct > 75) {
-    throw new Error(`Kaleyi görünce vur uzaktan şut sıklığı %70 civarı olmalıydı! (Çıkan: %${longShotPct})`);
-  }
-  if (conversionPct < 5 || conversionPct > 18) {
-    throw new Error(`Uzaktan şut gole dönüşme oranı %10 civarı olmalıydı! (Çıkan: %${conversionPct})`);
+  if (triggerPct < 52 || triggerPct > 68) {
+    throw new Error(`Kaleyi görünce vur direkt şut sıklığı %60 civarı olmalıydı! (Çıkan: %${triggerPct})`);
   }
 
   console.log("\n🎉 TÜM TESTLER BAŞARIYLA GEÇTİ!");
