@@ -55,6 +55,8 @@ export function handleAuctionSocketConnection(ws: WebSocket, roomId: string) {
   }
 
   room.clients.set(ws, { userId: "", username: "" });
+  syncSimulationProgress(room);
+  ws.send(JSON.stringify({ type: "AUCTION_STATE_SYNC", state: room.state }));
 
   ws.on("message", async (raw: string) => {
     try {
@@ -92,14 +94,14 @@ export function handleAuctionSocketConnection(ws: WebSocket, roomId: string) {
         broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
       }
 
-      // 20 saniyelik yeniden bağlanma hoşgörü süresi (F5 ve anlık kopma koruması)
+      // 25 saniyelik yeniden bağlanma hoşgörü süresi (F5 ve anlık kopma koruması)
       const timer = setTimeout(() => {
         disconnectGraceTimers.delete(graceKey);
         const currentRoom = auctionRooms.get(room.roomId);
         if (currentRoom) {
           handleUserDisconnect(currentRoom, clientMeta.userId, clientMeta.username || "Bir oyuncu");
         }
-      }, 20000);
+      }, 25000);
 
       disconnectGraceTimers.set(graceKey, timer);
     }

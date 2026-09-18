@@ -26,6 +26,26 @@ function weightedPick<T>(candidates: WeightedCandidate<T>[]): T | null {
   return candidates[candidates.length - 1]?.item ?? null;
 }
 
+function getSafeFallbackSlot(lineup: TeamLineup, defaultPos: PitchPosition = "ST"): SquadSlot {
+  const existing =
+    lineup.slots.find((s) => s.placedPlayer && s.targetPosition !== "GK") ||
+    lineup.slots.find((s) => s.placedPlayer) ||
+    lineup.slots[0];
+  if (existing && existing.placedPlayer) return existing;
+
+  return {
+    targetPosition: defaultPos,
+    placedPlayer: {
+      id: `fallback_${defaultPos.toLowerCase()}`,
+      fullName: defaultPos === "GK" ? "Kaleci" : "Oyuncu",
+      overallPrime: lineup.teamOvr || 75,
+      positions: [defaultPos],
+    },
+    effectiveRating: lineup.teamOvr || 75,
+    penalty: 0,
+  };
+}
+
 /**
  * Belirtilen bölgede pası dağıtan / atağı yönlendiren oyuncuyu seçer.
  */
@@ -41,7 +61,7 @@ export function pickZonePasser(lineup: TeamLineup, zone: ZoneId): SquadSlot {
     if (weight > 0) candidates.push({ item: slot, weight });
   }
 
-  return weightedPick(candidates) || lineup.slots.find((s) => s.placedPlayer && s.targetPosition !== "GK")!;
+  return weightedPick(candidates) || getSafeFallbackSlot(lineup, "CM");
 }
 
 /**
@@ -59,7 +79,7 @@ export function pickZoneStealer(lineup: TeamLineup, defendingZone: ZoneId): Squa
     if (weight > 0) candidates.push({ item: slot, weight });
   }
 
-  return weightedPick(candidates) || lineup.slots.find((s) => s.placedPlayer && s.targetPosition !== "GK")!;
+  return weightedPick(candidates) || getSafeFallbackSlot(lineup, "CB");
 }
 
 /**
@@ -78,7 +98,7 @@ export function pickZoneShooter(lineup: TeamLineup, zone: ZoneId, isLongRange: b
     if (weight > 0) candidates.push({ item: slot, weight });
   }
 
-  return weightedPick(candidates) || lineup.slots.find((s) => s.placedPlayer && ["ST", "CF", "LW", "RW", "CAM"].includes(s.targetPosition))!;
+  return weightedPick(candidates) || getSafeFallbackSlot(lineup, "ST");
 }
 
 /**
@@ -150,7 +170,7 @@ export function pickPenaltyTaker(lineup: TeamLineup): SquadSlot {
     candidates.push({ item: slot, weight });
   }
 
-  return weightedPick(candidates) || lineup.slots.find((s) => s.placedPlayer && s.targetPosition !== "GK")!;
+  return weightedPick(candidates) || getSafeFallbackSlot(lineup, "ST");
 }
 
 /**
@@ -168,7 +188,7 @@ export function pickFreeKickTaker(lineup: TeamLineup): SquadSlot {
     candidates.push({ item: slot, weight });
   }
 
-  return weightedPick(candidates) || lineup.slots.find((s) => s.placedPlayer && s.targetPosition !== "GK")!;
+  return weightedPick(candidates) || getSafeFallbackSlot(lineup, "CAM");
 }
 
 /**
@@ -186,7 +206,7 @@ export function pickCornerTaker(lineup: TeamLineup): SquadSlot {
     candidates.push({ item: slot, weight });
   }
 
-  return weightedPick(candidates) || lineup.slots.find((s) => s.placedPlayer && s.targetPosition !== "GK")!;
+  return weightedPick(candidates) || getSafeFallbackSlot(lineup, "RW");
 }
 
 /**
@@ -226,6 +246,6 @@ export function pickCornerAerialThreat(
   const picked = weightedPick(candidates);
   if (picked) return picked;
 
-  const fallback = lineup.slots.find((s) => s.placedPlayer && s.targetPosition !== "GK")!;
+  const fallback = getSafeFallbackSlot(lineup, "CB");
   return { slot: fallback, isDefenderThreat: fallback.targetPosition === "CB" };
 }

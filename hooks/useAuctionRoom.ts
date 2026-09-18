@@ -17,9 +17,22 @@ interface UseAuctionRoomProps {
 }
 
 export function useAuctionRoom({ roomId, userId, username }: UseAuctionRoomProps) {
-  const [state, setState] = useState<AuctionRoomState>(() =>
-    createInitialAuctionState(roomId, userId, username)
-  );
+  const [state, setState] = useState<AuctionRoomState>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = sessionStorage.getItem(`auction_state_${roomId}`);
+        if (cached) {
+          const parsed = JSON.parse(cached) as AuctionRoomState;
+          if (parsed && parsed.roomId === roomId && parsed.status && parsed.status !== "finished") {
+            return parsed;
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return createInitialAuctionState(roomId, userId, username);
+  });
   const [isConnected, setIsConnected] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -62,7 +75,7 @@ export function useAuctionRoom({ roomId, userId, username }: UseAuctionRoomProps
       socket.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          handleIncomingMessage(data, setState, setIsSpectator, setErrorMessage, setToastMessage, setRoomClosedReason);
+          handleIncomingMessage(data, roomId, setState, setIsSpectator, setErrorMessage, setToastMessage, setRoomClosedReason);
         } catch (err) {
           console.error("[AuctionSocket] Parse hatası:", err);
         }
@@ -139,12 +152,26 @@ export function useAuctionRoom({ roomId, userId, username }: UseAuctionRoomProps
   }, [userId, sendMessage]);
 
   const returnToLobby = useCallback(() => {
+    if (typeof window !== "undefined") {
+      try {
+        sessionStorage.removeItem(`auction_state_${roomId}`);
+      } catch {
+        // ignore
+      }
+    }
     sendMessage({ type: "AUCTION_RETURN_TO_LOBBY", userId });
-  }, [userId, sendMessage]);
+  }, [roomId, userId, sendMessage]);
 
   const leaveRoom = useCallback(() => {
+    if (typeof window !== "undefined") {
+      try {
+        sessionStorage.removeItem(`auction_state_${roomId}`);
+      } catch {
+        // ignore
+      }
+    }
     sendMessage({ type: "AUCTION_LEAVE", userId });
-  }, [userId, sendMessage]);
+  }, [roomId, userId, sendMessage]);
 
   const substitutePlayer = useCallback(
     (outPlayerId: string, inPlayerId: string) => {
@@ -197,6 +224,7 @@ type ServerAuctionEvent = {
 
 function handleIncomingMessage(
   data: ServerAuctionEvent,
+  roomId: string,
   setState: React.Dispatch<React.SetStateAction<AuctionRoomState>>,
   setIsSpectator: React.Dispatch<React.SetStateAction<boolean>>,
   setErrorMessage: (msg: string | null) => void,
@@ -227,6 +255,20 @@ function handleIncomingMessage(
           currentSimMinute: effectiveMinute,
         };
       }
+
+      // F5 yenilemelerinde anlık lobiye düşmeyi önlemek için geçerli oda durumunu sakla
+      if (typeof window !== "undefined") {
+        try {
+          if (syncedState.status === "finished") {
+            sessionStorage.removeItem(`auction_state_${roomId}`);
+          } else {
+            sessionStorage.setItem(`auction_state_${roomId}`, JSON.stringify(syncedState));
+          }
+        } catch {
+          // ignore storage quota errors
+        }
+      }
+
       return syncedState;
     });
     if (typeof data.viewerMode === "boolean") setIsSpectator(data.viewerMode);
@@ -255,6 +297,13 @@ function handleIncomingMessage(
     setToastMessage(`${data.username || "Bir oyuncu"} lobiden ayrıldı.`);
     setTimeout(() => setToastMessage(null), 4000);
   } else if (data.type === "AUCTION_ROOM_CLOSED") {
+    if (typeof window !== "undefined") {
+      try {
+        sessionStorage.removeItem(`auction_state_${roomId}`);
+      } catch {
+        // ignore
+      }
+    }
     setRoomClosedReason(data.reason || "Oda sahibi lobiden ayrıldığı için lobi kapatıldı.");
   }
 }

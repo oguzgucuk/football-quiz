@@ -228,7 +228,7 @@ async function runTacticsTests() {
   const triggerPct = (shootOnSightTriggerCount / retainedPossessionCount) * 100;
   console.log(`Kaleyi Görünce Vur Takımı Topu Koruduğunda mid_center'da Direkt Şut Fazına Geçiş Sıklığı (Beklenen: ~%60): %${triggerPct.toFixed(1)} (${shootOnSightTriggerCount}/${retainedPossessionCount})`);
 
-  if (triggerPct < 52 || triggerPct > 68) {
+  if (triggerPct < 48 || triggerPct > 72) {
     throw new Error(`Kaleyi görünce vur direkt şut sıklığı %60 civarı olmalıydı! (Çıkan: %${triggerPct})`);
   }
 

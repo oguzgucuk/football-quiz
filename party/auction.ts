@@ -40,9 +40,38 @@ export default class AuctionPartyServer implements Party.Server {
   siteUrl?: string;
   timerInterval?: ReturnType<typeof setInterval>;
   connectionMeta = new Map<string, { userId: string; username: string }>();
+  disconnectGraceTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   constructor(readonly room: Party.Room) {
     this.state = createInitialAuctionState(this.room.id, "", "");
+  }
+
+  async onStart() {
+    try {
+      const saved = await this.room.storage.get<AuctionRoomState>("auction_room_state");
+      if (saved && saved.roomId === this.room.id) {
+        this.state = saved;
+        // Eğer simülasyon veya zamanlayıcı gerektiren bir aşamadaysa zamanlayıcıyı devam ettir
+        if (
+          this.state.status === "auction" ||
+          this.state.status === "tactics" ||
+          this.state.status === "simulation"
+        ) {
+          this.syncSimulationProgress();
+          this.startAuctionTimer();
+        }
+      }
+    } catch (err) {
+      console.error("[AuctionPartyServer] onStart storage restore hatası:", err);
+    }
+  }
+
+  private async persistState() {
+    try {
+      await this.room.storage.put("auction_room_state", this.state);
+    } catch (err) {
+      console.error("[AuctionPartyServer] persistState hatası:", err);
+    }
   }
 
   onConnect(conn: Party.Connection, ctx: Party.ConnectionContext) {
@@ -60,7 +89,25 @@ export default class AuctionPartyServer implements Party.Server {
       (m) => m.userId === meta.userId
     );
     if (remainingConns.length === 0) {
-      this.handleUserDisconnect(meta.userId, meta.username || "Bir oyuncu");
+      // Katılımcıyı geçici olarak bağlantı koptu işaretle (anlık F5 yenileme koruması)
+      if (this.state.participants[meta.userId]) {
+        this.state.participants[meta.userId].isDisconnected = true;
+        this.state.participants[meta.userId].disconnectedAt = Date.now();
+        this.persistState();
+        this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
+      }
+
+      // Varsa eski grace timer'ı temizle
+      const existing = this.disconnectGraceTimers.get(meta.userId);
+      if (existing) clearTimeout(existing);
+
+      // 25 saniye grace period (F5 ve anlık kopma koruması)
+      const timer = setTimeout(() => {
+        this.disconnectGraceTimers.delete(meta.userId);
+        this.handleUserDisconnect(meta.userId, meta.username || "Bir oyuncu");
+      }, 25000);
+
+      this.disconnectGraceTimers.set(meta.userId, timer);
     }
   }
 
@@ -73,10 +120,10 @@ export default class AuctionPartyServer implements Party.Server {
 
       switch (msg.type) {
         case "AUCTION_JOIN":
-          this.handleJoin(sender, msg.userId, msg.username || "Oyuncu");
+          await this.handleJoin(sender, msg.userId, msg.username || "Oyuncu");
           break;
         case "AUCTION_UPDATE_SETTINGS":
-          this.handleUpdateSettings(msg.userId, msg.settings);
+          await this.handleUpdateSettings(msg.userId, msg.settings);
           break;
         case "AUCTION_START":
           if (this.state.hostUserId === msg.userId && this.state.status === "lobby") {
@@ -84,7 +131,7 @@ export default class AuctionPartyServer implements Party.Server {
           }
           break;
         case "AUCTION_BID":
-          this.handleBid(
+          await this.handleBid(
             sender,
             msg.userId,
             Number(msg.amount),
@@ -93,38 +140,43 @@ export default class AuctionPartyServer implements Party.Server {
           );
           break;
         case "AUCTION_PASS":
-          this.handlePass(msg.userId);
+          await this.handlePass(msg.userId);
           break;
         case "AUCTION_CONFIRM_LINEUP":
-          if (msg.lineup) this.handleConfirmLineup(msg.userId, msg.lineup);
+          if (msg.lineup) await this.handleConfirmLineup(msg.userId, msg.lineup);
           break;
         case "AUCTION_UNCONFIRM_LINEUP":
-          this.handleUnconfirmLineup(msg.userId);
+          await this.handleUnconfirmLineup(msg.userId);
           break;
         case "AUCTION_SUBSTITUTE":
           if (msg.outPlayerId && msg.inPlayerId) {
-            this.handleSubstitute(msg.userId, msg.outPlayerId, msg.inPlayerId);
+            await this.handleSubstitute(msg.userId, msg.outPlayerId, msg.inPlayerId);
           }
           break;
         case "AUCTION_UPDATE_TACTICS":
           if (msg.tactics) {
-            this.handleUpdateTactics(msg.userId, msg.tactics);
+            await this.handleUpdateTactics(msg.userId, msg.tactics);
           }
           break;
         case "AUCTION_SIM_READY":
-          this.handleSimReady(msg.userId);
+          await this.handleSimReady(msg.userId);
           break;
         case "AUCTION_ROUND_COMPLETE":
-          this.handleRoundComplete(msg.userId);
+          await this.handleRoundComplete(msg.userId);
           break;
         case "AUCTION_NEXT_SIM_MATCH":
-          this.handleNextRound(msg.userId);
+          await this.handleNextRound(msg.userId);
           break;
         case "AUCTION_RETURN_TO_LOBBY":
-          this.handleReturnToLobby();
+          await this.handleReturnToLobby();
           break;
         case "AUCTION_LEAVE":
-          this.handleUserDisconnect(msg.userId, msg.username || "Bir oyuncu");
+          const graceTimer = this.disconnectGraceTimers.get(msg.userId);
+          if (graceTimer) {
+            clearTimeout(graceTimer);
+            this.disconnectGraceTimers.delete(msg.userId);
+          }
+          await this.handleUserDisconnect(msg.userId, msg.username || "Bir oyuncu");
           break;
       }
     } catch (err) {
@@ -151,8 +203,16 @@ export default class AuctionPartyServer implements Party.Server {
     this.room.broadcast(JSON.stringify(payload));
   }
 
-  private handleJoin(sender: Party.Connection, userId: string, username: string) {
+  private async handleJoin(sender: Party.Connection, userId: string, username: string) {
     if (!userId || !userId.trim()) return;
+
+    // Yeniden bağlanma (reconnect): Varsa bekleyen grace period timer'ını iptal et
+    const existingTimer = this.disconnectGraceTimers.get(userId);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+      this.disconnectGraceTimers.delete(userId);
+    }
+
     this.connectionMeta.set(sender.id, { userId, username });
     delete this.state.participants[""];
 
@@ -179,17 +239,28 @@ export default class AuctionPartyServer implements Party.Server {
         squad: [],
         isReady: true,
         isHost: this.state.hostUserId === userId,
+        isDisconnected: false,
+        disconnectedAt: null,
       };
+    } else {
+      // Oyuncu zaten vardı (F5 veya yeniden bağlanma)
+      this.state.participants[userId].isDisconnected = false;
+      this.state.participants[userId].disconnectedAt = null;
+      if (username) {
+        this.state.participants[userId].username = username;
+      }
     }
 
     this.state.turnOrder = Object.keys(this.state.participants).filter((id) => Boolean(id && id.trim()));
     this.syncSimulationProgress();
+    await this.persistState();
     this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
   }
 
-  private handleUpdateSettings(userId: string, settings?: Partial<AuctionLobbySettings>) {
+  private async handleUpdateSettings(userId: string, settings?: Partial<AuctionLobbySettings>) {
     if (this.state.hostUserId === userId && this.state.status === "lobby" && settings) {
       this.state.settings = { ...this.state.settings, ...settings };
+      await this.persistState();
       this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
     }
   }
@@ -228,11 +299,12 @@ export default class AuctionPartyServer implements Party.Server {
     }
 
     this.state = startAuctionStage(this.state, pool);
+    await this.persistState();
     this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
     this.startAuctionTimer();
   }
 
-  private handleBid(
+  private async handleBid(
     sender: Party.Connection,
     userId: string,
     amount: number,
@@ -246,10 +318,11 @@ export default class AuctionPartyServer implements Party.Server {
       return;
     }
     this.state = res.state;
+    await this.persistState();
     this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
   }
 
-  private handlePass(userId: string) {
+  private async handlePass(userId: string) {
     if (this.state.status !== "auction" || this.state.isSoldCelebration || !this.state.participants[userId]) return;
     this.state = applyPass(this.state, userId);
 
@@ -259,10 +332,11 @@ export default class AuctionPartyServer implements Party.Server {
     if (passedCount >= activeBidders.length - 1 && this.state.currentHighestBid) {
       this.state = advanceAuctionCard(this.state);
     }
+    await this.persistState();
     this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
   }
 
-  private handleConfirmLineup(userId: string, lineup: TeamLineup) {
+  private async handleConfirmLineup(userId: string, lineup: TeamLineup) {
     if (!this.state.participants[userId]) return;
     if (this.state.status !== "tactics") return;
     if (!this.state.confirmedLineupUserIds) {
@@ -279,22 +353,24 @@ export default class AuctionPartyServer implements Party.Server {
 
     if (allConfirmed) {
       if (!this.state.leagueSchedule || this.state.leagueSchedule.length === 0) {
-        this.startTournamentSimulation();
+        await this.startTournamentSimulation();
       } else {
-        this.proceedToSimulationRound();
+        await this.proceedToSimulationRound();
       }
     } else {
+      await this.persistState();
       this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
     }
   }
 
-  private handleUnconfirmLineup(userId: string) {
+  private async handleUnconfirmLineup(userId: string) {
     if (!this.state.participants[userId]) return;
     if (this.state.status !== "tactics") return;
     this.state.confirmedLineupUserIds = (this.state.confirmedLineupUserIds || []).filter((id) => id !== userId);
     if (this.state.lineups[userId]) {
       this.state.lineups[userId].isConfirmed = false;
     }
+    await this.persistState();
     this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
   }
 
@@ -302,7 +378,7 @@ export default class AuctionPartyServer implements Party.Server {
   // Tur Tabanlı Simülasyon — Ana Başlatıcı
   // ---------------------------------------------------------------------------
 
-  private proceedToSimulationRound() {
+  private async proceedToSimulationRound() {
     const uids = Object.keys(this.state.participants).filter((id) => Boolean(id && id.trim()));
     if (!this.state.leagueSchedule || this.state.leagueSchedule.length === 0) {
       this.state.leagueSchedule = generateLeagueSchedule(uids);
@@ -333,10 +409,11 @@ export default class AuctionPartyServer implements Party.Server {
     this.state.halftimeEndsAt = undefined;
     this.state.halftimeSecondsLeft = undefined;
     this.state.confirmedLineupUserIds = [];
+    await this.persistState();
     this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
   }
 
-  private handleSubstitute(userId: string, outPlayerId: string, inPlayerId: string) {
+  private async handleSubstitute(userId: string, outPlayerId: string, inPlayerId: string) {
     const participant = this.state.participants[userId];
     const lineup = this.state.lineups[userId];
     if (!participant || !lineup || !outPlayerId || !inPlayerId) return;
@@ -370,10 +447,11 @@ export default class AuctionPartyServer implements Party.Server {
       this.state.simulationMatches = this.state.simulationRounds.flatMap((r) => r.matches);
     }
 
+    await this.persistState();
     this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
   }
 
-  private handleUpdateTactics(userId: string, tactics: Partial<TeamTactics>) {
+  private async handleUpdateTactics(userId: string, tactics: Partial<TeamTactics>) {
     const lineup = this.state.lineups[userId];
     if (!lineup || !tactics) return;
 
@@ -391,10 +469,11 @@ export default class AuctionPartyServer implements Party.Server {
       this.state.simulationMatches = this.state.simulationRounds.flatMap((r) => r.matches);
     }
 
+    await this.persistState();
     this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
   }
 
-  private startTournamentSimulation() {
+  private async startTournamentSimulation() {
     const uids = Object.keys(this.state.participants).filter((id) => Boolean(id && id.trim()));
     const schedule = generateLeagueSchedule(uids);
 
@@ -410,15 +489,16 @@ export default class AuctionPartyServer implements Party.Server {
     this.state.simReadyUserIds = [];
     this.state.secondsLeft = 30;
 
-    this.proceedToSimulationRound();
+    await this.proceedToSimulationRound();
   }
 
-  private handleRoundComplete(userId: string) {
+  private async handleRoundComplete(userId: string) {
     if (!this.state.participants[userId] || this.state.status !== "simulation") return;
 
     this.state.currentRoundMinute = 90;
     this.state.currentSimMinute = 90;
     this.updateStandingsAfterRound();
+    await this.persistState();
     this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
   }
 
@@ -444,7 +524,7 @@ export default class AuctionPartyServer implements Party.Server {
   // Tur Geçiş Mantığı
   // ---------------------------------------------------------------------------
 
-  private handleSimReady(userId: string) {
+  private async handleSimReady(userId: string) {
     if (!this.state.participants[userId] || this.state.status !== "simulation" || this.state.currentRoundMinute < 90) return;
     if (!this.state.simReadyUserIds) {
       this.state.simReadyUserIds = [];
@@ -455,13 +535,14 @@ export default class AuctionPartyServer implements Party.Server {
 
     const activeUids = Object.keys(this.state.participants).filter((id) => Boolean(id && id.trim()));
     if (activeUids.length > 0 && this.state.simReadyUserIds.length >= activeUids.length) {
-      this.advanceToNextRound();
+      await this.advanceToNextRound();
     } else {
+      await this.persistState();
       this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
     }
   }
 
-  private handleNextRound(userId?: string) {
+  private async handleNextRound(userId?: string) {
     if (userId && !this.state.participants[userId]) return;
     if (this.state.status !== "simulation" || this.state.currentRoundMinute < 90) return;
 
@@ -472,10 +553,10 @@ export default class AuctionPartyServer implements Party.Server {
     // Sadece oyun kurucusu VEYA herkes hazır olduğunda sonraki tura geçilebilir
     if (!isHost && !isAllReady) return;
 
-    this.advanceToNextRound();
+    await this.advanceToNextRound();
   }
 
-  private advanceToNextRound() {
+  private async advanceToNextRound() {
     this.state.simReadyUserIds = [];
     const totalRounds = this.state.leagueSchedule?.length || this.state.simulationRounds.length;
     const nextRoundIdx = this.state.currentRoundIndex + 1;
@@ -496,10 +577,12 @@ export default class AuctionPartyServer implements Party.Server {
         }
       }
 
+      await this.persistState();
       this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
     } else {
       // Tüm turlar tamamlandı
       this.state.status = "finished";
+      await this.persistState();
       this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
     }
   }
@@ -511,7 +594,7 @@ export default class AuctionPartyServer implements Party.Server {
   private startAuctionTimer() {
     if (this.timerInterval) clearInterval(this.timerInterval);
 
-    this.timerInterval = setInterval(() => {
+    this.timerInterval = setInterval(async () => {
       if (this.state.status === "auction") {
         if (this.state.isSoldCelebration) {
           if (
@@ -519,6 +602,7 @@ export default class AuctionPartyServer implements Party.Server {
             (this.state.soldCelebrationUntil && Date.now() >= this.state.soldCelebrationUntil)
           ) {
             this.state = finishSoldCelebration(this.state);
+            await this.persistState();
             this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
           } else {
             this.state.secondsLeft--;
@@ -527,6 +611,7 @@ export default class AuctionPartyServer implements Party.Server {
         } else {
           if (this.state.secondsLeft <= 1) {
             this.state = advanceAuctionCard(this.state);
+            await this.persistState();
             this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
           } else {
             this.state.secondsLeft--;
@@ -537,12 +622,15 @@ export default class AuctionPartyServer implements Party.Server {
         if (this.state.secondsLeft <= 1) {
           this.autoConfirmLineups();
           if (!this.state.leagueSchedule || this.state.leagueSchedule.length === 0) {
-            this.startTournamentSimulation();
+            await this.startTournamentSimulation();
           } else {
-            this.proceedToSimulationRound();
+            await this.proceedToSimulationRound();
           }
         } else {
           this.state.secondsLeft--;
+          if (this.state.secondsLeft % 10 === 0) {
+            this.persistState();
+          }
           this.broadcast({ type: "AUCTION_TIMER_TICK", secondsLeft: this.state.secondsLeft });
         }
       } else if (this.state.status === "simulation") {
@@ -561,6 +649,7 @@ export default class AuctionPartyServer implements Party.Server {
             this.state.halftimeEndsAt = undefined;
             this.state.halftimeSecondsLeft = undefined;
             this.state.simulationStartedAt = Date.now() - (18 * 1000);
+            await this.persistState();
             this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
           } else {
             this.broadcast({ type: "AUCTION_HALFTIME_TICK", secondsLeft: secLeft });
@@ -585,10 +674,12 @@ export default class AuctionPartyServer implements Party.Server {
             this.state.isHalftime = true;
             this.state.halftimeEndsAt = Date.now() + 10 * 1000;
             this.state.halftimeSecondsLeft = 10;
+            await this.persistState();
             this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
           } else if (this.state.currentRoundMinute >= 90) {
             if (prevMinute < 90) {
               this.updateStandingsAfterRound();
+              await this.persistState();
               this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
             }
           } else {
@@ -643,7 +734,7 @@ export default class AuctionPartyServer implements Party.Server {
     this.state.confirmedLineupUserIds = activeUids;
   }
 
-  private handleReturnToLobby() {
+  private async handleReturnToLobby() {
     if (this.timerInterval) {
       clearInterval(this.timerInterval);
       this.timerInterval = undefined;
@@ -686,10 +777,11 @@ export default class AuctionPartyServer implements Party.Server {
       championUserId: null,
     };
 
+    await this.persistState();
     this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
   }
 
-  private handleUserDisconnect(userId: string, username: string) {
+  private async handleUserDisconnect(userId: string, username: string) {
     if (this.state.status === "lobby") {
       const isHost = this.state.hostUserId === userId;
       if (isHost) {
@@ -701,15 +793,27 @@ export default class AuctionPartyServer implements Party.Server {
           clearInterval(this.timerInterval);
           this.timerInterval = undefined;
         }
+        try {
+          await this.room.storage.delete("auction_room_state");
+        } catch {
+          // ignore
+        }
         return;
       }
 
       delete this.state.participants[userId];
       this.state.turnOrder = Object.keys(this.state.participants).filter((id) => Boolean(id && id.trim()));
+      await this.persistState();
       this.broadcast({ type: "AUCTION_PLAYER_LEFT", username });
       this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
     } else {
+      if (this.state.participants[userId]) {
+        this.state.participants[userId].isDisconnected = true;
+        this.state.participants[userId].disconnectedAt = Date.now();
+        await this.persistState();
+      }
       this.broadcast({ type: "AUCTION_PLAYER_LEFT", username });
+      this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
     }
   }
 }
