@@ -24,7 +24,7 @@ import { AuctionPitchSlot } from "./AuctionPitchSlot";
 import { AuctionSquadList } from "./AuctionSquadList";
 import { AuctionPlayerDetailModal } from "./AuctionPlayerDetailModal";
 import { AuctionTacticsSelector } from "./AuctionTacticsSelector";
-import { CheckCircle2, Timer, RotateCcw, Search, Eye, X, Shield } from "lucide-react";
+import { CheckCircle2, Timer, RotateCcw, Search, X, Shield } from "lucide-react";
 import { getRatingTier } from "@/lib/game/playerRatingTiers";
 
 const FORMATIONS: FormationName[] = [
@@ -87,6 +87,8 @@ export function AuctionPitchBuilder({
       buildUp: "balanced",
       pressing: "balanced",
       attackDirection: "balanced",
+      transition: "balanced",
+      chanceCreation: "balanced",
     };
   });
 
@@ -95,13 +97,7 @@ export function AuctionPitchBuilder({
   // Optimistic iptal desteği
   const [isLocallyUnconfirmed, setIsLocallyUnconfirmed] = useState(false);
   const serverConfirmed = confirmedUserIds.includes(userId);
-  const isConfirmed = serverConfirmed && !isLocallyUnconfirmed;
-
-  useEffect(() => {
-    if (!serverConfirmed) {
-      setIsLocallyUnconfirmed(false);
-    }
-  }, [serverConfirmed]);
+  const isConfirmed = serverConfirmed && (!isLocallyUnconfirmed || secondsLeft <= 1);
 
   // Süre bittiğinde (secondsLeft <= 1) eğer kullanıcı henüz onaylamadıysa:
   // Sahada yerleştirilmiş oyuncuları koruyarak kalan boş yuvaları akıllıca doldur ve otomatik onayla!
@@ -125,13 +121,13 @@ export function AuctionPitchBuilder({
 
   // Detay Modalı (Pozisyon İnceleme)
   const [inspectingPlayer, setInspectingPlayer] = useState<AuctionPlayerCard | null>(null);
-  const [inspectingSlot, setInspectingSlot] = useState<SquadSlot | null>(null);
 
   // Sürükle-Bırak Durumu
   const [draggedPlayerId, setDraggedPlayerId] = useState<string | null>(null);
   const [draggedFromSlotIndex, setDraggedFromSlotIndex] = useState<number | null>(null);
   const [dragOverSlotIndex, setDragOverSlotIndex] = useState<number | null>(null);
-  const lastDragTimeRef = useRef<number>(0);
+  const suppressSlotClickRef = useRef(false);
+  const suppressSlotClickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Yerleştirilen oyuncuların ID kümesi
   const placedPlayerIds = useMemo(
@@ -148,19 +144,10 @@ export function AuctionPitchBuilder({
   const handleFormationChange = (f: FormationName) => {
     if (isConfirmed) return;
     setFormation(f);
-    const newSlots = createInitialSlotsForFormation(f);
     const existingPlayers = slots.map((s) => s.placedPlayer).filter(Boolean) as AuctionPlayerCard[];
-
-    existingPlayers.forEach((p, idx) => {
-      if (newSlots[idx]) {
-        const { effectiveRating, penalty } = calculateSlotRating(p, newSlots[idx].targetPosition);
-        newSlots[idx].placedPlayer = p;
-        newSlots[idx].effectiveRating = effectiveRating;
-        newSlots[idx].penalty = penalty;
-      }
-    });
-
-    setSlots(newSlots);
+    // Retain the selected players, placing them by suitability instead of old
+    // slot indexes (which can put a fullback into midfield after a shape change).
+    setSlots(autoAssignSquadToFormation(existingPlayers, f));
   };
 
   const handlePlayerDropOnSlot = (
@@ -227,8 +214,7 @@ export function AuctionPitchBuilder({
 
   const handleSlotClick = (index: number) => {
     if (isConfirmed) return;
-    const now = Date.now();
-    if (now - lastDragTimeRef.current < 250) return;
+    if (suppressSlotClickRef.current) return;
 
     if (selectedPlayer) {
       handlePlayerDropOnSlot(selectedPlayer.id, index, null);
@@ -236,7 +222,6 @@ export function AuctionPitchBuilder({
       const slot = slots[index];
       if (slot?.placedPlayer) {
         setInspectingPlayer(slot.placedPlayer);
-        setInspectingSlot(slot);
       }
     }
   };
@@ -272,12 +257,15 @@ export function AuctionPitchBuilder({
     setSlots(nextSlots);
     if (inspectingPlayer?.id === playerId) {
       setInspectingPlayer(null);
-      setInspectingSlot(null);
     }
   };
 
   const resetDragState = () => {
-    lastDragTimeRef.current = Date.now();
+    suppressSlotClickRef.current = true;
+    if (suppressSlotClickTimerRef.current) clearTimeout(suppressSlotClickTimerRef.current);
+    suppressSlotClickTimerRef.current = setTimeout(() => {
+      suppressSlotClickRef.current = false;
+    }, 250);
     setDraggedPlayerId(null);
     setDraggedFromSlotIndex(null);
     setDragOverSlotIndex(null);
@@ -311,10 +299,10 @@ export function AuctionPitchBuilder({
   };
 
   return (
-    <div className="w-full flex flex-col gap-3.5 select-none animate-fadeIn">
+    <div className="w-full flex flex-col gap-2.5 select-none animate-fadeIn">
       {/* Üst Bilgi Barı */}
-      <div className="relative flex items-center justify-between p-2.5 px-5 rounded-2xl bg-black/50 border border-white/10 backdrop-blur-xl min-h-[52px]">
-        <div className="flex items-center gap-3">
+      <div className="relative flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-2xl bg-black/50 border border-white/10 backdrop-blur-xl min-h-[52px]">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-emerald-400 bg-emerald-950/80 px-3 py-1 rounded-xl border border-emerald-500/40">
             Taktik Tahtası
           </span>
@@ -332,7 +320,7 @@ export function AuctionPitchBuilder({
         </div>
 
         {/* Kalan Süre Ortada */}
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 px-3.5 py-1 rounded-xl bg-black/60 border border-white/15 shadow-md">
+        <div className="flex items-center gap-2 px-3.5 py-1 rounded-xl bg-black/60 border border-white/15 shadow-md">
           <Timer className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 animate-pulse" />
           <span className="text-xl sm:text-2xl font-mono font-black text-amber-400 tabular-nums">
             {String(Math.floor(secondsLeft / 60)).padStart(2, "0")}:{String(secondsLeft % 60).padStart(2, "0")}
@@ -360,7 +348,6 @@ export function AuctionPitchBuilder({
             onSelectPlayer={setSelectedPlayer}
             onInspectPlayer={(p) => {
               setInspectingPlayer(p);
-              setInspectingSlot(slots.find((s) => s.placedPlayer?.id === p.id) || null);
             }}
             onDragStart={(e, player) => {
               if (isConfirmed) return;
@@ -377,7 +364,7 @@ export function AuctionPitchBuilder({
 
         {/* 2. ORTA KOLON: DİKEY FUTBOL SAHASI */}
         <div className="lg:col-span-5 xl:col-span-5 flex flex-col items-center justify-center">
-          <div className="relative aspect-[9/13] w-full max-w-[440px] max-h-[640px] rounded-3xl overflow-hidden border-2 border-emerald-500/30 bg-[#0c2417] shadow-2xl p-4 flex flex-col justify-between select-none">
+          <div className="relative aspect-[9/13] w-full max-w-[440px] lg:max-w-[min(440px,calc((100dvh-180px)*9/13))] rounded-3xl overflow-hidden border-2 border-emerald-500/30 bg-[#0c2417] shadow-2xl p-4 flex flex-col justify-between select-none">
             {/* Saha Çim Gradyanı */}
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_50%,rgba(16,185,129,0.18)_0%,rgba(5,32,20,0.95)_100%)] pointer-events-none" />
 
@@ -465,40 +452,23 @@ export function AuctionPitchBuilder({
         </div>
 
         {/* 3. SAĞ KOLON: DİZİLİŞ, TAKTİKLER & KADRO ONAYI */}
-        <div className="lg:col-span-4 xl:col-span-4 flex flex-col gap-3">
+        <div className="lg:col-span-4 xl:col-span-4 flex flex-col gap-2">
           {/* Diziliş Seçimi */}
-          <div className="p-3.5 rounded-2xl bg-black/50 border border-white/10 backdrop-blur-xl flex flex-col gap-2.5">
-            <div className="flex items-center justify-between pb-2 border-b border-white/10">
-              <span className="text-xs font-black uppercase tracking-wider text-zinc-300">
-                Diziliş Seçimi
-              </span>
-              <span className="font-mono text-xs font-black text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-md border border-emerald-500/30">
-                {formation}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-1.5">
-              {FORMATIONS.map((f) => (
-                <button
-                  key={f}
-                  type="button"
-                  disabled={isConfirmed}
-                  onClick={() => handleFormationChange(f)}
-                  className={`py-2 px-2.5 rounded-xl font-mono text-xs font-bold transition-all border text-center ${
-                    formation === f
-                      ? "bg-emerald-500 border-emerald-400 text-black shadow-md font-black"
-                      : isConfirmed
-                      ? "bg-white/5 border-white/5 text-zinc-600 cursor-not-allowed"
-                      : "bg-white/5 border-white/10 text-zinc-300 hover:bg-white/10 hover:border-white/20 hover:text-white cursor-pointer active:scale-95"
-                  }`}
-                >
-                  {f}
-                </button>
-              ))}
-            </div>
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/50 p-3">
+            <label htmlFor="auction-formation" className="text-xs font-bold text-zinc-300">Diziliş</label>
+            <button type="button" disabled={isConfirmed || slots.every((slot) => slot.placedPlayer)}
+              onClick={() => setSlots(autoAssignSquadToFormation(squad, formation, slots))}
+              className="min-h-9 rounded-lg border border-white/15 px-2 text-xs text-zinc-200 hover:bg-white/10 disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-white">
+              Boşları doldur
+            </button>
+            <select id="auction-formation" value={formation} disabled={isConfirmed}
+              onChange={(event) => handleFormationChange(event.target.value as FormationName)}
+              className="min-h-9 rounded-lg border border-emerald-500/40 bg-emerald-950 px-3 text-sm font-bold text-emerald-200 focus-visible:outline-2 focus-visible:outline-white disabled:opacity-60">
+              {FORMATIONS.map((f) => <option key={f} value={f}>{f}</option>)}
+            </select>
           </div>
 
-          {/* 4 Boyutlu Taktik Paneli */}
+          {/* Maç planı */}
           <AuctionTacticsSelector
             tactics={tactics}
             onChange={setTactics}
@@ -506,16 +476,13 @@ export function AuctionPitchBuilder({
           />
 
           {/* Kadro Onay & İptal Paneli */}
-          <div className="p-3.5 rounded-2xl bg-black/50 border border-white/10 backdrop-blur-xl flex flex-col gap-2.5">
-            <span className="text-xs font-black uppercase tracking-wider text-zinc-300">
-              Kadro Onayı
-            </span>
+          <div className="p-3 rounded-2xl bg-black/50 border border-white/10 backdrop-blur-xl flex flex-col gap-2">
 
             {isConfirmed ? (
               <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-950/70 border border-emerald-500/50 text-emerald-300 text-xs font-bold shadow-md">
+                <div className="flex items-center gap-2 text-emerald-300 text-xs font-bold">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Kadronuz kilitlendi ve hazır! Diğerleri bekleniyor...</span>
+                  <span>Kadro kilitli · Diğer oyuncular bekleniyor</span>
                 </div>
 
                 {onUnconfirmLineup && (
@@ -639,16 +606,6 @@ export function AuctionPitchBuilder({
                             {player.fullName}
                           </span>
                         </div>
-                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                              <span
-                                className={`size-6.5 rounded-lg flex items-center justify-center font-mono text-[11px] font-black shrink-0 ${tier.badgeClass}`}
-                              >
-                                {player.overallPrime}
-                              </span>
-                              <span className="font-bold text-white truncate" title={player.fullName}>
-                                {player.fullName}
-                              </span>
-                            </div>
                             <span
                               className="font-mono font-bold text-zinc-300 bg-white/10 border border-white/15 px-2 py-0.5 rounded text-[10px] shrink-0 ml-2"
                               title={`Oynayabildiği Mevkiler: ${posList.join(", ")}`}
@@ -672,7 +629,6 @@ export function AuctionPitchBuilder({
           player={inspectingPlayer}
           onClose={() => {
             setInspectingPlayer(null);
-            setInspectingSlot(null);
           }}
         />
       )}

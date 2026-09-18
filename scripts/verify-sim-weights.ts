@@ -112,7 +112,7 @@ async function runVerification() {
   if (midHighPress <= midBalanced) {
     throw new Error("HATA: High Press taktiği orta saha puanını artırmalıydı!");
   }
-  console.log("✅ 5. Yüksek pres taktiği takımın top kapma puanını net %25 artırıyor (gizli katsayı yok).");
+  console.log("✅ 5. Yüksek pres taktiği takımın top kapma puanını net %18 artırıyor (gizli katsayı yok).");
 
   // 6. Örnek Canlı Maç Simülasyonu
   console.log("\n⚽ 6. 90 DAKİKALIK ÖRNEK MAÇ TESTİ (Real Madrid vs Barcelona)");

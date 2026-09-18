@@ -129,6 +129,11 @@ export function AuctionRoomClient({ roomId }: AuctionRoomClientProps) {
 
       {/* Aşama İçeriği */}
       <div className="relative z-10 flex-1 flex flex-col w-full px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
+        {errorMessage && state.status !== "auction" && (
+          <div role="alert" className="mb-3 rounded-xl border border-red-400/40 bg-red-950/70 px-4 py-2 text-sm text-red-200">
+            {errorMessage}
+          </div>
+        )}
         {state.status === "lobby" && (
           <AuctionLobbyView
             state={state}

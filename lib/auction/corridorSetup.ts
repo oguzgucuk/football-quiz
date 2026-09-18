@@ -12,12 +12,15 @@ import {
   TeamTactics,
 } from "./auctionTypes";
 import { FORMATION_CONFIGS } from "./formationTemplates";
+import { RandomSource } from "./simulationRandom";
 
 export const DEFAULT_TACTICS: TeamTactics = {
   tempo: "balanced",
   buildUp: "balanced",
   pressing: "balanced",
   attackDirection: "balanced",
+  transition: "balanced",
+  chanceCreation: "balanced",
 };
 
 const clamp = (val: number, min: number, max: number) => Math.min(max, Math.max(min, val));
@@ -42,57 +45,52 @@ export function getSlotCorridor(
 }
 
 /**
- * İki takımın tempo tercihlerini GEN güçlerine göre ağırlıklandırarak
+ * İki takımın tempo tercihlerini eşit ağırlıkla birleştirerek
  * maçtaki toplam pozisyon sayısını belirler (16 ile 24 arası, taban 20).
  */
 export function calculateMatchTempo(homeLineup: TeamLineup, awayLineup: TeamLineup): number {
-  const homeOvr = Math.max(40, homeLineup.teamOvr || 70);
-  const awayOvr = Math.max(40, awayLineup.teamOvr || 70);
   const homeTactics = homeLineup.tactics || DEFAULT_TACTICS;
   const awayTactics = awayLineup.tactics || DEFAULT_TACTICS;
 
   const deltaMap: Record<TeamTactics["tempo"], number> = { slow: -4, balanced: 0, fast: 4 };
-  const weightedDelta =
-    (homeOvr * (deltaMap[homeTactics.tempo] ?? 0) + awayOvr * (deltaMap[awayTactics.tempo] ?? 0)) /
-    (homeOvr + awayOvr);
+  const weightedDelta = (
+    (deltaMap[homeTactics.tempo] ?? 0) + (deltaMap[awayTactics.tempo] ?? 0)
+  ) / 2;
 
   return Math.round(clamp(20 + weightedDelta, 16, 24));
 }
 
 /**
- * İki takımın yön tercihlerini ve GEN güçlerini çarpıştırarak koridor zarı atar.
+ * Yalnızca topa sahip takımın yön tercihine göre koridor zarı atar.
  */
-export function determineAttackCorridor(
-  homeLineup: TeamLineup,
-  awayLineup: TeamLineup
+export function determineTeamAttackCorridor(
+  lineup: TeamLineup,
+  random: RandomSource = Math.random
 ): PitchCorridor {
-  const homeOvr = Math.max(40, homeLineup.teamOvr || 70);
-  const awayOvr = Math.max(40, awayLineup.teamOvr || 70);
-  const homeTactics = homeLineup.tactics || DEFAULT_TACTICS;
-  const awayTactics = awayLineup.tactics || DEFAULT_TACTICS;
-
+  const tactics = lineup.tactics || DEFAULT_TACTICS;
   let left = 100, center = 100, right = 100;
 
-  // Ev sahibi tercihi baskısı
-  if (homeTactics.attackDirection === "left") { left += homeOvr * 0.75; center -= homeOvr * 0.2; right -= homeOvr * 0.35; }
-  else if (homeTactics.attackDirection === "right") { right += homeOvr * 0.75; center -= homeOvr * 0.2; left -= homeOvr * 0.35; }
-  else if (homeTactics.attackDirection === "center") { center += homeOvr * 0.75; left -= homeOvr * 0.25; right -= homeOvr * 0.25; }
-  else if (homeTactics.attackDirection === "wings") { left += homeOvr * 0.45; right += homeOvr * 0.45; center -= homeOvr * 0.50; }
-
-  // Deplasman tercihi baskısı (Ayna kuralı: Deplasmanın solu = Ev sahibinin sağı)
-  if (awayTactics.attackDirection === "left") { right += awayOvr * 0.75; center -= awayOvr * 0.2; left -= awayOvr * 0.35; }
-  else if (awayTactics.attackDirection === "right") { left += awayOvr * 0.75; center -= awayOvr * 0.2; right -= awayOvr * 0.35; }
-  else if (awayTactics.attackDirection === "center") { center += awayOvr * 0.75; left -= awayOvr * 0.25; right -= awayOvr * 0.25; }
-  else if (awayTactics.attackDirection === "wings") { left += awayOvr * 0.45; right += awayOvr * 0.45; center -= awayOvr * 0.50; }
+  if (tactics.attackDirection === "left") { left += 105; center -= 25; right -= 45; }
+  else if (tactics.attackDirection === "right") { right += 105; center -= 25; left -= 45; }
+  else if (tactics.attackDirection === "center") { center += 105; left -= 35; right -= 35; }
+  else if (tactics.attackDirection === "wings") { left += 65; right += 65; center -= 60; }
 
   left = Math.max(15, left);
   center = Math.max(15, center);
   right = Math.max(15, right);
 
-  const roll = Math.random() * (left + center + right);
+  const roll = random() * (left + center + right);
   if (roll <= left) return "left";
   if (roll <= left + center) return "center";
   return "right";
+}
+
+export function determineAttackCorridor(
+  attackingLineup: TeamLineup,
+  _defendingLineup?: TeamLineup,
+  random: RandomSource = Math.random
+): PitchCorridor {
+  return determineTeamAttackCorridor(attackingLineup, random);
 }
 
 export function mirrorCorridor(corridor: PitchCorridor): PitchCorridor {

@@ -61,7 +61,7 @@ export function AuctionSquadList({
           onDropOnBench(pId);
         }
       }}
-      className={`p-3.5 rounded-2xl bg-black/50 border backdrop-blur-xl flex flex-col gap-3 max-h-[600px] xl:max-h-[640px] overflow-y-auto custom-scrollbar transition-all ${
+      className={`p-3.5 rounded-2xl bg-black/50 border backdrop-blur-xl flex flex-col gap-3 max-h-[600px] lg:max-h-[calc(100dvh-180px)] overflow-y-auto custom-scrollbar transition-all ${
         isBenchDragOver
           ? "border-amber-400/80 bg-amber-950/20 ring-2 ring-amber-400/30"
           : "border-white/10"

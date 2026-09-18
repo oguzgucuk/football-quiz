@@ -24,9 +24,10 @@ import {
   advanceAuctionCard,
   finishSoldCelebration,
 } from "../lib/auction/auctionRoomEngine";
-import { createInitialSlotsForFormation } from "../lib/auction/formationTemplates";
-import { calculateLineupPowers, calculateSlotRating } from "../lib/auction/positionSuitability";
+import { calculateLineupPowers } from "../lib/auction/positionSuitability";
 import { autoAssignSquadToFormation } from "../lib/auction/autoSquadArranger";
+import { buildCanonicalLineup, sanitizeTactics } from "../lib/auction/validateLineup";
+import { stateForAuctionViewer } from "../lib/auction/visibleAuctionState";
 import {
   generateLeagueSchedule,
   simulateSingleRoundMatches,
@@ -47,7 +48,6 @@ export default class AuctionPartyServer implements Party.Server {
   onConnect(conn: Party.Connection, ctx: Party.ConnectionContext) {
     this.extractSiteUrl(ctx);
     this.syncSimulationProgress();
-    conn.send(JSON.stringify({ type: "AUCTION_STATE_SYNC", state: this.state }));
   }
 
   onClose(conn: Party.Connection) {
@@ -68,6 +68,11 @@ export default class AuctionPartyServer implements Party.Server {
       const msg = JSON.parse(rawMessage);
       if (msg.siteUrl && typeof msg.siteUrl === "string" && msg.siteUrl.startsWith("http")) {
         this.siteUrl = msg.siteUrl.replace(/\/$/, "");
+      }
+      const joinedUserId = this.connectionMeta.get(sender.id)?.userId;
+      if (msg.type !== "AUCTION_JOIN" && (!joinedUserId || joinedUserId !== msg.userId)) {
+        sender.send(JSON.stringify({ type: "AUCTION_ERROR", message: "Geçersiz kullanıcı oturumu." }));
+        return;
       }
 
       switch (msg.type) {
@@ -95,7 +100,7 @@ export default class AuctionPartyServer implements Party.Server {
           this.handlePass(msg.userId);
           break;
         case "AUCTION_CONFIRM_LINEUP":
-          if (msg.lineup) this.handleConfirmLineup(msg.userId, msg.lineup);
+          if (msg.lineup) this.handleConfirmLineup(sender, joinedUserId!, msg.lineup);
           break;
         case "AUCTION_UNCONFIRM_LINEUP":
           this.handleUnconfirmLineup(msg.userId);
@@ -137,7 +142,18 @@ export default class AuctionPartyServer implements Party.Server {
   }
 
   private broadcast(payload: object) {
-    this.room.broadcast(JSON.stringify(payload));
+    const statePayload = payload as { type?: string; state?: AuctionRoomState; [key: string]: unknown };
+    if (statePayload.type !== "AUCTION_STATE_SYNC" || !statePayload.state) {
+      this.room.broadcast(JSON.stringify(payload));
+      return;
+    }
+    for (const connection of this.room.getConnections()) {
+      const viewerUserId = this.connectionMeta.get(connection.id)?.userId || "";
+      connection.send(JSON.stringify({
+        ...statePayload,
+        state: stateForAuctionViewer(statePayload.state, viewerUserId),
+      }));
+    }
   }
 
   private handleJoin(sender: Party.Connection, userId: string, username: string) {
@@ -154,7 +170,7 @@ export default class AuctionPartyServer implements Party.Server {
       // Katılımcı listesine eklenmedikleri için bütçe, teklif ve kadro akışını etkileyemezler.
       sender.send(JSON.stringify({
         type: "AUCTION_STATE_SYNC",
-        state: this.state,
+        state: stateForAuctionViewer(this.state, userId),
         viewerMode: true,
       }));
       return;
@@ -251,16 +267,21 @@ export default class AuctionPartyServer implements Party.Server {
     this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
   }
 
-  private handleConfirmLineup(userId: string, lineup: TeamLineup) {
+  private handleConfirmLineup(sender: Party.Connection, userId: string, requestedLineup: TeamLineup) {
     if (!this.state.participants[userId]) return;
     if (this.state.status !== "tactics") return;
+    const canonical = buildCanonicalLineup(userId, this.state.participants[userId], requestedLineup);
+    if (!canonical.lineup) {
+      sender.send(JSON.stringify({ type: "AUCTION_ERROR", message: canonical.error || "Kadro doğrulanamadı." }));
+      return;
+    }
     if (!this.state.confirmedLineupUserIds) {
       this.state.confirmedLineupUserIds = [];
     }
     if (!this.state.confirmedLineupUserIds.includes(userId)) {
       this.state.confirmedLineupUserIds.push(userId);
     }
-    this.state.lineups[userId] = lineup;
+    this.state.lineups[userId] = canonical.lineup;
 
     const activeUids = Object.keys(this.state.participants).filter((uid) => Boolean(uid && uid.trim()));
     const allConfirmed =
@@ -305,7 +326,8 @@ export default class AuctionPartyServer implements Party.Server {
       const simulatedRound = simulateSingleRoundMatches(
         currentScheduleItem,
         this.state.lineups,
-        this.state.participants
+        this.state.participants,
+        `${this.room.id}:round:${currentScheduleItem.roundNumber}:${Date.now()}`
       );
       if (!this.state.simulationRounds) {
         this.state.simulationRounds = [];
@@ -491,10 +513,7 @@ export default class AuctionPartyServer implements Party.Server {
             this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
           }
         } else {
-          this.broadcast({
-            type: "AUCTION_SIM_TICK",
-            currentRoundMinute: this.state.currentRoundMinute,
-          });
+          this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
         }
       }
     }, 1000);
@@ -524,15 +543,11 @@ export default class AuctionPartyServer implements Party.Server {
       if (!this.state.lineups[uid]?.isConfirmed) {
         const defaultFormation: FormationName = "4-3-3";
         const existingSlots = this.state.lineups[uid]?.slots;
+        const formation = this.state.lineups[uid]?.formation || defaultFormation;
         // Akıllı dizilim: GK'yi mutlaka kaleye, defansı defansa koyar, sahada elle konmuş oyuncuları korur
-        const slots = autoAssignSquadToFormation(p.squad, defaultFormation, existingSlots);
-        const lineup = calculateLineupPowers(uid, defaultFormation, slots);
-        lineup.tactics = this.state.lineups[uid]?.tactics || {
-          tempo: "balanced",
-          buildUp: "balanced",
-          pressing: "balanced",
-          attackDirection: "balanced",
-        };
+        const slots = autoAssignSquadToFormation(p.squad, formation, existingSlots);
+        const lineup = calculateLineupPowers(uid, formation, slots);
+        lineup.tactics = sanitizeTactics(this.state.lineups[uid]?.tactics);
         lineup.isConfirmed = true;
         this.state.lineups[uid] = lineup;
       }

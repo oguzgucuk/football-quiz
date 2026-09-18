@@ -75,7 +75,8 @@ export function generateLeagueSchedule(userIds: string[]): RoundScheduleItem[] {
 export function simulateSingleRoundMatches(
   scheduleItem: RoundScheduleItem,
   lineups: Record<string, TeamLineup>,
-  participants: Record<string, AuctionParticipant>
+  participants: Record<string, AuctionParticipant>,
+  seedPrefix = `round-${scheduleItem.roundNumber}`
 ): SimulationRound {
   const roundMatches: MatchSimulationResult[] = [];
   let matchCounter = 1;
@@ -92,10 +93,11 @@ export function simulateSingleRoundMatches(
         homeLineup,
         homeName,
         awayLineup,
-        awayName
+        awayName,
+        `${seedPrefix}:${home}:${away}`
       );
-      result.homeLineup = homeLineup;
-      result.awayLineup = awayLineup;
+      result.homeLineup = structuredClone(homeLineup);
+      result.awayLineup = structuredClone(awayLineup);
       roundMatches.push(result);
     }
   }
@@ -235,13 +237,30 @@ export function calculateStandings(
     }
   }
 
-  return Object.values(rows)
-    .map((r) => ({ ...r, goalDiff: r.goalsFor - r.goalsAgainst }))
-    .sort((a, b) => {
-      if (b.points !== a.points) return b.points - a.points;
-      if (b.goalDiff !== a.goalDiff) return b.goalDiff - a.goalDiff;
-      return b.goalsFor - a.goalsFor;
-    });
+  const result = Object.values(rows).map((row) => ({ ...row, goalDiff: row.goalsFor - row.goalsAgainst }));
+  const tiedMiniLeaguePoints = new Map<string, number>();
+  for (const row of result) {
+    const tiedIds = new Set(result.filter((other) => other.points === row.points).map((other) => other.userId));
+    let miniPoints = 0;
+    for (const match of matches) {
+      if (!match.isFinished || !tiedIds.has(match.homeUserId) || !tiedIds.has(match.awayUserId)) continue;
+      if (match.homeScore === match.awayScore && (match.homeUserId === row.userId || match.awayUserId === row.userId)) miniPoints++;
+      else if (match.homeScore > match.awayScore && match.homeUserId === row.userId) miniPoints += 3;
+      else if (match.awayScore > match.homeScore && match.awayUserId === row.userId) miniPoints += 3;
+    }
+    tiedMiniLeaguePoints.set(row.userId, miniPoints);
+  }
+
+  return result.sort((a, b) => {
+    if (b.points !== a.points) return b.points - a.points;
+    const headToHead = (tiedMiniLeaguePoints.get(b.userId) || 0) - (tiedMiniLeaguePoints.get(a.userId) || 0);
+    if (headToHead !== 0) return headToHead;
+    if (b.goalDiff !== a.goalDiff) return b.goalDiff - a.goalDiff;
+    if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+    if (b.won !== a.won) return b.won - a.won;
+    const usernameOrder = a.username.localeCompare(b.username, "tr");
+    return usernameOrder !== 0 ? usernameOrder : a.userId.localeCompare(b.userId);
+  });
 }
 
 /**

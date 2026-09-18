@@ -227,6 +227,9 @@ export function applyPass(state: AuctionRoomState, userId: string): AuctionRoomS
 }
 
 export function advanceAuctionCard(state: AuctionRoomState): AuctionRoomState {
+  // Timer/pass yarışlarında aynı satış ikinci kez sonuçlandırılmamalı.
+  if (state.isSoldCelebration) return state;
+
   if (!state.currentHighestBid || !state.currentCard) {
     return finishOrNextTurn(state);
   }

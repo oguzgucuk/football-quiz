@@ -16,11 +16,13 @@ import {
   applyBid,
   applyPass,
   advanceAuctionCard,
+  finishSoldCelebration,
 } from "./auctionRoomEngine";
 import { generateAuctionPool } from "./generateAuctionPool";
-import { createInitialSlotsForFormation } from "./formationTemplates";
-import { calculateLineupPowers, calculateSlotRating } from "./positionSuitability";
+import { calculateLineupPowers } from "./positionSuitability";
 import { autoAssignSquadToFormation } from "./autoSquadArranger";
+import { buildCanonicalLineup, sanitizeTactics } from "./validateLineup";
+import { stateForAuctionViewer } from "./visibleAuctionState";
 import {
   generateLeagueSchedule,
   simulateSingleRoundMatches,
@@ -122,6 +124,12 @@ async function processAuctionMessage(
   ws: WebSocket,
   msg: IncomingAuctionMessage
 ) {
+  const joinedUserId = room.clients.get(ws)?.userId;
+  const actorUserId = msg.type === "AUCTION_JOIN" ? msg.userId : joinedUserId;
+  if (msg.type !== "AUCTION_JOIN" && (!actorUserId || actorUserId !== msg.userId)) {
+    ws.send(JSON.stringify({ type: "AUCTION_ERROR", message: "Geçersiz kullanıcı oturumu." }));
+    return;
+  }
   switch (msg.type) {
     case "AUCTION_JOIN": {
       handleJoin(room, ws, msg.userId, msg.username || "Oyuncu");
@@ -157,7 +165,7 @@ async function processAuctionMessage(
     }
     case "AUCTION_CONFIRM_LINEUP": {
       if (msg.lineup) {
-        handleConfirmLineup(room, msg.userId, msg.lineup);
+        handleConfirmLineup(room, ws, actorUserId!, msg.lineup);
       }
       break;
     }
@@ -211,7 +219,7 @@ function handleJoin(room: AuctionPartyRoom, ws: WebSocket, userId: string, usern
   }
 
   if (!room.state.participants[userId] && room.state.status !== "lobby") {
-    ws.send(JSON.stringify({ type: "AUCTION_STATE_SYNC", state: room.state, viewerMode: true }));
+    ws.send(JSON.stringify({ type: "AUCTION_STATE_SYNC", state: stateForAuctionViewer(room.state, userId), viewerMode: true }));
     return;
   }
 
@@ -278,10 +286,10 @@ function handleBid(
 }
 
 function handlePass(room: AuctionPartyRoom, userId: string) {
-  if (room.state.status !== "auction" || !room.state.participants[userId]) return;
+  if (room.state.status !== "auction" || room.state.isSoldCelebration || !room.state.participants[userId]) return;
   room.state = applyPass(room.state, userId);
 
-  const activeBidders = Object.values(room.state.participants).filter((p) => p.squad.length < 11);
+  const activeBidders = Object.values(room.state.participants).filter((p) => p.squad.length < 14);
   const passedCount = room.state.passedUserIds.length;
 
   if (passedCount >= activeBidders.length - 1 && room.state.currentHighestBid) {
@@ -291,16 +299,21 @@ function handlePass(room: AuctionPartyRoom, userId: string) {
   broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
 }
 
-function handleConfirmLineup(room: AuctionPartyRoom, userId: string, lineup: TeamLineup) {
+function handleConfirmLineup(room: AuctionPartyRoom, ws: WebSocket, userId: string, requestedLineup: TeamLineup) {
   if (!room.state.participants[userId]) return;
   if (room.state.status !== "tactics") return;
+  const canonical = buildCanonicalLineup(userId, room.state.participants[userId], requestedLineup);
+  if (!canonical.lineup) {
+    ws.send(JSON.stringify({ type: "AUCTION_ERROR", message: canonical.error || "Kadro doğrulanamadı." }));
+    return;
+  }
   if (!room.state.confirmedLineupUserIds) {
     room.state.confirmedLineupUserIds = [];
   }
   if (!room.state.confirmedLineupUserIds.includes(userId)) {
     room.state.confirmedLineupUserIds.push(userId);
   }
-  room.state.lineups[userId] = lineup;
+  room.state.lineups[userId] = canonical.lineup;
 
   const activeUids = Object.keys(room.state.participants).filter((uid) => Boolean(uid && uid.trim()));
   const allConfirmed =
@@ -341,7 +354,8 @@ function proceedToSimulationRound(room: AuctionPartyRoom) {
     const simulatedRound = simulateSingleRoundMatches(
       currentScheduleItem,
       room.state.lineups,
-      room.state.participants
+      room.state.participants,
+      `${room.roomId}:round:${currentScheduleItem.roundNumber}:${Date.now()}`
     );
     if (!room.state.simulationRounds) {
       room.state.simulationRounds = [];
@@ -464,12 +478,25 @@ function startTimer(room: AuctionPartyRoom) {
 
   room.timer = setInterval(() => {
     if (room.state.status === "auction") {
-      if (room.state.secondsLeft <= 1) {
-        room.state = advanceAuctionCard(room.state);
-        broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
+      if (room.state.isSoldCelebration) {
+        if (
+          room.state.secondsLeft <= 1 ||
+          (room.state.soldCelebrationUntil && Date.now() >= room.state.soldCelebrationUntil)
+        ) {
+          room.state = finishSoldCelebration(room.state);
+          broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
+        } else {
+          room.state.secondsLeft--;
+          broadcast(room, { type: "AUCTION_TIMER_TICK", secondsLeft: room.state.secondsLeft });
+        }
       } else {
-        room.state.secondsLeft--;
-        broadcast(room, { type: "AUCTION_TIMER_TICK", secondsLeft: room.state.secondsLeft });
+        if (room.state.secondsLeft <= 1) {
+          room.state = advanceAuctionCard(room.state);
+          broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
+        } else {
+          room.state.secondsLeft--;
+          broadcast(room, { type: "AUCTION_TIMER_TICK", secondsLeft: room.state.secondsLeft });
+        }
       }
     } else if (room.state.status === "tactics") {
       if (room.state.secondsLeft <= 1) {
@@ -501,10 +528,8 @@ function startTimer(room: AuctionPartyRoom) {
           broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
         }
       } else {
-        broadcast(room, {
-          type: "AUCTION_SIM_TICK",
-          currentRoundMinute: room.state.currentRoundMinute,
-        });
+        // Only events up to the current minute are serialized to clients.
+        broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
       }
     }
   }, 1000);
@@ -533,12 +558,7 @@ function autoConfirmLineups(room: AuctionPartyRoom) {
       // Akıllı dizilim: GK'yi mutlaka kaleye, defansı defansa koyar, sahada elle konmuş oyuncuları korur
       const slots = autoAssignSquadToFormation(p.squad, room.state.lineups[uid]?.formation || defaultFormation, existingSlots);
       const lineup = calculateLineupPowers(uid, room.state.lineups[uid]?.formation || defaultFormation, slots);
-      lineup.tactics = room.state.lineups[uid]?.tactics || {
-        tempo: "balanced",
-        buildUp: "balanced",
-        pressing: "balanced",
-        attackDirection: "balanced",
-      };
+      lineup.tactics = sanitizeTactics(room.state.lineups[uid]?.tactics);
       lineup.isConfirmed = true;
       room.state.lineups[uid] = lineup;
     }
@@ -627,10 +647,13 @@ function handleUserDisconnect(room: AuctionPartyRoom, userId: string, username: 
 }
 
 function broadcast(room: AuctionPartyRoom, payload: object) {
-  const str = JSON.stringify(payload);
-  for (const [ws] of room.clients) {
+  const statePayload = payload as { type?: string; state?: AuctionRoomState; [key: string]: unknown };
+  for (const [ws, client] of room.clients) {
     if (ws.readyState === WebSocket.OPEN) {
-      ws.send(str);
+      const outgoing = statePayload.type === "AUCTION_STATE_SYNC" && statePayload.state
+        ? { ...statePayload, state: stateForAuctionViewer(statePayload.state, client.userId) }
+        : payload;
+      ws.send(JSON.stringify(outgoing));
     }
   }
 }

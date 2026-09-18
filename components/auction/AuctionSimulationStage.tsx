@@ -14,13 +14,13 @@ import React, { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   AuctionRoomState,
-  MatchSimulationResult,
-  MatchEvent,
   TeamLineup,
-  PitchPosition,
   FormationName,
+  StandingRow,
+  TeamTactics,
 } from "@/lib/auction/auctionTypes";
 import { calculateStandings, collectCompletedRoundMatches } from "@/lib/auction/auctionTournament";
+import { selectMatchHighlights } from "@/lib/auction/matchHighlights";
 import { FORMATION_CONFIGS, FormationSlotDefinition } from "@/lib/auction/formationTemplates";
 import { calculateSlotRating } from "@/lib/auction/positionSuitability";
 import { getRatingTier } from "@/lib/game/playerRatingTiers";
@@ -59,7 +59,7 @@ export function AuctionSimulationStage({
   const router = useRouter();
 
   const isAllMatchesFinished = state.status === "finished";
-  const rounds = state.simulationRounds || [];
+  const rounds = useMemo(() => state.simulationRounds || [], [state.simulationRounds]);
   const currentRoundIndex = state.currentRoundIndex ?? 0;
   const currentRoundMinute = state.currentRoundMinute ?? state.currentSimMinute ?? 0;
   const currentRound = rounds[currentRoundIndex];
@@ -73,9 +73,6 @@ export function AuctionSimulationStage({
     () => Object.keys(state.participants).filter((id) => Boolean(id && id.trim())),
     [state.participants]
   );
-  const totalPlayers = Math.max(1, activeUserIds.length);
-  const readyCount = simReadyUserIds.length;
-
   // Bu turdaki benim maçım ve rakibim
   const currentMatches = currentRound?.matches || [];
   const myMatch = currentMatches.find(
@@ -108,10 +105,16 @@ export function AuctionSimulationStage({
   // Puan tablosu
   const currentStandings = useMemo(() => {
     if (isAllMatchesFinished) return state.standings;
-    const completedRoundCount = isRoundOver ? currentRoundIndex + 1 : currentRoundIndex;
-    const completedMatches = collectCompletedRoundMatches(rounds, completedRoundCount);
-    return calculateStandings(activeUserIds, state.participants, completedMatches);
-  }, [isAllMatchesFinished, state.standings, isRoundOver, currentRoundIndex, rounds, activeUserIds, state.participants]);
+    const completedMatches = collectCompletedRoundMatches(rounds, currentRoundIndex);
+    // Provisional table uses only goals already revealed, never final server scores.
+    const liveMatches = currentRoundMinute > 0 ? (rounds[currentRoundIndex]?.matches || []).map((match) => ({
+      ...match,
+      homeScore: match.events.filter((e) => e.type === "goal" && e.teamUserId === match.homeUserId && e.minute <= currentRoundMinute).length,
+      awayScore: match.events.filter((e) => e.type === "goal" && e.teamUserId === match.awayUserId && e.minute <= currentRoundMinute).length,
+      isFinished: true,
+    })) : [];
+    return calculateStandings(activeUserIds, state.participants, [...completedMatches, ...liveMatches]);
+  }, [isAllMatchesFinished, state.standings, currentRoundMinute, currentRoundIndex, rounds, activeUserIds, state.participants]);
 
   // Gol ve Asist Krallığı İstatistikleri (Anlık Canlı)
   const { topScorers, topAssisters } = useMemo(() => {
@@ -227,20 +230,17 @@ export function AuctionSimulationStage({
   ).length || 0;
 
   const visibleEvents = myMatch
-    ? myMatch.events
-        .filter((e) => e.minute <= currentRoundMinute)
-        .slice()
-        .reverse()
+    ? selectMatchHighlights(myMatch.events, currentRoundMinute).reverse()
     : [];
 
   return (
-    <div className="w-full h-[calc(100vh-100px)] min-h-[640px] max-h-[860px] flex flex-col gap-2.5 select-none animate-fadeIn overflow-hidden">
+    <div className="w-full lg:h-[calc(100dvh-110px)] lg:min-h-[540px] flex flex-col gap-2.5 select-none animate-fadeIn">
       {/* ── ÜST ÇUBUK: Tur Başlığı + Canlı Sayaç + Tur Geçiş Butonu ── */}
-      <div className="relative flex items-center justify-between p-2.5 px-4 rounded-2xl bg-black/60 border border-white/10 backdrop-blur-xl shrink-0">
-        <div className="flex items-center gap-3">
+      <div className="relative flex flex-wrap items-center justify-between gap-2 p-2.5 px-4 rounded-2xl bg-black/60 border border-white/10 backdrop-blur-xl shrink-0">
+        <div className="flex flex-wrap items-center gap-3">
           <span className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-400 text-xs font-black uppercase tracking-wider">
             <Swords className="w-3.5 h-3.5" />
-            <span>Tur {currentRoundIndex + 1} / {rounds.length}</span>
+            <span>Tur {currentRoundIndex + 1} / {state.leagueSchedule?.length || rounds.length}</span>
           </span>
 
           {byeUsername && (
@@ -252,7 +252,7 @@ export function AuctionSimulationStage({
         </div>
 
         {/* Ortadaki Canlı Dakika */}
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-1 rounded-xl bg-black/80 border border-white/15 shadow-md">
+        <div className="flex items-center gap-2 px-4 py-1 rounded-xl bg-black/80 border border-white/15 shadow-md">
           <Timer className={`w-4 h-4 text-amber-400 ${!isRoundOver ? "animate-spin" : ""}`} />
           <span className="font-mono font-black text-amber-400 text-base tabular-nums">
             {currentRoundMinute}&apos; / 90&apos;
@@ -262,7 +262,7 @@ export function AuctionSimulationStage({
         {/* Tur Bittiğinde Geçiş Kontrolü */}
         <div className="flex items-center gap-2">
           {isRoundOver ? (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {!isSpectator && (
                 <button
                   type="button"
@@ -275,7 +275,7 @@ export function AuctionSimulationStage({
                   }`}
                 >
                   <CheckCircle2 className={`w-3.5 h-3.5 ${isMyReady ? "text-emerald-400" : ""}`} />
-                  <span>{isMyReady ? "Hazırsınız ✓" : "Sonraki Tura Hazırım"}</span>
+                  <span>{isMyReady ? "Hazırsınız ✓" : currentRoundIndex < (state.leagueSchedule?.length || rounds.length) - 1 ? "Sonraki Tura Hazırım" : "Sonuçlara Hazırım"}</span>
                 </button>
               )}
 
@@ -285,7 +285,7 @@ export function AuctionSimulationStage({
                   onClick={onNextMatch}
                   className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs uppercase tracking-wider transition-all cursor-pointer shadow-md flex items-center gap-1.5 active:scale-95"
                 >
-                  <span>{currentRoundIndex < rounds.length - 1 ? "Taktik Aşamasına Geç" : "Sonuçları Göster"}</span>
+                  <span>{currentRoundIndex < (state.leagueSchedule?.length || rounds.length) - 1 ? "Sonraki Maça Hazırlan" : "Sonuçları Göster"}</span>
                   <ChevronRight className="w-4 h-4 stroke-[3]" />
                 </button>
               )}
@@ -338,39 +338,39 @@ export function AuctionSimulationStage({
           <MiniPitchView lineup={rightLineup} formation={rightLineup?.formation || "4-3-3"} isOpponent />
 
           {/* Sahanın Altındaki Taktik Rozetleri */}
-          <TacticsBadgesBar tactics={rightLineup?.tactics} isOpponent />
+          <TacticsBadgesBar tactics={rightLineup?.tactics} />
         </div>
 
         {/* ============================================================ */}
         {/* KOLON 3: MAÇ MERKEZİ (SKOR/DK + SPİKER + GOL KRALLIĞI)       */}
         {/* ============================================================ */}
-        <div className="min-w-0 flex flex-col gap-2 h-full min-h-0 overflow-hidden">
+        <div className="order-first lg:order-none min-w-0 flex flex-col gap-2 h-[520px] lg:h-full min-h-0 overflow-hidden">
           {/* ÜST: SKOR - DAKİKA */}
           <div className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-black/50 border border-white/10 backdrop-blur-xl shrink-0">
             <div className="flex items-center justify-between w-full px-2 text-xs font-bold text-zinc-300">
-              <span className="truncate max-w-[90px] text-emerald-300 font-black">{myMatch?.homeUsername}</span>
+              <span className="truncate max-w-[90px] text-emerald-300 font-black">{leftUsername}</span>
               <span className="font-mono text-[10px] text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-500/30">
-                {currentRoundMinute}&apos; Canlı
+                {isRoundOver ? "Maç sonu" : `${currentRoundMinute}′ Canlı`}
               </span>
-              <span className="truncate max-w-[90px] text-cyan-300 font-black">{myMatch?.awayUsername}</span>
+              <span className="truncate max-w-[90px] text-cyan-300 font-black">{rightUsername}</span>
             </div>
 
             <div className="flex items-center gap-3 mt-1">
-              <span className="font-mono font-black text-3xl sm:text-4xl text-white">{homeGoals}</span>
+              <span className="font-mono font-black text-3xl sm:text-4xl text-white">{leftUserId === myMatch?.homeUserId ? homeGoals : awayGoals}</span>
               <span className="text-zinc-500 text-lg font-mono font-bold">-</span>
-              <span className="font-mono font-black text-3xl sm:text-4xl text-white">{awayGoals}</span>
+              <span className="font-mono font-black text-3xl sm:text-4xl text-white">{leftUserId === myMatch?.homeUserId ? awayGoals : homeGoals}</span>
             </div>
           </div>
 
           {/* ORTA: MAÇ ANLATIMI (CANLI SPİKER AKIŞI) */}
           <div className="flex-1 flex flex-col min-h-0 rounded-2xl bg-black/40 border border-white/10 p-2.5 backdrop-blur-xl overflow-hidden">
             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1.5 pb-1 border-b border-white/10">
-              Maç Anlatımı
+              Önemli Pozisyonlar · En yeni üstte
             </span>
             <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-1.5 custom-scrollbar">
               {visibleEvents.length === 0 ? (
                 <div className="h-full flex items-center justify-center text-center text-zinc-500 text-xs font-medium py-8">
-                  Hakem düdüğünü çaldı, maç başladı...
+                  {isRoundOver ? "Maç tamamlandı. Öne çıkan pozisyon oluşmadı." : currentRoundMinute === 0 ? "Maç başlamak üzere…" : "Oyun sürüyor. İlk önemli pozisyon bekleniyor…"}
                 </div>
               ) : (
                 visibleEvents.map((ev, i) => (
@@ -387,7 +387,12 @@ export function AuctionSimulationStage({
                     <span className="font-mono font-black text-[11px] text-amber-400 shrink-0 mt-0.5">
                       {ev.minute}&apos;
                     </span>
-                    <span className="leading-snug text-[11px] font-medium">{ev.description}</span>
+                    <span className="leading-snug text-xs font-medium">
+                      <span className={`block mb-0.5 text-[10px] font-bold ${ev.teamUserId === leftUserId ? "text-emerald-300" : "text-cyan-300"}`}>
+                        {state.participants[ev.teamUserId]?.username || "Takım"}
+                      </span>
+                      {ev.description}
+                    </span>
                   </div>
                 ))
               )}
@@ -458,10 +463,10 @@ export function AuctionSimulationStage({
           {/* ORTA: PUAN DURUMU (Lig Tablosu) */}
           <div className="flex-1 flex flex-col min-h-0 rounded-2xl bg-black/40 border border-white/10 p-2.5 backdrop-blur-xl overflow-hidden">
             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1 pb-1 border-b border-white/10">
-              Puan Durumu
+              {isRoundOver ? "Puan Durumu" : "Canlı Puan Durumu · Anlık skora göre"}
             </span>
             <div className="flex-1 overflow-y-auto custom-scrollbar">
-              <StandingsTable standings={currentStandings} currentUserId={currentUserId} compact />
+              <StandingsTable standings={currentStandings} currentUserId={currentUserId} />
             </div>
           </div>
 
@@ -609,23 +614,19 @@ function MiniPitchView({
 // ---------------------------------------------------------------------------
 function TacticsBadgesBar({
   tactics,
-  isOpponent = false,
 }: {
-  tactics?: any;
-  isOpponent?: boolean;
+  tactics?: TeamTactics;
 }) {
   const tempoLabel =
     tactics?.tempo === "fast" ? "Hızlı" : tactics?.tempo === "slow" ? "Yavaş" : "Dengeli";
   const buildUpLabel =
-    tactics?.buildUp === "shoot_on_sight"
-      ? "Kaleyi Görünce Vur"
-      : tactics?.buildUp === "short_pass"
+    tactics?.buildUp === "short_pass"
       ? "Kısa Pas"
       : tactics?.buildUp === "long_ball"
-      ? "Uzun Top"
+      ? "Direkt"
       : "Dengeli";
   const pressLabel =
-    tactics?.pressing === "high_press" ? "Önde Pres" : tactics?.pressing === "park_bus" ? "Otobüs" : "Dengeli";
+    tactics?.pressing === "high_press" ? "Önde Pres" : tactics?.pressing === "park_bus" ? "Alçak Blok" : "Orta Blok";
   const dirLabel =
     tactics?.attackDirection === "wings"
       ? "Kanatlar"
@@ -636,12 +637,26 @@ function TacticsBadgesBar({
       : tactics?.attackDirection === "center"
       ? "Merkez"
       : "Dengeli";
+  const transitionLabel = tactics?.transition === "counter" ? "Kontra" : tactics?.transition === "retain" ? "Topu Tut" : "Dengeli";
+  const chanceLabel = tactics?.chanceCreation === "shoot_on_sight"
+    ? "Görünce Vur"
+    : tactics?.chanceCreation === "patient"
+      ? "Sabırlı"
+      : tactics?.chanceCreation === "early_cross" ? "Erken Orta" : "Dengeli";
 
   return (
-    <div className="grid grid-cols-4 gap-1 text-[10px] font-mono shrink-0 select-none">
+    <div className="grid grid-cols-3 gap-1 text-[10px] font-mono shrink-0 select-none">
       <div className="p-1 rounded-lg bg-white/5 border border-white/5 text-center flex flex-col leading-tight">
         <span className="text-[8px] text-zinc-400 font-sans">Tempo</span>
         <span className="font-bold text-amber-300 truncate">{tempoLabel}</span>
+      </div>
+      <div className="p-1 rounded-lg bg-white/5 border border-white/5 text-center flex flex-col leading-tight">
+        <span className="text-[8px] text-zinc-400 font-sans">Geçiş</span>
+        <span className="font-bold text-orange-300 truncate">{transitionLabel}</span>
+      </div>
+      <div className="p-1 rounded-lg bg-white/5 border border-white/5 text-center flex flex-col leading-tight">
+        <span className="text-[8px] text-zinc-400 font-sans">Pozisyon</span>
+        <span className="font-bold text-violet-300 truncate">{chanceLabel}</span>
       </div>
       <div className="p-1 rounded-lg bg-white/5 border border-white/5 text-center flex flex-col leading-tight">
         <span className="text-[8px] text-zinc-400 font-sans">Pas</span>
@@ -665,11 +680,9 @@ function TacticsBadgesBar({
 function StandingsTable({
   standings,
   currentUserId,
-  compact = false,
 }: {
-  standings: any[];
+  standings: StandingRow[];
   currentUserId: string;
-  compact?: boolean;
 }) {
   return (
     <table className="w-full text-left font-mono text-[11px] select-none">
@@ -699,7 +712,7 @@ function StandingsTable({
               <td className="py-1 text-center text-zinc-400">{s.won}</td>
               <td className="py-1 text-center text-zinc-400">{s.drawn}</td>
               <td className="py-1 text-center text-zinc-400">{s.lost}</td>
-              <td className="py-1 text-center text-zinc-400">{s.goalDifference > 0 ? `+${s.goalDifference}` : s.goalDifference}</td>
+              <td className="py-1 text-center text-zinc-400">{s.goalDiff > 0 ? `+${s.goalDiff}` : s.goalDiff}</td>
               <td className="py-1 text-right font-black text-white">{s.points}</td>
             </tr>
           );

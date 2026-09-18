@@ -88,10 +88,24 @@ export type PitchCorridor = "left" | "center" | "right";
 
 export interface TeamTactics {
   tempo: "slow" | "balanced" | "fast";
-  buildUp: "short_pass" | "balanced" | "long_ball" | "shoot_on_sight";
+  buildUp: "short_pass" | "balanced" | "long_ball";
   pressing: "park_bus" | "balanced" | "high_press";
   attackDirection: "left" | "center" | "right" | "balanced" | "wings";
+  /** Top kazanıldıktan sonraki ilk tercih. Eski kayıtlar için opsiyoneldir. */
+  transition?: "retain" | "balanced" | "counter";
+  /** Hücumun son bölümünde nasıl pozisyon aranacağını belirler. */
+  chanceCreation?: "patient" | "balanced" | "early_cross" | "shoot_on_sight";
 }
+
+export type MatchZone = "defensive_third" | "middle_third" | "final_third" | "penalty_area";
+export type MatchPhase =
+  | "build_up"
+  | "progression"
+  | "chance_creation"
+  | "shot"
+  | "loose_ball"
+  | "counter_attack"
+  | "set_piece";
 
 export interface TeamLineup {
   userId: string;
@@ -104,10 +118,13 @@ export interface TeamLineup {
 
 export interface MatchEvent {
   minute: number;
-  type: "goal" | "save" | "chance" | "attack_start";
+  type: "goal" | "save" | "chance" | "attack_start" | "counter" | "miss" | "corner" | "turnover";
   teamUserId: string;
   playerName?: string;
   assistPlayerName?: string;
+  phase?: MatchPhase;
+  zone?: MatchZone;
+  corridor?: PitchCorridor;
   description: string;
 }
 
@@ -144,6 +161,7 @@ export interface MatchSimulationResult {
   winnerUserId: string | null;
   isFinished: boolean;
   playerStats: Record<string, PlayerMatchStat>;
+  simulationSeed?: string;
   homeLineup?: TeamLineup;
   awayLineup?: TeamLineup;
 }

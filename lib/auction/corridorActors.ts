@@ -7,24 +7,13 @@
 import { PitchCorridor, SquadSlot, TeamLineup } from "./auctionTypes";
 import { DEFAULT_TACTICS, getSlotCorridor } from "./corridorEngine";
 import { ASSIST_WEIGHTS, ATK_WEIGHTS, DEF_WEIGHTS, LONG_SHOT_WEIGHTS, ratingCurve } from "./matchWeights";
-
-function weightedPick<T>(candidates: { item: T; weight: number }[]): T | undefined {
-  const valid = candidates.filter((c) => c.weight > 0);
-  const total = valid.reduce((sum, c) => sum + c.weight, 0);
-  if (!total) return undefined;
-  let roll = Math.random() * total;
-  for (const c of valid) {
-    if (roll <= c.weight) return c.item;
-    roll -= c.weight;
-  }
-  return valid[0]?.item;
-}
+import { pickWeighted, RandomSource } from "./simulationRandom";
 
 /**
  * Atak koridoruna göre şut çekecek oyuncuyu seçer.
  * ATK_WEIGHTS taban gücü ve koridor yakınlığına göre ağırlıklandırılır.
  */
-export function pickCorridorShooter(lineup: TeamLineup, corridor: PitchCorridor): SquadSlot | undefined {
+export function pickCorridorShooter(lineup: TeamLineup, corridor: PitchCorridor, random: RandomSource = Math.random): SquadSlot | undefined {
   const tactics = lineup.tactics || DEFAULT_TACTICS;
   const candidates: { item: SquadSlot; weight: number }[] = [];
 
@@ -34,11 +23,11 @@ export function pickCorridorShooter(lineup: TeamLineup, corridor: PitchCorridor)
     const baseAtk = ATK_WEIGHTS[slot.targetPosition] ?? 0.2;
     const slotCorridor = getSlotCorridor(slot.slotId, slot.targetPosition, lineup.formation);
 
-    let weight = curve * baseAtk;
-    // Kendi koridorunda veya santrfor merkezdeyse şutör olma şansı yükselir
-    if (slotCorridor === corridor || (corridor === "center" && ["ST", "CF"].includes(slot.targetPosition))) {
-      weight *= 1.4;
-    }
+    let corridorFit = slotCorridor === corridor ? 1.4 : 0;
+    if (["ST", "CF"].includes(slot.targetPosition)) corridorFit = corridor === "center" ? 1.6 : 0.65;
+    else if (["CAM", "CM"].includes(slot.targetPosition) && corridor !== "center") corridorFit = 0.35;
+    if (corridorFit <= 0) continue;
+    let weight = curve * baseAtk * corridorFit;
     // Uzun pas taktiğinde forvetin şutör olma şansı katlanır
     if (tactics.buildUp === "long_ball" && ["ST", "CF"].includes(slot.targetPosition)) {
       weight *= 1.8;
@@ -49,7 +38,7 @@ export function pickCorridorShooter(lineup: TeamLineup, corridor: PitchCorridor)
     }
   }
 
-  return weightedPick(candidates) || lineup.slots.find((s) => s.placedPlayer && s.targetPosition !== "GK");
+  return pickWeighted(candidates, random) || lineup.slots.find((s) => s.placedPlayer && s.targetPosition !== "GK");
 }
 
 /**
@@ -59,7 +48,8 @@ export function pickCorridorShooter(lineup: TeamLineup, corridor: PitchCorridor)
 export function pickCorridorAssist(
   lineup: TeamLineup,
   corridor: PitchCorridor,
-  scorerName: string
+  scorerName: string,
+  random: RandomSource = Math.random
 ): string | undefined {
   const tactics = lineup.tactics || DEFAULT_TACTICS;
   const candidates: { item: string; weight: number }[] = [];
@@ -72,10 +62,9 @@ export function pickCorridorAssist(
     const baseAssist = ASSIST_WEIGHTS[slot.targetPosition] ?? 0.5;
     const slotCorridor = getSlotCorridor(slot.slotId, slot.targetPosition, lineup.formation);
 
-    let weight = curve * baseAssist;
-    if (slotCorridor === corridor) {
-      weight *= 1.35;
-    }
+    let corridorFit = slotCorridor === corridor ? 1.35 : 0.15;
+    if (["CM", "CAM", "CDM"].includes(slot.targetPosition)) corridorFit = Math.max(corridorFit, 0.55);
+    let weight = curve * baseAssist * corridorFit;
     // Uzun pasta stoperin defans arkasına uzun top atarak asist yapma şansı
     if (tactics.buildUp === "long_ball" && slot.targetPosition === "CB") {
       weight *= 2.0;
@@ -86,13 +75,13 @@ export function pickCorridorAssist(
     }
   }
 
-  return weightedPick(candidates);
+  return pickWeighted(candidates, random);
 }
 
 /**
  * Atağı kesen savunmacıyı seçer (DEF_WEIGHTS taban ağırlıklarına göre).
  */
-export function pickCorridorDefender(lineup: TeamLineup, defendingCorridor: PitchCorridor): string | undefined {
+export function pickCorridorDefender(lineup: TeamLineup, defendingCorridor: PitchCorridor, random: RandomSource = Math.random): string | undefined {
   const candidates: { item: string; weight: number }[] = [];
 
   for (const slot of lineup.slots) {
@@ -101,24 +90,25 @@ export function pickCorridorDefender(lineup: TeamLineup, defendingCorridor: Pitc
     const baseDef = DEF_WEIGHTS[slot.targetPosition] ?? 0.2;
     const slotCorridor = getSlotCorridor(slot.slotId, slot.targetPosition, lineup.formation);
 
-    let weight = curve * baseDef;
-    if (slotCorridor === defendingCorridor) {
-      weight *= 1.4;
-    }
+    let corridorFit = slotCorridor === defendingCorridor ? 1.5 : 0;
+    if (slot.targetPosition === "CB") corridorFit = defendingCorridor === "center" ? 1.5 : Math.max(corridorFit, 0.55);
+    else if (["CDM", "CM"].includes(slot.targetPosition)) corridorFit = Math.max(corridorFit, 0.35);
+    if (corridorFit <= 0) continue;
+    const weight = curve * baseDef * corridorFit;
 
     if (weight > 0) {
       candidates.push({ item: slot.placedPlayer.fullName, weight });
     }
   }
 
-  return weightedPick(candidates);
+  return pickWeighted(candidates, random);
 }
 
 /**
  * Ceza sahası dışından uzaktan şut çekecek oyuncuyu seçer.
  * LONG_SHOT_WEIGHTS taban gücü ve atağın koridoruna göre ağırlıklandırılır.
  */
-export function pickLongRangeShooter(lineup: TeamLineup, corridor: PitchCorridor): SquadSlot {
+export function pickLongRangeShooter(lineup: TeamLineup, corridor: PitchCorridor, random: RandomSource = Math.random): SquadSlot {
   const candidates: { item: SquadSlot; weight: number }[] = [];
 
   for (const slot of lineup.slots) {
@@ -155,14 +145,14 @@ export function pickLongRangeShooter(lineup: TeamLineup, corridor: PitchCorridor
     }
   }
 
-  return weightedPick(candidates) || lineup.slots.find((s) => s.placedPlayer && s.targetPosition !== "GK")!;
+  return pickWeighted(candidates, random) || lineup.slots.find((s) => s.placedPlayer && s.targetPosition !== "GK")!;
 }
 
 /**
  * Uzaktan şutun önüne siper olup blokaj yapmaya çalışacak savunmacıyı seçer.
  * DEF_WEIGHTS taban gücü ve atağın geldiği koridora göre belirlenir.
  */
-export function pickCorridorBlocker(lineup: TeamLineup, defendingCorridor: PitchCorridor): SquadSlot {
+export function pickCorridorBlocker(lineup: TeamLineup, defendingCorridor: PitchCorridor, random: RandomSource = Math.random): SquadSlot {
   const candidates: { item: SquadSlot; weight: number }[] = [];
 
   for (const slot of lineup.slots) {
@@ -195,7 +185,7 @@ export function pickCorridorBlocker(lineup: TeamLineup, defendingCorridor: Pitch
     }
   }
 
-  return weightedPick(candidates) || lineup.slots.find((s) => s.placedPlayer && s.targetPosition !== "GK")!;
+  return pickWeighted(candidates, random) || lineup.slots.find((s) => s.placedPlayer && s.targetPosition !== "GK")!;
 }
 
 

@@ -59,8 +59,8 @@ async function runTacticsTests() {
   const teamDominant = createTestLineup("u1", 95, { tempo: "fast", buildUp: "balanced", pressing: "balanced", attackDirection: "balanced" });
   const teamWeak = createTestLineup("u2", 55, { tempo: "slow", buildUp: "balanced", pressing: "balanced", attackDirection: "balanced" });
   const tempoConflict = calculateMatchTempo(teamDominant, teamWeak);
-  console.log(`95 GEN Hızlı vs 55 GEN Yavaş: ${tempoConflict} pozisyon (Güçlü takım baskın, beklenen > 20)`);
-  if (tempoConflict <= 20) throw new Error("95 GEN'li takımın hızlı temposu ağır basmalıydı!");
+  console.log(`95 GEN Hızlı vs 55 GEN Yavaş: ${tempoConflict} sekans (İki takım eşit söz sahibi, beklenen: 20)`);
+  if (tempoConflict !== 20) throw new Error("Tempo tercihleri takım gücünden bağımsız ve eşit ağırlıklı olmalı!");
 
   console.log("\n==========================================");
   console.log("🧪 2. OYUN KURMA (KISA PAS vs UZUN PAS) TESTLERİ");
@@ -76,10 +76,10 @@ async function runTacticsTests() {
 
   console.log(`Standart Hücum Gücü: ${baseAtk.toFixed(3)}`);
   console.log(`Kısa Pas Hücum Gücü (Forvetler Nerf: 0.85x, Orta Saha Buff): ${shortAtk.toFixed(3)}`);
-  console.log(`Uzun Pas Hücum Gücü (Orta Saha Baypas: 0.30x, Forvet Buff): ${longAtk.toFixed(3)}`);
+  console.log(`Direkt Oyun Hücum Gücü (Orta Saha kısmen baypas, Forvet Buff): ${longAtk.toFixed(3)}`);
 
   if (shortAtk >= baseAtk) throw new Error("Kısa pasta direkt bitirici hücum gücü nerf yemeliydi!");
-  if (longAtk >= baseAtk) throw new Error("Uzun pasta orta saha hücuma katılmadığı için delme gücü düşmeliydi!");
+  if (Math.abs(longAtk / baseAtk - 1) > 0.20) throw new Error("Direkt oyun dengeli hücumdan aşırı sapmamalı!");
 
   const baseDef = calculateCorridorDefensePower(baseTeam, "left");
   const shortDef = calculateCorridorDefensePower(shortPassTeam, "left");
@@ -99,8 +99,8 @@ async function runTacticsTests() {
   const busMid = calculateCorridorMidfieldScore(parkBusTeam, "center");
 
   console.log(`Standart Orta Saha: ${normalMid.toFixed(3)}`);
-  console.log(`Önde Pres Orta Saha (+%25): ${pressMid.toFixed(3)}`);
-  console.log(`Otobüsü Park Et Orta Saha (-%30): ${busMid.toFixed(3)}`);
+  console.log(`Önde Pres Orta Saha (+%18): ${pressMid.toFixed(3)}`);
+  console.log(`Düşük Blok Orta Saha (-%24): ${busMid.toFixed(3)}`);
 
   if (pressMid <= normalMid) throw new Error("Yüksek pres orta saha gücünü artırmalıydı!");
   if (busMid >= normalMid) throw new Error("Park bus orta saha gücünü düşürmeliydi!");
@@ -110,8 +110,8 @@ async function runTacticsTests() {
   const busDef = calculateCorridorDefensePower(parkBusTeam, "center");
 
   console.log(`Standart Defans: ${normalDef.toFixed(3)}`);
-  console.log(`Önde Pres Defans (Arkada Boşluk -%25): ${pressDef.toFixed(3)}`);
-  console.log(`Otobüsü Park Et Defans (+%40): ${busDef.toFixed(3)}`);
+  console.log(`Önde Pres Defans (Arkada Boşluk -%8): ${pressDef.toFixed(3)}`);
+  console.log(`Düşük Blok Defans (+%35): ${busDef.toFixed(3)}`);
 
   if (pressDef >= normalDef) throw new Error("Yüksek pres defans gücünü düşürmeliydi!");
   if (busDef <= normalDef) throw new Error("Park bus defans gücünü artırmalıydı!");
@@ -213,7 +213,7 @@ async function runTacticsTests() {
   console.log("🧪 7. UZAKTAN ŞUT & 'KALEYİ GÖRÜNCE VUR' TESTLERİ");
   console.log("==========================================");
 
-  const shootOnSightTeam = createTestLineup("u1", 80, { tempo: "balanced", buildUp: "shoot_on_sight", pressing: "balanced", attackDirection: "balanced" });
+  const shootOnSightTeam = createTestLineup("u1", 80, { tempo: "balanced", buildUp: "balanced", pressing: "balanced", attackDirection: "balanced", chanceCreation: "shoot_on_sight" });
   const normalOpponent = createTestLineup("u2", 80, { tempo: "balanced", buildUp: "balanced", pressing: "balanced", attackDirection: "balanced" });
 
   let shootOnSightAttacks = 0;

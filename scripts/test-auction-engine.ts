@@ -5,10 +5,10 @@
 
 import { generateAuctionPool } from "../lib/auction/generateAuctionPool";
 import { calculateSlotRating, calculateLineupPowers } from "../lib/auction/positionSuitability";
-import { FORMATION_CONFIGS, createInitialSlotsForFormation } from "../lib/auction/formationTemplates";
+import { createInitialSlotsForFormation } from "../lib/auction/formationTemplates";
 import { simulateMatch } from "../lib/auction/simulateMatch";
-import { generateLeagueFixtures, calculateStandings, simulateEntireTournament } from "../lib/auction/auctionTournament";
-import { AuctionPlayerCard, TeamLineup, PitchPosition, AuctionRoomState } from "../lib/auction/auctionTypes";
+import { generateLeagueFixtures, simulateEntireTournament } from "../lib/auction/auctionTournament";
+import { AuctionPlayerCard, TeamLineup, AuctionRoomState } from "../lib/auction/auctionTypes";
 import { startAuctionStage, applyBid, advanceAuctionCard, finishSoldCelebration } from "../lib/auction/auctionRoomEngine";
 
 async function runTests() {
@@ -186,6 +186,18 @@ async function runTests() {
   console.log(`✅ Kart satıldı! 2 saniyelik kutlama başladı: isSoldCelebration=${roomState.isSoldCelebration}, Son Satılan=${roomState.lastSoldEvent?.playerName} (${roomState.lastSoldEvent?.amount}$)`);
   if (!roomState.isSoldCelebration) throw new Error("isSoldCelebration true olmalıydı!");
 
+  // Timer veya pas mesajı aynı satışı tekrar sonuçlandırmaya çalışsa bile kadro değişmemeli.
+  const squadSizeAfterSale = roomState.participants.user1.squad.length;
+  const salesCountAfterSale = roomState.salesHistory?.length || 0;
+  roomState = advanceAuctionCard(roomState);
+  if (roomState.participants.user1.squad.length !== squadSizeAfterSale) {
+    throw new Error("HATA! Satış kutlaması sırasında aynı oyuncu kadroya ikinci kez eklendi!");
+  }
+  if ((roomState.salesHistory?.length || 0) !== salesCountAfterSale) {
+    throw new Error("HATA! Satış kutlaması sırasında aynı satış geçmişe ikinci kez yazıldı!");
+  }
+  console.log("✅ ÇİFT SATIŞ KORUMASI: Aynı kart ikinci kez sonuçlandırılmadı.");
+
   // SENARYO A: 2 saniyelik kutlama esnasında teklif verilmeye çalışıldı
   const duringCelebrationBid = applyBid(roomState, "user2", 25, 0, "messi");
   if (duringCelebrationBid.success) {
@@ -215,7 +227,7 @@ async function runTests() {
   console.log(`✅ KORUMA 3 BAŞARILI: Yeni kart teklifi (5$) kabul edildi. (Yeni Fiyat: ${validBid.state.currentHighestBid?.amount}$)`);
 
   // SENARYO D: Kaleci Kontenjanı Testi (2 Kaleciye Kadar İzin Verilir, 3. Kaleci Engellenir)
-  let gkRoomState = { ...roomState };
+  const gkRoomState = { ...roomState };
   gkRoomState.participants.user1.squad = [
     { id: "gk1", fullName: "Kaleci 1", overallPrime: 85, positions: ["GK"] },
     { id: "gk2", fullName: "Kaleci 2", overallPrime: 82, positions: ["GK"] },

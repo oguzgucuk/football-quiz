@@ -11,6 +11,7 @@ export {
   getSlotCorridor,
   calculateMatchTempo,
   determineAttackCorridor,
+  determineTeamAttackCorridor,
   mirrorCorridor,
 } from "./corridorSetup";
 

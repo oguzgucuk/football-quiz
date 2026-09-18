@@ -3,7 +3,7 @@ import {
   calculateCorridorAttackPower,
   calculateCorridorDefensePower,
   calculateCorridorMidfieldScore,
-  determineAttackCorridor,
+  determineTeamAttackCorridor,
   mirrorCorridor,
   pickCorridorAssist,
   pickCorridorDefender,
@@ -192,10 +192,10 @@ export function resolveLongRangeShot(
   const baseRateMap: Record<string, number> = {
     shoot_on_sight: 0.20,
     balanced: 0.16,
-    long_ball: 0.14,
-    short_pass: 0.12,
+    early_cross: 0.15,
+    patient: 0.12,
   };
-  const baseRate = baseRateMap[attacking.tactics?.buildUp || "balanced"] ?? 0.16;
+  const baseRate = baseRateMap[attacking.tactics?.chanceCreation || "balanced"] ?? 0.16;
   const goalChance = clamp(baseRate + (shooterCurve - gkCurve) * 0.35, 0.05, 0.40);
   const isGoal = Math.random() < goalChance;
 
@@ -244,13 +244,11 @@ export function resolvePossession(
   away: TeamLineup,
   awayUsername: string
 ): PossessionResult {
-  // 1. O pozisyon için atak koridoru belirlenir (Sol, Merkez, Sağ)
-  const initialCorridor = determineAttackCorridor(home, away);
-
-  // 2. SAFHA 1: Koridorda Top Kapma (Orta Saha Geçişi)
-  const homeMidScore = calculateCorridorMidfieldScore(home, initialCorridor);
-  const awayCorridor = mirrorCorridor(initialCorridor);
-  const awayMidScore = calculateCorridorMidfieldScore(away, awayCorridor);
+  // Önce topu kazanan takım belirlenir; hücum yönü rakibin hücum
+  // tercihinden etkilenmeden yalnızca topu kazanan takım için seçilir.
+  const corridors: PitchCorridor[] = ["left", "center", "right"];
+  const homeMidScore = corridors.reduce((sum, corridor) => sum + calculateCorridorMidfieldScore(home, corridor), 0) / corridors.length;
+  const awayMidScore = corridors.reduce((sum, corridor) => sum + calculateCorridorMidfieldScore(away, corridor), 0) / corridors.length;
 
   // Taban %15, Tavan %85 kuralı
   const homeWinChance = clamp(homeMidScore / Math.max(0.001, homeMidScore + awayMidScore), 0.15, 0.85);
@@ -261,19 +259,18 @@ export function resolvePossession(
   const attackingUsername = homeAttacks ? homeUsername : awayUsername;
   const defendingUsername = homeAttacks ? awayUsername : homeUsername;
 
-  // Hücum eden ve savunan tarafın koridorları
-  const attackCorridor = homeAttacks ? initialCorridor : awayCorridor;
+  const attackCorridor = determineTeamAttackCorridor(attacking);
   const defenseCorridor = mirrorCorridor(attackCorridor);
 
   // 3. UZAKTAN ŞUT İHTİMALİ KONTROLÜ (Taktik Tercihine Göre)
-  // shoot_on_sight %70, balanced %15, long_ball %10, short_pass %5
+  // shoot_on_sight %70, balanced %15, early_cross %10, patient %5
   const longShotChanceMap: Record<string, number> = {
     shoot_on_sight: 0.70,
     balanced: 0.15,
-    long_ball: 0.10,
-    short_pass: 0.05,
+    early_cross: 0.10,
+    patient: 0.05,
   };
-  const longShotChance = longShotChanceMap[attacking.tactics?.buildUp || "balanced"] ?? 0.15;
+  const longShotChance = longShotChanceMap[attacking.tactics?.chanceCreation || "balanced"] ?? 0.15;
   if (Math.random() < longShotChance) {
     return resolveLongRangeShot(minute, attacking, attackingUsername, defending, defendingUsername, attackCorridor);
   }
