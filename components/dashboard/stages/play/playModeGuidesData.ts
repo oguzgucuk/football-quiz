@@ -41,7 +41,7 @@ export const MODE_GUIDES: Record<string, GuideInfo> = {
       "İlk turda kimin milleti, kimin kulübü seçeceğine sistem kura ile karar verir.",
       "Her tur seçim rolleri sırayla değişir (1. tur sen millet rakip kulüp, 2. tur sen kulüp rakip millet).",
       "Seçilen milletten olup o kulüpte oynamış futbolcuyu Enter'layarak ilk yazan oyuncu turu kazanır.",
-      "5 tur üzerinden oynanır; en çok puanı toplayan oyuncu maçı galibiyetle tamamlar.",
+      "İlk 3 puana ulaşan oyuncu maçı galibiyetle tamamlar; maç 3 puana ulaşılana kadar devam eder.",
     ],
     tip: "Rakibin seçtiği zorlu bir millete (örn: Brezilya veya Hollanda) karşı o ülkeden bol transfer yapmış kulüpleri seçerek avantaj yakalayın.",
     keywords: [

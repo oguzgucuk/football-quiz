@@ -133,9 +133,7 @@ export function prepareNextRound(
   const p1Score = next.player1?.score || 0;
   const p2Score = next.player2?.score || 0;
 
-  const effectiveMaxRounds = next.maxRounds || maxRounds || DEFAULT_MAX_ROUNDS;
-
-  // 1. Kazanma kontrolü: İlk 3 puana ulaşan maçı kazanır
+  // 1. Kazanma kontrolü: İlk 3 puana (targetScore = 3) ulaşan oyuncu maçı kazanır (sınırsız tur)
   if (p1Score >= targetScore || p2Score >= targetScore) {
     next.status = "match_finished";
     return { isMatchFinished: true, state: next, isReplay: false };
@@ -144,21 +142,8 @@ export function prepareNextRound(
   // 2. Beraberlik/Pas kontrolü: Tur berabere bittiyse tur tekrarlanır
   const isReplay = Boolean(next.lastRoundWasDraw);
   next.isReplayRound = isReplay;
-
-  // Eğer son turda zaten bir tekrar oynandıysa ve yine berabere bittiyse sonsuz döngüyü kırıp maçı bitir
-  if (next.currentRound >= effectiveMaxRounds && isReplay && state.isReplayRound) {
-    next.status = "match_finished";
-    return { isMatchFinished: true, state: next, isReplay: false };
-  }
-
   if (!isReplay) {
     next.currentRound += 1;
-  }
-
-  // 3. Maksimum tur sayısı kontrolü: 5 tur tamamlandıysa maç sonuçlanır
-  if (next.currentRound > effectiveMaxRounds) {
-    next.status = "match_finished";
-    return { isMatchFinished: true, state: next, isReplay: false };
   }
 
   next.roundStatus = "picking_teams";

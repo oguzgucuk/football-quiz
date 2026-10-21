@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Maç sonuçlandığında (5 tur tamamlandığında veya hükmen bitişte)
+ * Maç sonuçlandığında (3 puana ulaşıldığında veya hükmen bitişte)
  * nihai skorları ve sonucu gösteren ekran bileşeni.
  */
 
