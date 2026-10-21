@@ -41,13 +41,13 @@ export function PlayStage({
 
   const isCustomMode =
     (selectedModeId === "common" && selectedCommonSubMode === "custom") ||
-    (selectedModeId === "simulation" && selectedSimSubMode === "custom");
+    (selectedModeId === "simulation" && selectedSimSubMode === "auction");
 
   const isAvailable =
     selectedModeId === "common"
       ? true
       : selectedModeId === "simulation"
-      ? selectedSimSubMode !== "draft"
+      ? selectedSimSubMode === "auction"
       : selectedTrainingSubMode === "players";
 
   const handleCreateGame = () => {

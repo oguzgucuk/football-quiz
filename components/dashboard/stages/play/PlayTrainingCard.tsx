@@ -115,13 +115,23 @@ export function PlayTrainingCard({
 
           if (!sub.isAvailable) {
             return (
-              <div
+              <button
                 key={sub.id}
-                className="w-full h-[44px] flex items-center justify-between px-3.5 rounded-xl border border-white/5 bg-black/20 text-zinc-500 select-none cursor-not-allowed"
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelect();
+                  onSelectSubMode(sub.id);
+                }}
+                className={`w-full h-[44px] flex items-center justify-between px-3.5 rounded-xl border text-left transition-colors duration-200 cursor-pointer ${
+                  isSubActive
+                    ? "bg-white/10 text-zinc-300 border-white/20"
+                    : "bg-black/20 text-zinc-500 border-white/5 hover:border-white/10 hover:bg-black/30"
+                }`}
               >
                 <div className="flex items-center gap-2.5">
-                  <sub.icon className="size-4 text-zinc-600" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                  <sub.icon className="size-4 text-zinc-500" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">
                     {sub.name}
                   </span>
                 </div>
@@ -129,7 +139,7 @@ export function PlayTrainingCard({
                   <Lock className="size-2.5" />
                   Yakında
                 </span>
-              </div>
+              </button>
             );
           }
 

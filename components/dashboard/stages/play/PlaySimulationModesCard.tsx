@@ -1,15 +1,15 @@
 "use client";
 
 import React from "react";
-import { Gavel, Layers, Users, HelpCircle, Lock } from "lucide-react";
+import { Gavel, Layers, ArrowLeftRight, HelpCircle, Lock } from "lucide-react";
 
-export type SimulationSubModeType = "auction" | "draft" | "custom";
+export type SimulationSubModeType = "auction" | "draft" | "aldim_verdim";
 
 export const SIMULATION_SUB_MODES = [
   {
     id: "auction" as const,
     name: "Açık Arttırma",
-    subtitle: "Canlı Müzayede & 90 Dk Maç",
+    subtitle: "Müzayede Odası Kur veya Katıl",
     icon: Gavel,
     isAvailable: true,
   },
@@ -21,11 +21,11 @@ export const SIMULATION_SUB_MODES = [
     isAvailable: false,
   },
   {
-    id: "custom" as const,
-    name: "Özel Oyun",
-    subtitle: "Müzayede Odası Kur veya Katıl",
-    icon: Users,
-    isAvailable: true,
+    id: "aldim_verdim" as const,
+    name: "Aldım Verdim",
+    subtitle: "Karşılıklı Oyuncu Seçimi & Düello",
+    icon: ArrowLeftRight,
+    isAvailable: false,
   },
 ];
 
@@ -112,13 +112,23 @@ export function PlaySimulationModesCard({
 
           if (!sub.isAvailable) {
             return (
-              <div
+              <button
                 key={sub.id}
-                className="w-full h-[44px] flex items-center justify-between px-3.5 rounded-xl border border-white/5 bg-black/20 text-zinc-500 select-none cursor-not-allowed"
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelect();
+                  onSelectSubMode(sub.id);
+                }}
+                className={`w-full h-[44px] flex items-center justify-between px-3.5 rounded-xl border text-left transition-colors duration-200 cursor-pointer ${
+                  isSubActive
+                    ? "bg-white/10 text-zinc-300 border-white/20"
+                    : "bg-black/20 text-zinc-500 border-white/5 hover:border-white/10 hover:bg-black/30"
+                }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <sub.icon className="size-4 text-zinc-600 shrink-0" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 truncate">
+                  <sub.icon className="size-4 text-zinc-500 shrink-0" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-400 truncate">
                     {sub.name}
                   </span>
                 </div>
@@ -126,7 +136,7 @@ export function PlaySimulationModesCard({
                   <Lock className="size-2.5" />
                   Yakında
                 </span>
-              </div>
+              </button>
             );
           }
 
