@@ -13,21 +13,44 @@ interface RouteParams {
 
 export async function GET(_req: Request, { params }: RouteParams) {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return NextResponse.json({ error: "Oturum açmanız gerekiyor" }, { status: 401 });
+    const { userId } = await params;
+    if (!userId) {
+      return NextResponse.json({
+        stats: {
+          winRate: 0,
+          matchesWon: 0,
+          matchesLost: 0,
+          matchesDraw: 0,
+          totalMatches: 0,
+        },
+      });
     }
 
-    const { userId } = await params;
     const stats = await getUserStats(userId);
 
     if (!stats) {
-      return NextResponse.json({ error: "Kullanıcı bulunamadı" }, { status: 404 });
+      return NextResponse.json({
+        stats: {
+          winRate: 0,
+          matchesWon: 0,
+          matchesLost: 0,
+          matchesDraw: 0,
+          totalMatches: 0,
+        },
+      });
     }
 
     return NextResponse.json({ stats });
   } catch (error) {
     console.error("[API /api/users/[userId]/stats] Hata:", error);
-    return NextResponse.json({ error: "İstatistikler alınamadı" }, { status: 500 });
+    return NextResponse.json({
+      stats: {
+        winRate: 0,
+        matchesWon: 0,
+        matchesLost: 0,
+        matchesDraw: 0,
+        totalMatches: 0,
+      },
+    });
   }
 }

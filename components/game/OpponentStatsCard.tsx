@@ -22,15 +22,26 @@ interface OpponentStatsCardProps {
   opponentUsername: string;
 }
 
+const DEFAULT_STATS: OpponentStatsData = {
+  winRate: 0,
+  matchesWon: 0,
+  matchesLost: 0,
+  matchesDraw: 0,
+  totalMatches: 0,
+};
+
 export function OpponentStatsCard({
   opponentUserId,
   opponentUsername,
 }: OpponentStatsCardProps) {
-  const [stats, setStats] = useState<OpponentStatsData | null>(null);
+  const [stats, setStats] = useState<OpponentStatsData>(DEFAULT_STATS);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (!opponentUserId) return;
+    if (!opponentUserId) {
+      setStats(DEFAULT_STATS);
+      return;
+    }
 
     if (isBotPlayer(opponentUserId)) {
       setStats({
@@ -58,10 +69,13 @@ export function OpponentStatsCard({
             matchesDraw: data.stats.matchesDraw ?? 0,
             totalMatches: data.stats.totalMatches ?? 0,
           });
+        } else {
+          setStats(DEFAULT_STATS);
         }
       })
       .catch((err) => {
         console.error("[OpponentStatsCard] İstatistikler çekilemedi:", err);
+        if (isMounted) setStats(DEFAULT_STATS);
       })
       .finally(() => {
         if (isMounted) setIsLoading(false);
@@ -74,14 +88,12 @@ export function OpponentStatsCard({
 
   if (isLoading) {
     return (
-      <div className="w-full p-4 rounded-2xl bg-black/40 border border-white/10 my-3 flex items-center justify-center gap-2 text-zinc-400 text-xs py-5">
+      <div className="w-full p-3.5 rounded-2xl bg-black/40 border border-white/10 my-2.5 flex items-center justify-center gap-2 text-zinc-400 text-xs py-4">
         <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
         <span>Rakip istatistikleri yükleniyor...</span>
       </div>
     );
   }
-
-  if (!stats) return null;
 
   return (
     <div className="w-full p-4 rounded-2xl bg-black/45 border border-white/10 my-3 flex flex-col gap-2.5 backdrop-blur-md">

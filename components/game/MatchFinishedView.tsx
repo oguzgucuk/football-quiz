@@ -111,10 +111,10 @@ export function MatchFinishedView({
   return (
     <div className="flex flex-col min-h-screen bg-[#0d1611] text-zinc-100 items-center justify-center p-4 relative overflow-hidden">
       <StadiumBackground variant="dark" />
-      <Card variant="glass" className="max-w-md w-full text-center p-7 sm:p-8 flex flex-col items-center relative z-10 border-white/15 bg-[#0c1612]/95 backdrop-blur-2xl shadow-[0_0_60px_rgba(0,0,0,0.9)] max-h-[92vh] overflow-y-auto custom-scrollbar">
+      <Card variant="glass" className="max-w-md w-full text-center p-5 sm:p-6 flex flex-col items-center relative z-10 border-white/15 bg-[#0c1612]/95 backdrop-blur-2xl shadow-[0_0_60px_rgba(0,0,0,0.9)] max-h-[94vh] overflow-y-auto custom-scrollbar">
         {/* İkon Rozeti */}
         <div
-          className={`w-16 h-16 sm:w-20 sm:h-20 rounded-3xl flex items-center justify-center mb-4 sm:mb-5 shadow-xl shrink-0 ${
+          className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center mb-3 sm:mb-3.5 shadow-xl shrink-0 ${
             isUserWinner
               ? "bg-amber-500/10 border border-amber-500/30 text-amber-400 shadow-amber-500/10"
               : isDraw
@@ -123,24 +123,24 @@ export function MatchFinishedView({
           }`}
         >
           {isUserWinner ? (
-            <Trophy className="w-8 h-8 sm:w-10 sm:h-10" />
+            <Trophy className="w-7 h-7 sm:w-8 sm:h-8" />
           ) : isDraw ? (
-            <Swords className="w-8 h-8 sm:w-10 sm:h-10" />
+            <Swords className="w-7 h-7 sm:w-8 sm:h-8" />
           ) : (
-            <ShieldAlert className="w-8 h-8 sm:w-10 sm:h-10" />
+            <ShieldAlert className="w-7 h-7 sm:w-8 sm:h-8" />
           )}
         </div>
 
         {/* Başlık & Açıklama */}
-        <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight mb-1.5">
+        <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight mb-1">
           {resultTitle}
         </h2>
-        <p className="text-zinc-400 text-xs sm:text-sm mb-4">
+        <p className="text-zinc-400 text-xs sm:text-xs mb-3">
           {resultDescription}
         </p>
 
         {/* Skor Tablosu */}
-        <div className="flex items-center justify-center gap-6 my-2 p-3.5 rounded-2xl bg-black/40 border border-white/10 w-full">
+        <div className="flex items-center justify-center gap-6 my-1.5 p-2.5 sm:p-3 rounded-2xl bg-black/40 border border-white/10 w-full">
           <div className="text-center min-w-[90px]">
             <span className="text-xs text-zinc-400 font-bold block truncate max-w-[130px]">{username}</span>
             <span
