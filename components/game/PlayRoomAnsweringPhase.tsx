@@ -36,6 +36,10 @@ export function PlayRoomAnsweringPhase({
   passVotesCount,
   onVotePass,
 }: PlayRoomAnsweringPhaseProps) {
+  const isSameTeam =
+    !isCountryVsTeam &&
+    Boolean(roomState.team1 && roomState.team2 && roomState.team1.id === roomState.team2.id);
+
   return (
     <div className="w-full flex flex-col items-center animate-fadeIn">
       <div className="flex flex-col items-center gap-1.5 mb-4">
@@ -43,6 +47,8 @@ export function PlayRoomAnsweringPhase({
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
           {isCountryVsTeam
             ? "2. Aşama: O Milletten ve O Kulüpten Futbolcuyu İlk Yazan Kazanır"
+            : isSameTeam
+            ? `2. Aşama: ${roomState.team1?.name || "Seçilen Kulüp"} Forması Giymiş Herhangi Bir Futbolcuyu İlk Yazan Kazanır`
             : "2. Aşama: Ortak Futbolcuyu İlk Yazan Kazanır"}
         </span>
         <RoundTimer

@@ -45,42 +45,37 @@ async function runTests() {
   assert(!p1Pick1.rejected, "P1 Real Madrid seçebilmeli");
   state = p1Pick1.state;
 
-  // Tur 1: P2 aynı turda aynı takımı (Real Madrid) seçmeye çalışır -> Reddedilmeli
+  // Tur 1: P2 de aynı takımı (Real Madrid) seçer -> Kabul edilmeli!
   const p2SamePick = registerTeamPick(state, "p2", mockTeams[0]);
-  assert(p2SamePick.rejected === true, "Aynı turda rakibin seçtiği takım seçilememeli");
-  assert.strictEqual(p2SamePick.reason, "OPPONENT_CHOSE_SAME");
-  console.log("✅ Aynı turda aynı takımın seçilmesi engellendi (OPPONENT_CHOSE_SAME)");
+  assert(!p2SamePick.rejected, "Aynı turda iki oyuncu da aynı takımı seçebilmeli");
+  assert.strictEqual(p2SamePick.bothPicked, true, "İki oyuncu da seçtiğinde bothPicked true olmalı");
+  state = p2SamePick.state;
+  console.log("✅ Aynı turda iki oyuncunun da aynı takımı seçebilmesi başarıyla doğrulandı");
 
-  // Tur 1: P2 Barcelona seçer -> Kabul edilmeli
-  const p2Pick1 = registerTeamPick(state, "p2", mockTeams[1]);
-  assert(!p2Pick1.rejected, "P2 Barcelona seçebilmeli");
-  state = p2Pick1.state;
-
-  // Tur 1: Cevaplama fazına geçiş -> usedTeamIds listesine iki takım da kilitlenmeli
+  // Tur 1: Cevaplama fazına geçiş -> usedTeamIds listesine kilitlenmeli
   const ansPhase1 = prepareAnsweringPhase(state, mockTeams);
   state = ansPhase1.state;
   assert(state.usedTeamIds.includes("tm_real_madrid"), "Real Madrid usedTeamIds'e eklenmeli");
-  assert(state.usedTeamIds.includes("tm_barcelona"), "Barcelona usedTeamIds'e eklenmeli");
-  console.log("✅ 1. Turda seçilen kulüpler kilitlendi:", state.usedTeamIds);
+  assert.strictEqual(state.usedTeamIds.length, 1, "Aynı takım seçildiğinde usedTeamIds'de mükerrer olmamalı (tek kayıt)");
+  console.log("✅ 1. Turda seçilen kulüp kilitlendi:", state.usedTeamIds);
 
   // Tur 2'ye geçiş
   const nextRound1 = prepareNextRound(state, 5);
   state = nextRound1.state;
   assert.strictEqual(state.currentRound, 2, "Tur 2'ye geçildi");
   assert(state.usedTeamIds.includes("tm_real_madrid"), "Tur 2'de usedTeamIds korunmalı");
-  assert(state.usedTeamIds.includes("tm_barcelona"), "Tur 2'de usedTeamIds korunmalı");
 
   // Tur 2: P1 tekrar Real Madrid seçmeye çalışır -> Reddedilmeli
   const p1Repeat = registerTeamPick(state, "p1", mockTeams[0]);
   assert(p1Repeat.rejected === true, "Önceki turda seçilen Real Madrid tekrar seçilememeli");
   assert.strictEqual(p1Repeat.reason, "ALREADY_USED");
-  console.log("✅ 2. Turda daha önce kullanılmış takım seçimi engellendi (ALREADY_USED)");
+  console.log("✅ 2. Turda P1'in daha önce kullanılmış takımı seçmesi engellendi (ALREADY_USED)");
 
-  // Tur 2: P2 önceki turda seçilen Barcelona'yı seçmeye çalışır -> Reddedilmeli
-  const p2Repeat = registerTeamPick(state, "p2", mockTeams[1]);
-  assert(p2Repeat.rejected === true, "Önceki turda seçilen Barcelona tekrar seçilememeli");
+  // Tur 2: P2 tekrar Real Madrid'i seçmeye çalışır -> Reddedilmeli
+  const p2Repeat = registerTeamPick(state, "p2", mockTeams[0]);
+  assert(p2Repeat.rejected === true, "Önceki turda seçilen Real Madrid P2 için de tekrar seçilememeli");
   assert.strictEqual(p2Repeat.reason, "ALREADY_USED");
-  console.log("✅ 2. Turda rakibin daha önce kullandığı takım seçimi engellendi (ALREADY_USED)");
+  console.log("✅ 2. Turda P2'nin daha önce kullanılmış takımı seçmesi engellendi (ALREADY_USED)");
 
   // Tur 2: Yeni kulüpler seçilir (Arsenal & Chelsea)
   const p1Pick2 = registerTeamPick(state, "p1", mockTeams[2]);
@@ -90,7 +85,7 @@ async function runTests() {
 
   const ansPhase2 = prepareAnsweringPhase(state, mockTeams);
   state = ansPhase2.state;
-  assert.strictEqual(state.usedTeamIds.length, 4, "usedTeamIds artık 4 takım içermeli");
+  assert.strictEqual(state.usedTeamIds.length, 3, "usedTeamIds artık 3 takım içermeli (1. tur 1 tekil takım, 2. tur 2 takım)");
   console.log("✅ 2. Tur sonunda kilitli takımlar:", state.usedTeamIds);
 
   // TEST 2: Millet vs Takım Modu

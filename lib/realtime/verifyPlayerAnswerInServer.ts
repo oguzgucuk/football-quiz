@@ -37,11 +37,16 @@ export async function getCommonPlayersForRound(
     return cached.players;
   }
 
+  const whereClause =
+    team1Id === team2Id
+      ? { teamsHistory: { some: { teamId: team1Id } } }
+      : {
+          teamsHistory: { some: { teamId: team1Id } },
+          AND: [{ teamsHistory: { some: { teamId: team2Id } } }],
+        };
+
   const dbPlayers = await prisma.player.findMany({
-    where: {
-      teamsHistory: { some: { teamId: team1Id } },
-      AND: [{ teamsHistory: { some: { teamId: team2Id } } }],
-    },
+    where: whereClause,
     select: {
       id: true,
       fullName: true,

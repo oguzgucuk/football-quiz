@@ -104,27 +104,11 @@ export function registerTeamPick(
     return { state: next, bothPicked };
   }
 
-  // 2. Takım vs Takım modunda kontrol: Aynı turda diğer oyuncu aynı takımı seçtiyse reddet
+  // 2. Takım vs Takım modunda seçim kaydı: İki oyuncu aynı takımı da seçebilir
   if (next.player1?.userId === userId) {
-    if (next.team2 && next.team2.id === team.id) {
-      return {
-        state: next,
-        bothPicked: Boolean(next.team1 && next.team2),
-        rejected: true,
-        reason: "OPPONENT_CHOSE_SAME",
-      };
-    }
     next.team1 = team;
     next.player1 = { ...next.player1, selectedTeamId: team.id };
   } else if (next.player2?.userId === userId) {
-    if (next.team1 && next.team1.id === team.id) {
-      return {
-        state: next,
-        bothPicked: Boolean(next.team1 && next.team2),
-        rejected: true,
-        reason: "OPPONENT_CHOSE_SAME",
-      };
-    }
     next.team2 = team;
     next.player2 = { ...next.player2, selectedTeamId: team.id };
   }

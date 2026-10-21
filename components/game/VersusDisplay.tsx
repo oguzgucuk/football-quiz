@@ -14,6 +14,7 @@ interface VersusDisplayProps {
 
 export function VersusDisplay({ team1, team2, nation }: VersusDisplayProps) {
   const isNationMode = Boolean(nation);
+  const isSameTeam = !isNationMode && Boolean(team1 && team2 && team1.id === team2.id);
 
   return (
     <div className="w-full max-w-3xl mx-auto my-6 flex items-center justify-between gap-4 p-6 sm:p-8 rounded-[28px] bg-[#0c1612]/85 backdrop-blur-2xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden">
@@ -59,7 +60,7 @@ export function VersusDisplay({ team1, team2, nation }: VersusDisplayProps) {
           VS
         </div>
         <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mt-2 bg-emerald-950/70 border border-emerald-500/30 px-2.5 py-0.5 rounded-full whitespace-nowrap">
-          {isNationMode ? "Millet-Takım" : "Ortak Oyuncu"}
+          {isNationMode ? "Millet-Takım" : isSameTeam ? "Tek Takım Düellosu" : "Ortak Oyuncu"}
         </span>
       </div>
 

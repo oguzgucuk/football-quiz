@@ -48,7 +48,7 @@ export function evaluateAnswerSubmission(
   const completedRound: CompletedRoundData = {
     roundNumber: next.currentRound,
     entity1Id: next.gameMode === "country_vs_team" ? (next.nation?.id || "nation") : (next.team1?.id || ""),
-    entity2Id: next.team1?.id || "",
+    entity2Id: next.gameMode === "country_vs_team" ? (next.team1?.id || "") : (next.team2?.id || next.team1?.id || ""),
     winnerUserId: senderUserId,
     answerGiven: result.playerName || "Doğru Cevap",
     timeTakenMs: Math.min(takenMs, duration * 1000),
