@@ -33,6 +33,9 @@ import {
   registerTeamPick,
   registerNationPick,
   checkSelectionTimeoutsAndApplyFouls,
+  requestRematch,
+  declineRematch,
+  resetRoomForRematch,
 } from "../lib/realtime/roomEngine";
 import { createBotPlayer, pickBotTeam, pickBotNation, isBotPlayer } from "../lib/realtime/botSimulator";
 import { handleMatchPlayerDisconnect } from "../lib/realtime/disconnectManager";
@@ -751,6 +754,93 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
           });
           break;
         }
+
+        case "REMATCH_REQUEST": {
+          const clientMeta = room.clients.get(ws);
+          const requesterUserId = data.userId || clientMeta?.userId || "";
+          if (room.state.status !== "match_finished" || !requesterUserId) break;
+
+          const { state: updatedState, autoAccepted } = requestRematch(room.state, requesterUserId);
+          room.state = updatedState;
+
+          if (autoAccepted) {
+            clearRoomTimer(room);
+            room.completedRounds = [];
+
+            if (isBotPlayer(room.state.player2?.userId)) {
+              const botUserId = room.state.player2!.userId;
+              if (room.state.gameMode === "country_vs_team") {
+                if (room.state.currentNationPickerUserId === botUserId) {
+                  const botNation = pickBotNation(undefined, room.state.usedNationIds);
+                  registerNationPick(room.state, botUserId, botNation);
+                } else if (room.state.currentTeamPickerUserId === botUserId) {
+                  const botTeam = pickBotTeam(DEFAULT_POPULAR_TEAMS, room.state.usedTeamIds);
+                  registerTeamPick(room.state, botUserId, botTeam);
+                }
+              } else {
+                const botTeam = pickBotTeam(DEFAULT_POPULAR_TEAMS, room.state.usedTeamIds);
+                registerTeamPick(room.state, botUserId, botTeam);
+              }
+            }
+
+            broadcastRoomState(room);
+
+            const pickDuration = room.state.pickDuration || room.state.lobbySettings?.pickDuration || 15;
+            startServerTimer(room, pickDuration, () => {
+              handlePickTimeout(room);
+            });
+          } else {
+            broadcastRoomState(room);
+          }
+          break;
+        }
+
+        case "REMATCH_ACCEPT": {
+          if (room.state.status !== "match_finished" || room.state.rematch?.status !== "pending") break;
+          clearRoomTimer(room);
+          room.state = resetRoomForRematch(room.state);
+          room.completedRounds = [];
+
+          if (isBotPlayer(room.state.player2?.userId)) {
+            const botUserId = room.state.player2!.userId;
+            if (room.state.gameMode === "country_vs_team") {
+              if (room.state.currentNationPickerUserId === botUserId) {
+                const botNation = pickBotNation(undefined, room.state.usedNationIds);
+                registerNationPick(room.state, botUserId, botNation);
+              } else if (room.state.currentTeamPickerUserId === botUserId) {
+                const botTeam = pickBotTeam(DEFAULT_POPULAR_TEAMS, room.state.usedTeamIds);
+                registerTeamPick(room.state, botUserId, botTeam);
+              }
+            } else {
+              const botTeam = pickBotTeam(DEFAULT_POPULAR_TEAMS, room.state.usedTeamIds);
+              registerTeamPick(room.state, botUserId, botTeam);
+            }
+          }
+
+          broadcastRoomState(room);
+
+          const pickDuration = room.state.pickDuration || room.state.lobbySettings?.pickDuration || 15;
+          startServerTimer(room, pickDuration, () => {
+            handlePickTimeout(room);
+          });
+          break;
+        }
+
+        case "REMATCH_DECLINE": {
+          if (room.state.rematch?.status === "pending") {
+            room.state = declineRematch(room.state);
+            broadcastRoomState(room);
+          }
+          break;
+        }
+
+        case "LEAVE_ROOM": {
+          if (room.state.rematch?.status === "pending") {
+            room.state = declineRematch(room.state);
+            broadcastRoomState(room);
+          }
+          break;
+        }
       }
     } catch (err) {
       console.error("[WebSocket Message Parse Error]:", err);
@@ -762,6 +852,11 @@ wss.on("connection", (ws: WebSocket, request: IncomingMessage, roomId: string) =
     const disconnectedUserId = clientMeta?.userId;
     room.clients.delete(ws);
     console.log(`[WebSocket] Client ayrıldı. Oda: "${roomId}" (Kalan: ${room.clients.size})`);
+
+    if (disconnectedUserId && room.state.status === "match_finished" && room.state.rematch?.status === "pending") {
+      room.state = declineRematch(room.state);
+      broadcastRoomState(room);
+    }
 
     if (disconnectedUserId) {
       const handled = handleMatchPlayerDisconnect(roomId, disconnectedUserId, room.state, {

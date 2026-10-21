@@ -202,8 +202,9 @@ export function useGameRoomSocket({
                 }
                 return data.state;
               });
-              if (data.state.status === "match_finished") {
-                clearStoredSessionToken(roomId);
+              if (data.state.status === "in_round" && data.state.currentRound === 1 && data.state.roundStatus === "picking_teams") {
+                setMatchEloResult(null);
+                setLastRoundWinner(null);
               }
               if (data.state.roundStatus === "picking_teams") {
                 const me = data.state.player1?.userId === userId ? data.state.player1 : data.state.player2?.userId === userId ? data.state.player2 : null;

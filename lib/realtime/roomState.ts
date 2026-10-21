@@ -38,6 +38,11 @@ export interface FoulEventInfo {
   message: string;
 }
 
+export interface RematchInfo {
+  requestedBy: string;
+  status: "pending" | "accepted" | "declined";
+}
+
 export interface RoomState {
   roomId: string;
   gameMode?: GameMode;
@@ -68,6 +73,7 @@ export interface RoomState {
   lastFoulEvent?: FoulEventInfo | null;
   lastRoundWasDraw?: boolean;
   isReplayRound?: boolean;
+  rematch?: RematchInfo | null;
 }
 
 export function createInitialRoomState(roomId: string): RoomState {
@@ -104,5 +110,6 @@ export function createInitialRoomState(roomId: string): RoomState {
     lastFoulEvent: null,
     lastRoundWasDraw: false,
     isReplayRound: false,
+    rematch: null,
   };
 }

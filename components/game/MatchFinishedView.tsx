@@ -7,19 +7,34 @@
 
 import React from "react";
 import Link from "next/link";
-import { Trophy, LogOut, Zap, Swords, ShieldAlert } from "lucide-react";
+import {
+  Trophy,
+  Zap,
+  Swords,
+  ShieldAlert,
+  RotateCcw,
+  Home,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { RoomState } from "@/lib/realtime/roomState";
 import { StadiumBackground } from "@/components/ui/StadiumBackground";
 import { clearStoredSessionToken } from "@/hooks/useRoomSession";
 import { MatchEloResult } from "@/hooks/useGameRoomSocket";
+import { OpponentStatsCard } from "./OpponentStatsCard";
 
 interface MatchFinishedViewProps {
   roomState: RoomState;
   currentUserId: string;
   username: string;
   matchEloResult?: MatchEloResult | null;
+  onRequestRematch?: () => void;
+  onAcceptRematch?: () => void;
+  onDeclineRematch?: () => void;
+  onLeaveRoom?: () => void;
 }
 
 export function MatchFinishedView({
@@ -27,6 +42,10 @@ export function MatchFinishedView({
   currentUserId,
   username,
   matchEloResult,
+  onRequestRematch,
+  onAcceptRematch,
+  onDeclineRematch,
+  onLeaveRoom,
 }: MatchFinishedViewProps) {
   const isPlayer1 = roomState.player1?.userId === currentUserId;
   const myPlayer = isPlayer1 ? roomState.player1 : roomState.player2;
@@ -42,6 +61,12 @@ export function MatchFinishedView({
   const isForfeitWinner = roomState.forfeitInfo?.winnerUserId === currentUserId;
   const isCasual = Boolean(roomState.roomId?.includes("_casual_"));
   const isUserWinner = isForfeit ? isForfeitWinner : isWinner;
+
+  const rematch = roomState.rematch;
+  const isPending = rematch?.status === "pending";
+  const isDeclined = rematch?.status === "declined";
+  const iAmRequester = isPending && rematch?.requestedBy === currentUserId;
+  const iAmOpponent = isPending && rematch?.requestedBy !== currentUserId;
 
   const resultTitle = isForfeit
     ? isForfeitWinner
@@ -77,6 +102,7 @@ export function MatchFinishedView({
     : null;
 
   const handleFinishMatch = () => {
+    onLeaveRoom?.();
     if (roomState.roomId) {
       clearStoredSessionToken(roomState.roomId);
     }
@@ -85,9 +111,10 @@ export function MatchFinishedView({
   return (
     <div className="flex flex-col min-h-screen bg-[#0d1611] text-zinc-100 items-center justify-center p-4 relative overflow-hidden">
       <StadiumBackground variant="dark" />
-      <Card variant="glass" className="max-w-md w-full text-center p-8 flex flex-col items-center relative z-10 border-white/15 bg-[#0c1612]/95 backdrop-blur-2xl shadow-[0_0_60px_rgba(0,0,0,0.9)]">
+      <Card variant="glass" className="max-w-md w-full text-center p-7 sm:p-8 flex flex-col items-center relative z-10 border-white/15 bg-[#0c1612]/95 backdrop-blur-2xl shadow-[0_0_60px_rgba(0,0,0,0.9)] max-h-[92vh] overflow-y-auto custom-scrollbar">
+        {/* İkon Rozeti */}
         <div
-          className={`w-20 h-20 rounded-3xl flex items-center justify-center mb-6 shadow-xl ${
+          className={`w-16 h-16 sm:w-20 sm:h-20 rounded-3xl flex items-center justify-center mb-4 sm:mb-5 shadow-xl shrink-0 ${
             isUserWinner
               ? "bg-amber-500/10 border border-amber-500/30 text-amber-400 shadow-amber-500/10"
               : isDraw
@@ -96,22 +123,24 @@ export function MatchFinishedView({
           }`}
         >
           {isUserWinner ? (
-            <Trophy className="w-10 h-10" />
+            <Trophy className="w-8 h-8 sm:w-10 sm:h-10" />
           ) : isDraw ? (
-            <Swords className="w-10 h-10" />
+            <Swords className="w-8 h-8 sm:w-10 sm:h-10" />
           ) : (
-            <ShieldAlert className="w-10 h-10" />
+            <ShieldAlert className="w-8 h-8 sm:w-10 sm:h-10" />
           )}
         </div>
 
-        <h2 className="text-3xl font-black text-white tracking-tight mb-2">
+        {/* Başlık & Açıklama */}
+        <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight mb-1.5">
           {resultTitle}
         </h2>
-        <p className="text-zinc-400 text-sm mb-6">
+        <p className="text-zinc-400 text-xs sm:text-sm mb-4">
           {resultDescription}
         </p>
 
-        <div className="flex items-center justify-center gap-6 my-4 p-4 rounded-2xl bg-black/40 border border-white/10 w-full">
+        {/* Skor Tablosu */}
+        <div className="flex items-center justify-center gap-6 my-2 p-3.5 rounded-2xl bg-black/40 border border-white/10 w-full">
           <div className="text-center min-w-[90px]">
             <span className="text-xs text-zinc-400 font-bold block truncate max-w-[130px]">{username}</span>
             <span
@@ -143,17 +172,18 @@ export function MatchFinishedView({
           </div>
         </div>
 
+        {/* ELO Değişimi veya Hızlı Maç Rozeti */}
         {isCasual ? (
-          <div className="my-2">
-            <span className="inline-flex items-center gap-1.5 text-xs font-mono font-black px-3.5 py-1.5 rounded-xl border bg-cyan-950/80 text-cyan-300 border-cyan-500/40 shadow-xs shadow-cyan-500/10">
+          <div className="my-1.5">
+            <span className="inline-flex items-center gap-1.5 text-xs font-mono font-black px-3 py-1 rounded-xl border bg-cyan-950/80 text-cyan-300 border-cyan-500/40 shadow-xs shadow-cyan-500/10">
               <Zap className="w-3.5 h-3.5" />
               <span>Hızlı Maç • ELO Değişimi Yok</span>
             </span>
           </div>
         ) : userEloChange !== null && (
-          <div className="my-2">
+          <div className="my-1.5">
             <span
-              className={`inline-flex items-center gap-1.5 text-xs font-mono font-black px-3.5 py-1.5 rounded-xl border ${
+              className={`inline-flex items-center gap-1.5 text-xs font-mono font-black px-3 py-1 rounded-xl border ${
                 userEloChange > 0
                   ? "bg-emerald-950/80 text-emerald-400 border-emerald-500/40 shadow-xs shadow-emerald-500/10"
                   : userEloChange < 0
@@ -171,14 +201,84 @@ export function MatchFinishedView({
           </div>
         )}
 
-        <div className="flex flex-col gap-3 w-full mt-6">
+        {/* Rakip İstatistik Kartı (Winrate, Galibiyet, Mağlubiyet, Toplam Maç) */}
+        <OpponentStatsCard
+          opponentUserId={opponentPlayer?.userId}
+          opponentUsername={opponentUsername}
+        />
+
+        {/* Gelen Rövanş Teklifi Kutusu (Rakip İstediğinde) */}
+        {iAmOpponent && (
+          <div className="w-full p-4 rounded-2xl bg-emerald-950/80 border border-emerald-500/50 text-center animate-fadeIn my-2 shadow-lg shadow-emerald-950/60">
+            <span className="text-xs font-black uppercase tracking-wider text-emerald-400 block mb-1">
+              ⚔️ Rövanş Teklifi Geldi!
+            </span>
+            <p className="text-xs text-zinc-300 mb-3">
+              <strong className="text-white">{opponentUsername}</strong> seninle tekrar maç yapmak istiyor.
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={onAcceptRematch}
+                className="flex-1 bg-gradient-to-b from-[#168841] to-[#126d34] hover:from-[#15803d] hover:to-[#0f5c2b] text-white font-black text-xs py-2.5 shadow-md shadow-emerald-950/50 cursor-pointer"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                Kabul Et
+              </Button>
+              <Button
+                onClick={onDeclineRematch}
+                variant="outline"
+                className="flex-1 border-white/20 hover:bg-rose-500/10 hover:border-rose-500/40 text-zinc-300 hover:text-rose-300 font-bold text-xs py-2.5 cursor-pointer"
+              >
+                <XCircle className="w-3.5 h-3.5 mr-1.5" />
+                Reddet
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Alt Eylem Butonları (Rövanş & Ana Ekrana Dön) */}
+        <div className="flex flex-col gap-2.5 w-full mt-3">
+          {/* Rövanş Butonu Durumları */}
+          {!iAmOpponent && (
+            iAmRequester ? (
+              <Button
+                disabled
+                size="lg"
+                className="w-full bg-amber-950/50 border border-amber-500/40 text-amber-300 font-extrabold cursor-wait flex items-center justify-center gap-2"
+              >
+                <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+                <span>Rövanş İsteği Gönderildi...</span>
+              </Button>
+            ) : isDeclined ? (
+              <Button
+                disabled
+                size="lg"
+                className="w-full bg-rose-950/50 border border-rose-500/40 text-rose-300 font-extrabold cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                <XCircle className="w-4 h-4 text-rose-400" />
+                <span>Rövanş Reddedildi</span>
+              </Button>
+            ) : (
+              <Button
+                onClick={onRequestRematch}
+                size="lg"
+                className="w-full bg-gradient-to-b from-[#168841] to-[#126d34] hover:from-[#15803d] hover:to-[#0f5c2b] text-white font-extrabold shadow-lg shadow-emerald-950/50 cursor-pointer flex items-center justify-center gap-2"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>Rövanş Yap</span>
+              </Button>
+            )
+          )}
+
+          {/* Ana Ekrana Dön */}
           <Link href="/" onClick={handleFinishMatch} className="w-full">
             <Button
+              variant="outline"
               size="lg"
-              className="w-full bg-gradient-to-b from-[#168841] to-[#126d34] hover:from-[#15803d] hover:to-[#0f5c2b] text-white font-extrabold shadow-lg shadow-emerald-950/50 cursor-pointer"
+              className="w-full border-white/15 bg-white/5 hover:bg-white/10 text-zinc-200 hover:text-white font-bold cursor-pointer flex items-center justify-center gap-2"
             >
-              <LogOut className="w-4 h-4 mr-2" />
-              Maçı Bitir
+              <Home className="w-4 h-4" />
+              <span>Ana Ekrana Dön</span>
             </Button>
           </Link>
         </div>

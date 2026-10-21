@@ -15,3 +15,4 @@ export * from "./roomFoulManager";
 export * from "./roomRoundManager";
 export * from "./roomAnswerEvaluator";
 export * from "./roomLobbyManager";
+export * from "./roomRematchManager";

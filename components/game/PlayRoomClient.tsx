@@ -70,6 +70,10 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
     handleVotePass,
     handleUpdateLobbySettings,
     handleStartLobbyGame,
+    handleRequestRematch,
+    handleAcceptRematch,
+    handleDeclineRematch,
+    handleLeaveRoom,
     addBotOpponent,
   } = useGameRoom({ roomId, userId: currentUserId, username });
 
@@ -119,6 +123,10 @@ export function PlayRoomClient({ roomId }: PlayRoomClientProps) {
         currentUserId={currentUserId}
         username={username}
         matchEloResult={matchEloResult}
+        onRequestRematch={handleRequestRematch}
+        onAcceptRematch={handleAcceptRematch}
+        onDeclineRematch={handleDeclineRematch}
+        onLeaveRoom={handleLeaveRoom}
       />
     );
   }

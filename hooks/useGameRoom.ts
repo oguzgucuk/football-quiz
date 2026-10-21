@@ -230,6 +230,34 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
     });
   }, [userId, sendSocketMessage]);
 
+  const handleRequestRematch = useCallback(() => {
+    sendSocketMessage({
+      type: "REMATCH_REQUEST",
+      userId,
+    });
+  }, [userId, sendSocketMessage]);
+
+  const handleAcceptRematch = useCallback(() => {
+    sendSocketMessage({
+      type: "REMATCH_ACCEPT",
+      userId,
+    });
+  }, [userId, sendSocketMessage]);
+
+  const handleDeclineRematch = useCallback(() => {
+    sendSocketMessage({
+      type: "REMATCH_DECLINE",
+      userId,
+    });
+  }, [userId, sendSocketMessage]);
+
+  const handleLeaveRoom = useCallback(() => {
+    sendSocketMessage({
+      type: "LEAVE_ROOM",
+      userId,
+    });
+  }, [userId, sendSocketMessage]);
+
   return {
     roomState,
     allTeams,
@@ -255,6 +283,10 @@ export function useGameRoom({ roomId, userId, username }: UseGameRoomProps) {
     handleVotePass,
     handleUpdateLobbySettings,
     handleStartLobbyGame,
+    handleRequestRematch,
+    handleAcceptRematch,
+    handleDeclineRematch,
+    handleLeaveRoom,
     addBotOpponent: () => {
       if (isConnectedToSocket) {
         sendSocketMessage({ type: "ADD_BOT" });

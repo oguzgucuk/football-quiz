@@ -34,6 +34,9 @@ import {
   canStartLobbyGame,
   startLobbyGame,
   DuelLobbySettings,
+  requestRematch,
+  declineRematch,
+  resetRoomForRematch,
 } from "../lib/realtime/roomEngine";
 import {
   createBotPlayer,
@@ -75,6 +78,11 @@ export default class GameRoomServer implements Party.Server {
     const meta = this.connectionMeta.get(conn.id);
     const disconnectedUserId = meta?.userId;
     this.connectionMeta.delete(conn.id);
+
+    if (disconnectedUserId && this.state.status === "match_finished" && this.state.rematch?.status === "pending") {
+      this.state = declineRematch(this.state);
+      this.broadcastState();
+    }
 
     if (disconnectedUserId) {
       const handled = handleMatchPlayerDisconnect(this.room.id, disconnectedUserId, this.state, {
@@ -388,6 +396,16 @@ export default class GameRoomServer implements Party.Server {
         case "START_GAME":
           this.handleStartLobbyGame(sender, data);
           break;
+        case "REMATCH_REQUEST":
+          this.handleRematchRequest(sender, data);
+          break;
+        case "REMATCH_ACCEPT":
+          this.handleRematchAccept(sender, data);
+          break;
+        case "REMATCH_DECLINE":
+        case "LEAVE_ROOM":
+          this.handleRematchDecline(sender, data);
+          break;
       }
     } catch (err) {
       console.error("[GameRoomServer Error]:", err);
@@ -424,6 +442,62 @@ export default class GameRoomServer implements Party.Server {
     this.state = startLobbyGame(this.state);
 
     // Eğer rakip bir bot ise, oyun başladığında botun seçimini otomatik yaptır
+    if (isBotPlayer(this.state.player2?.userId)) {
+      const botUserId = this.state.player2!.userId;
+      if (this.state.gameMode === "country_vs_team") {
+        if (this.state.currentNationPickerUserId === botUserId) {
+          const botNation = pickBotNation(undefined, this.state.usedNationIds);
+          registerNationPick(this.state, botUserId, botNation);
+        } else if (this.state.currentTeamPickerUserId === botUserId) {
+          const botTeam = pickBotTeam(DEFAULT_POPULAR_TEAMS, this.state.usedTeamIds);
+          registerTeamPick(this.state, botUserId, botTeam);
+        }
+      } else {
+        const botTeam = pickBotTeam(DEFAULT_POPULAR_TEAMS, this.state.usedTeamIds);
+        registerTeamPick(this.state, botUserId, botTeam);
+      }
+    }
+
+    this.broadcastState();
+
+    const pickDuration = this.state.pickDuration || this.state.lobbySettings?.pickDuration || 15;
+    this.startServerTimer(pickDuration, () => {
+      this.handlePickTimeout();
+    });
+  }
+
+  private handleRematchRequest(sender: Party.Connection, data?: { userId?: string }) {
+    const meta = this.connectionMeta.get(sender.id);
+    const requesterUserId = data?.userId || meta?.userId || "";
+    if (this.state.status !== "match_finished" || !requesterUserId) return;
+
+    const { state: updatedState, autoAccepted } = requestRematch(this.state, requesterUserId);
+    this.state = updatedState;
+
+    if (autoAccepted) {
+      this.startRematchGame();
+    } else {
+      this.broadcastState();
+    }
+  }
+
+  private handleRematchAccept(sender: Party.Connection, data?: { userId?: string }) {
+    if (this.state.status !== "match_finished" || this.state.rematch?.status !== "pending") return;
+    this.startRematchGame();
+  }
+
+  private handleRematchDecline(sender: Party.Connection, data?: { userId?: string }) {
+    if (this.state.rematch?.status === "pending") {
+      this.state = declineRematch(this.state);
+      this.broadcastState();
+    }
+  }
+
+  private startRematchGame() {
+    this.clearServerTimer();
+    this.state = resetRoomForRematch(this.state);
+    this.completedRounds = [];
+
     if (isBotPlayer(this.state.player2?.userId)) {
       const botUserId = this.state.player2!.userId;
       if (this.state.gameMode === "country_vs_team") {
