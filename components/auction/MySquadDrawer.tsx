@@ -106,7 +106,7 @@ export function MySquadDrawer({ participant, isMyHighestBid = false }: MySquadDr
                       <span>⚠️ Kaleci Yok</span>
                     </div>
                   ) : (
-                    groupPlayers.map((player) => {
+                    groupPlayers.map((player, pIdx) => {
                       const tier = getRatingTier(player.overallPrime);
                       const posList =
                         player.positions && player.positions.length > 0
@@ -115,7 +115,7 @@ export function MySquadDrawer({ participant, isMyHighestBid = false }: MySquadDr
 
                       return (
                         <div
-                          key={player.id}
+                          key={`${player.id}_${pIdx}`}
                           className="flex items-center justify-between p-1.5 px-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/8 transition-all gap-2"
                         >
                           {/* Sol: Reyting Rozeti */}

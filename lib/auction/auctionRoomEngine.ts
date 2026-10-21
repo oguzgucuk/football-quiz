@@ -227,6 +227,10 @@ export function applyPass(state: AuctionRoomState, userId: string): AuctionRoomS
 }
 
 export function advanceAuctionCard(state: AuctionRoomState): AuctionRoomState {
+  if (state.isSoldCelebration) {
+    return state;
+  }
+
   if (!state.currentHighestBid || !state.currentCard) {
     return finishOrNextTurn(state);
   }
@@ -237,10 +241,17 @@ export function advanceAuctionCard(state: AuctionRoomState): AuctionRoomState {
 
   const updatedParticipants = { ...state.participants };
   if (winner) {
+    const alreadyHas = winner.squad.some((p) => p.id === state.currentCard?.id);
+    const newSquad = alreadyHas
+      ? winner.squad
+      : winner.squad.length < 14
+      ? [...winner.squad, state.currentCard]
+      : winner.squad;
+
     updatedParticipants[winnerId] = {
       ...winner,
-      budget: Math.max(0, winner.budget - cost),
-      squad: [...winner.squad, state.currentCard],
+      budget: alreadyHas ? winner.budget : Math.max(0, winner.budget - cost),
+      squad: newSquad,
     };
   }
 
@@ -274,7 +285,7 @@ export function finishSoldCelebration(state: AuctionRoomState): AuctionRoomState
   });
 }
 
-function finishOrNextTurn(state: AuctionRoomState): AuctionRoomState {
+export function finishOrNextTurn(state: AuctionRoomState): AuctionRoomState {
   const activeBidders = Object.values(state.participants).filter(
     (p) => Boolean(p.userId && p.userId.trim()) && p.squad.length < 14
   );
@@ -310,6 +321,8 @@ function finishOrNextTurn(state: AuctionRoomState): AuctionRoomState {
       currentHighestBid: null,
       confirmedLineupUserIds: [],
       secondsLeft: 180, // Diziliş ve taktik için 3 dakika
+      isSoldCelebration: false,
+      soldCelebrationUntil: undefined,
     };
   }
 

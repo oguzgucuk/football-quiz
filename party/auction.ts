@@ -24,6 +24,7 @@ import {
   applyPass,
   advanceAuctionCard,
   finishSoldCelebration,
+  finishOrNextTurn,
 } from "../lib/auction/auctionRoomEngine";
 import { createInitialSlotsForFormation } from "../lib/auction/formationTemplates";
 import { calculateLineupPowers, calculateSlotRating } from "../lib/auction/positionSuitability";
@@ -326,11 +327,21 @@ export default class AuctionPartyServer implements Party.Server {
     if (this.state.status !== "auction" || this.state.isSoldCelebration || !this.state.participants[userId]) return;
     this.state = applyPass(this.state, userId);
 
-    const activeBidders = Object.values(this.state.participants).filter((p) => p.squad.length < 14);
+    const activeBidders = Object.values(this.state.participants).filter(
+      (p) => Boolean(p.userId && p.userId.trim()) && p.squad.length < 14
+    );
     const passedCount = this.state.passedUserIds.length;
+    const otherBiddersPassed = activeBidders.length > 1 && passedCount >= activeBidders.length - 1;
+    const allBiddersPassed = activeBidders.length > 0 && passedCount >= activeBidders.length;
 
-    if (passedCount >= activeBidders.length - 1 && this.state.currentHighestBid) {
+    if (otherBiddersPassed && this.state.currentHighestBid) {
       this.state = advanceAuctionCard(this.state);
+    } else if (allBiddersPassed) {
+      if (this.state.currentHighestBid) {
+        this.state = advanceAuctionCard(this.state);
+      } else {
+        this.state = finishOrNextTurn(this.state);
+      }
     }
     await this.persistState();
     this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });

@@ -16,6 +16,8 @@ import {
   applyBid,
   applyPass,
   advanceAuctionCard,
+  finishSoldCelebration,
+  finishOrNextTurn,
 } from "./auctionRoomEngine";
 import { generateAuctionPool } from "./generateAuctionPool";
 import { createInitialSlotsForFormation } from "./formationTemplates";
@@ -291,14 +293,24 @@ function handleBid(
 }
 
 function handlePass(room: AuctionPartyRoom, userId: string) {
-  if (room.state.status !== "auction" || !room.state.participants[userId]) return;
+  if (room.state.status !== "auction" || room.state.isSoldCelebration || !room.state.participants[userId]) return;
   room.state = applyPass(room.state, userId);
 
-  const activeBidders = Object.values(room.state.participants).filter((p) => p.squad.length < 11);
+  const activeBidders = Object.values(room.state.participants).filter(
+    (p) => Boolean(p.userId && p.userId.trim()) && p.squad.length < 14
+  );
   const passedCount = room.state.passedUserIds.length;
+  const otherBiddersPassed = activeBidders.length > 1 && passedCount >= activeBidders.length - 1;
+  const allBiddersPassed = activeBidders.length > 0 && passedCount >= activeBidders.length;
 
-  if (passedCount >= activeBidders.length - 1 && room.state.currentHighestBid) {
+  if (otherBiddersPassed && room.state.currentHighestBid) {
     room.state = advanceAuctionCard(room.state);
+  } else if (allBiddersPassed) {
+    if (room.state.currentHighestBid) {
+      room.state = advanceAuctionCard(room.state);
+    } else {
+      room.state = finishOrNextTurn(room.state);
+    }
   }
 
   broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
@@ -536,12 +548,25 @@ function startTimer(room: AuctionPartyRoom) {
 
   room.timer = setInterval(() => {
     if (room.state.status === "auction") {
-      if (room.state.secondsLeft <= 1) {
-        room.state = advanceAuctionCard(room.state);
-        broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
+      if (room.state.isSoldCelebration) {
+        if (
+          room.state.secondsLeft <= 1 ||
+          (room.state.soldCelebrationUntil && Date.now() >= room.state.soldCelebrationUntil)
+        ) {
+          room.state = finishSoldCelebration(room.state);
+          broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
+        } else {
+          room.state.secondsLeft--;
+          broadcast(room, { type: "AUCTION_TIMER_TICK", secondsLeft: room.state.secondsLeft });
+        }
       } else {
-        room.state.secondsLeft--;
-        broadcast(room, { type: "AUCTION_TIMER_TICK", secondsLeft: room.state.secondsLeft });
+        if (room.state.secondsLeft <= 1) {
+          room.state = advanceAuctionCard(room.state);
+          broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
+        } else {
+          room.state.secondsLeft--;
+          broadcast(room, { type: "AUCTION_TIMER_TICK", secondsLeft: room.state.secondsLeft });
+        }
       }
     } else if (room.state.status === "tactics") {
       if (room.state.secondsLeft <= 1) {
