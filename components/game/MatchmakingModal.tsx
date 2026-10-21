@@ -49,6 +49,14 @@ export function MatchmakingModal({
 }: MatchmakingModalProps) {
   const router = useRouter();
 
+  const [isRanked, setIsRanked] = React.useState<boolean>(mode === "ranked");
+
+  useEffect(() => {
+    setIsRanked(mode === "ranked");
+  }, [mode, isOpen]);
+
+  const activeMode: "ranked" | "casual" = isRanked ? "ranked" : "casual";
+
   // Eşleşme bulunduğunda 1.4 sn sonra otomatik maç odasına yönlendir
   useEffect(() => {
     if (status === "matched" && matchedData) {
@@ -86,19 +94,23 @@ export function MatchmakingModal({
         {status === "idle" && (
           <div className="flex flex-col items-center py-1">
             {isCountryVsTeam ? (
-              <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-950/70 border border-amber-500/30 px-3 py-1 rounded-full mb-3">
-                <Zap className="size-3" />
-                Millet-Takım Hızlı Maç (Serbest)
+              <span className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full mb-3 ${
+                isRanked
+                  ? "text-emerald-400 bg-emerald-950/70 border border-emerald-500/30"
+                  : "text-amber-400 bg-amber-950/70 border border-amber-500/30"
+              }`}>
+                {isRanked ? <Trophy className="size-3" /> : <Zap className="size-3" />}
+                Millet-Takım • {isRanked ? "Dereceli Maç" : "Serbest Maç"}
               </span>
-            ) : mode === "casual" ? (
-              <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-cyan-400 bg-cyan-950/70 border border-cyan-500/30 px-3 py-1 rounded-full mb-3">
-                <Zap className="size-3" />
-                1v1 Hızlı Maç (Serbest)
-              </span>
-            ) : (
+            ) : isRanked ? (
               <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-950/70 border border-emerald-500/30 px-3 py-1 rounded-full mb-3">
                 <Trophy className="size-3" />
                 1v1 Dereceli Maç
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-cyan-400 bg-cyan-950/70 border border-cyan-500/30 px-3 py-1 rounded-full mb-3">
+                <Zap className="size-3" />
+                1v1 Hızlı Maç (Serbest)
               </span>
             )}
 
@@ -106,29 +118,28 @@ export function MatchmakingModal({
               Tur Süresini Seçin
             </h3>
 
-            <p className="text-xs text-zinc-400 leading-relaxed mb-6 max-w-xs">
-              {isCountryVsTeam
-                ? "Bir oyuncu millet, diğeri kulüp belirler. O milletten olup kulüpte oynamış ortak oyuncuyu ilk yazan kazanır (0 ELO riski)."
-                : mode === "casual"
-                ? "Herhangi bir ELO kaybı riski olmadan pratik yapın. Yalnızca aynı süreyi seçen rakiplerle eşleşirsiniz."
-                : "Hem takım seçimi hem ortak oyuncu tahmini için sürenizi belirleyin. Yalnızca aynı süreyi seçen rakiplerle eşleşirsiniz."}
+            <p className="text-xs text-zinc-400 leading-relaxed mb-5 max-w-xs">
+              {isRanked
+                ? "Dereceli mod: Galibiyet ve mağlubiyet ELO puanını etkiler. Yalnızca dereceli rakiplerle eşleşirsin."
+                : "Serbest mod: ELO riski yoktur. Yalnızca derecesiz oynayan rakiplerle eşleşirsin."}
             </p>
 
             {/* 4 Süre Kartı: 5, 10, 15, 20 sn */}
-            <div className="grid grid-cols-2 gap-3 w-full mb-6">
+            <div className="grid grid-cols-2 gap-3 w-full mb-4">
               {DURATION_OPTIONS.map((opt) => {
                 const isSelected = selectedDuration === opt.value;
                 return (
                   <button
                     key={opt.value}
+                    type="button"
                     onClick={() => onSelectDuration(opt.value)}
-                    className={`h-20 rounded-2xl border transition-all cursor-pointer flex items-center justify-center ${
+                    className={`h-16 sm:h-18 rounded-2xl border transition-all cursor-pointer flex items-center justify-center ${
                       isSelected
                         ? "bg-emerald-950/70 border-2 border-emerald-500 text-white shadow-[0_0_20px_rgba(34,197,94,0.25)] scale-[1.02]"
                         : "bg-white/5 border border-white/10 text-zinc-300 hover:border-white/20 hover:bg-white/10"
                     }`}
                   >
-                    <span className="text-2xl font-black font-mono tracking-tight">
+                    <span className="text-xl sm:text-2xl font-black font-mono tracking-tight">
                       {opt.value} SN
                     </span>
                   </button>
@@ -136,9 +147,62 @@ export function MatchmakingModal({
               })}
             </div>
 
+            {/* Dereceli Mod Toggle Switch (Kullanıcı SS'ine Birebir Sadık) */}
+            <div className="w-full p-3.5 mb-5 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-between gap-3 text-left">
+              <div className="flex items-center gap-3 min-w-0">
+                <div
+                  className={`size-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                    isRanked
+                      ? "bg-emerald-950/80 border border-emerald-500/40 text-emerald-400"
+                      : "bg-zinc-800/80 border border-zinc-700 text-zinc-400"
+                  }`}
+                >
+                  {isRanked ? <Trophy className="size-4" /> : <Zap className="size-4" />}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-black text-white uppercase tracking-wider">
+                      Dereceli
+                    </span>
+                    <span
+                      className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${
+                        isRanked
+                          ? "bg-emerald-950 text-emerald-400 border-emerald-500/40"
+                          : "bg-zinc-800 text-zinc-400 border-zinc-700"
+                      }`}
+                    >
+                      {isRanked ? "Açık (ELO)" : "Kapalı"}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-zinc-400 truncate mt-0.5">
+                    {isRanked ? "Lig ve ELO sıralaması aktif." : "Puan riski yok, serbest maç."}
+                  </p>
+                </div>
+              </div>
+
+              {/* Toggle Switch */}
+              <button
+                type="button"
+                role="switch"
+                aria-checked={isRanked}
+                onClick={() => setIsRanked((prev) => !prev)}
+                className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  isRanked ? "bg-[#22c55e]" : "bg-zinc-700"
+                }`}
+                title={isRanked ? "Dereceli Modu Kapat" : "Dereceli Modu Aç"}
+              >
+                <span
+                  className={`pointer-events-none inline-block size-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                    isRanked ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+
             {/* Sıraya Gir Butonu */}
             <button
-              onClick={() => onStartSearching(selectedDuration, mode, gameMode)}
+              type="button"
+              onClick={() => onStartSearching(selectedDuration, activeMode, gameMode)}
               className="w-48 sm:w-56 h-12 mx-auto rounded-xl bg-gradient-to-b from-[#168841] to-[#126d34] hover:from-[#15803d] hover:to-[#0f5c2b] text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-emerald-900/50 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <span>Sıraya Gir</span>

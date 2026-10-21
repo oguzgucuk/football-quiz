@@ -5,9 +5,8 @@ import { ChevronRight } from "lucide-react";
 
 interface PlayActionButtonsProps {
   isCustomMode: boolean;
-  selectedModeId: "common_player" | "grid" | "auction" | "training";
-  selectedTrainingSubMode: string;
-  buttonLabel: string;
+  isAvailable?: boolean;
+  buttonLabel?: string;
   onCreateGame: () => void;
   onJoinGame: () => void;
   onConfirm: () => void;
@@ -15,9 +14,8 @@ interface PlayActionButtonsProps {
 
 export function PlayActionButtons({
   isCustomMode,
-  selectedModeId,
-  selectedTrainingSubMode,
-  buttonLabel,
+  isAvailable = true,
+  buttonLabel = "OYNA",
   onCreateGame,
   onJoinGame,
   onConfirm,
@@ -46,7 +44,7 @@ export function PlayActionButtons({
               <span>OYUNA KATIL</span>
             </button>
           </div>
-        ) : selectedModeId !== "training" || selectedTrainingSubMode === "players" ? (
+        ) : isAvailable ? (
           <button
             type="button"
             onClick={onConfirm}

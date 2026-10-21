@@ -10,7 +10,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { LogIn, X, AlertTriangle } from "lucide-react";
+import { LogIn, X, AlertTriangle, Swords, Globe } from "lucide-react";
 import { validateRoomCodeForMode } from "@/lib/realtime/roomLobbyManager";
 
 interface JoinDuelRoomModalProps {
@@ -25,6 +25,7 @@ export function JoinDuelRoomModal({
   defaultMode = "team_vs_team",
 }: JoinDuelRoomModalProps) {
   const router = useRouter();
+  const [selectedMode, setSelectedMode] = useState<"team_vs_team" | "country_vs_team">(defaultMode);
   const [joinCode, setJoinCode] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -40,7 +41,15 @@ export function JoinDuelRoomModal({
     e.preventDefault();
     setErrorMessage(null);
 
-    const validation = validateRoomCodeForMode(joinCode, defaultMode);
+    let effectiveMode = selectedMode;
+    const lower = joinCode.toLowerCase().trim();
+    if (lower.includes("millet") || lower.includes("country")) {
+      effectiveMode = "country_vs_team";
+    } else if (lower.startsWith("oda_") && !lower.includes("millet")) {
+      effectiveMode = "team_vs_team";
+    }
+
+    const validation = validateRoomCodeForMode(joinCode, effectiveMode);
     if (!validation.valid) {
       setErrorMessage(validation.error || "Geçersiz lobi kodu.");
       return;
@@ -50,11 +59,8 @@ export function JoinDuelRoomModal({
     router.push(`/play/${validation.normalizedCode}`);
   };
 
-  const isCountryVsTeam = defaultMode === "country_vs_team";
-
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn select-none">
       <Card
         variant="glass"
         className="max-w-sm w-full p-6 text-center relative overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.9)] border-white/15 bg-[#0c1612]/95 backdrop-blur-2xl"
@@ -73,10 +79,37 @@ export function JoinDuelRoomModal({
 
         <h2 className="text-xl font-black text-white tracking-tight">Oyuna Katıl</h2>
         <p className="text-xs text-zinc-400 mt-1 mb-4">
-          {isCountryVsTeam
-            ? "Arkadaşının Millet-Takım lobi kodunu veya bağlantısını gir:"
-            : "Arkadaşının Ortak Oyuncu lobi kodunu veya bağlantısını gir:"}
+          Arkadaşının lobi kodunu veya davet bağlantısını gir:
         </p>
+
+        {/* Mod Seçici Sekmeler */}
+        <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-black/40 border border-white/10 mb-4">
+          <button
+            type="button"
+            onClick={() => setSelectedMode("team_vs_team")}
+            className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              selectedMode === "team_vs_team"
+                ? "bg-emerald-600 text-white shadow-xs"
+                : "text-zinc-400 hover:text-white"
+            }`}
+          >
+            <Swords className="w-3.5 h-3.5" />
+            <span>Takım - Takım</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSelectedMode("country_vs_team")}
+            className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              selectedMode === "country_vs_team"
+                ? "bg-cyan-600 text-white shadow-xs"
+                : "text-zinc-400 hover:text-white"
+            }`}
+          >
+            <Globe className="w-3.5 h-3.5" />
+            <span>Millet - Takım</span>
+          </button>
+        </div>
 
         <form onSubmit={handleJoin} className="flex flex-col gap-3 text-left">
           <input
@@ -87,7 +120,7 @@ export function JoinDuelRoomModal({
               setJoinCode(e.target.value);
               if (errorMessage) setErrorMessage(null);
             }}
-            placeholder={isCountryVsTeam ? "örn. oda_millet_1234" : "örn. oda_1234"}
+            placeholder={selectedMode === "country_vs_team" ? "örn. oda_millet_1234 veya 1234" : "örn. oda_1234 veya 1234"}
             className={`w-full p-3 rounded-xl bg-black/40 border text-white font-mono text-sm placeholder:text-zinc-600 focus:outline-none transition-colors ${
               errorMessage ? "border-red-500/80 focus:border-red-500" : "border-white/15 focus:border-emerald-500"
             }`}
@@ -100,8 +133,12 @@ export function JoinDuelRoomModal({
             </div>
           )}
 
-          <Button type="submit" size="md" className="w-full text-xs font-black py-3">
-            Lobiye Katıl ➔
+          <Button
+            type="submit"
+            variant="primary"
+            className="w-full mt-1 font-black uppercase tracking-wider"
+          >
+            Odaya Gir
           </Button>
         </form>
       </Card>

@@ -90,6 +90,54 @@ const customCommonRoom = createInitialRoomState("oda_4512");
 assert(customCommonRoom.gameMode === "team_vs_team", "oda_... 'team_vs_team' olarak algılandı");
 console.log("✅ Özel oda ID algılama başarılı!");
 
+// 5. Dereceli (Ranked) vs Derecesiz (Casual) İzolasyon Testi
+console.log("\n--- 5. Dereceli vs Derecesiz İzolasyon Testi ---");
+const pRanked: MatchmakingQueuePlayer = {
+  id: "conn_ranked_1",
+  userId: "user_ranked_1",
+  username: "RankedPlayer",
+  roundDuration: 15,
+  mode: "ranked",
+  gameMode: "team_vs_team",
+  joinedAt: Date.now(),
+};
+
+const pCasual: MatchmakingQueuePlayer = {
+  id: "conn_casual_1",
+  userId: "user_casual_1",
+  username: "CasualPlayer",
+  roundDuration: 15,
+  mode: "casual",
+  gameMode: "team_vs_team",
+  joinedAt: Date.now(),
+};
+
+// Dereceli oyuncu kuyruğa girer
+const rankQ1 = enqueueAndMatch([], pRanked);
+assert(rankQ1.match === null, "Tek dereceli oyuncu için eşleşme yok");
+
+// Derecesiz oyuncu aynı süre (15s) ve aynı modda (team_vs_team) girer -> ASLA eşleşmemeli!
+const rankQ2 = enqueueAndMatch(rankQ1.updatedQueue, pCasual);
+assert(rankQ2.match === null, "Dereceli oyuncu ile Derecesiz oyuncu ASLA eşleşmemeli!");
+assert(rankQ2.updatedQueue.length === 2, "İki oyuncu da kuyrukta izole şekilde beklemeli");
+
+// İkinci bir dereceli oyuncu girer -> Yalnızca ilk dereceli ile eşleşmeli
+const pRanked2: MatchmakingQueuePlayer = {
+  id: "conn_ranked_2",
+  userId: "user_ranked_2",
+  username: "RankedPlayer2",
+  roundDuration: 15,
+  mode: "ranked",
+  gameMode: "team_vs_team",
+  joinedAt: Date.now(),
+};
+const rankQ3 = enqueueAndMatch(rankQ2.updatedQueue, pRanked2);
+assert(rankQ3.match !== null, "İki dereceli oyuncu başarıyla eşleşti");
+assert.strictEqual(rankQ3.match.mode, "ranked", "Eşleşme modu 'ranked' olmalı");
+assert.strictEqual(rankQ3.match.player2.userId, "user_ranked_1", "Yalnızca dereceli olan pRanked ile eşleşti");
+assert(rankQ3.updatedQueue.some((p) => p.userId === "user_casual_1"), "Derecesiz oyuncu hala kuyrukta bekliyor olmalı");
+console.log("✅ Dereceli ve Derecesiz oyuncuların ASLA birbirleriyle eşleşmediği doğrulandı!");
+
 console.log("\n============================================================");
 console.log("🎉 TÜM DÜZELTMELER BAŞARIYLA DOĞRULANDI!");
 console.log("============================================================\n");
