@@ -72,7 +72,8 @@ function getPositionAffinityScore(player: AuctionPlayerCard, targetPos: PitchPos
 export function autoAssignSquadToFormation(
   squad: AuctionPlayerCard[],
   formationName: FormationName = "4-3-3",
-  existingSlots?: SquadSlot[]
+  existingSlots?: SquadSlot[],
+  isUnpreparedPenalty: boolean = false
 ): SquadSlot[] {
   const formKey = formationName in FORMATION_CONFIGS ? formationName : "4-3-3";
   const baseSlots = createInitialSlotsForFormation(formKey);
@@ -160,6 +161,16 @@ export function autoAssignSquadToFormation(
     currentSlots[idx].penalty = penalty;
 
     availablePlayers.splice(bestPlayerIdx, 1);
+  }
+
+  // 4. Taktiksel Hazırlıksızlık Cezası (Kullanıcı kadroyu süresinde dizmediyse)
+  if (isUnpreparedPenalty) {
+    for (const slot of currentSlots) {
+      if (slot.placedPlayer) {
+        slot.effectiveRating = Math.max(35, slot.effectiveRating - 10);
+        slot.penalty += 10;
+      }
+    }
   }
 
   return currentSlots;

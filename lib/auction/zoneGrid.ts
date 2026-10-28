@@ -19,12 +19,12 @@ export function calculateMatchTempo(homeLineup: TeamLineup, awayLineup: TeamLine
   const homeTactics = homeLineup.tactics || DEFAULT_TACTICS;
   const awayTactics = awayLineup.tactics || DEFAULT_TACTICS;
 
-  const deltaMap: Record<TeamTactics["tempo"], number> = { slow: -4, balanced: 0, fast: 4 };
+  const deltaMap: Record<TeamTactics["tempo"], number> = { slow: -4, balanced: 0, fast: 6 };
   const weightedDelta =
     (homeOvr * (deltaMap[homeTactics.tempo] ?? 0) + awayOvr * (deltaMap[awayTactics.tempo] ?? 0)) /
     (homeOvr + awayOvr);
 
-  return Math.round(Math.min(24, Math.max(16, 20 + weightedDelta)));
+  return Math.round(Math.min(34, Math.max(22, 28 + weightedDelta)));
 }
 
 export const ALL_ZONES: ZoneId[] = [

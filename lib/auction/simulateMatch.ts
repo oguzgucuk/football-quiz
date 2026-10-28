@@ -76,9 +76,8 @@ export function simulateMatchHalf(
       else awayScore++;
       if (res.goalScorerName && res.event) updateStat(playerStats, res.goalScorerName, res.event.teamUserId, "goals");
       if (res.assistPlayerName && res.event) updateStat(playerStats, res.assistPlayerName, res.event.teamUserId, "assists");
-    } else if (res.isSave && res.gkName) {
-      const gkTeamId = res.event?.teamUserId === homeLineup.userId ? awayLineup.userId : homeLineup.userId;
-      updateStat(playerStats, res.gkName, gkTeamId, "saves");
+    } else if (res.isSave && res.gkName && res.event) {
+      updateStat(playerStats, res.gkName, res.event.teamUserId, "saves");
     }
   }
 

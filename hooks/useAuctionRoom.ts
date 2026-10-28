@@ -24,6 +24,12 @@ export function useAuctionRoom({ roomId, userId, username }: UseAuctionRoomProps
         if (cached) {
           const parsed = JSON.parse(cached) as AuctionRoomState;
           if (parsed && parsed.roomId === roomId && parsed.status && parsed.status !== "finished") {
+            if (parsed.settings) {
+              const rMin = Math.max(67, Math.min(parsed.settings.ratingMin ?? 70, 94));
+              const rMax = Math.max(rMin + 2, Math.min(parsed.settings.ratingMax ?? 96, 96));
+              parsed.settings.ratingMin = rMin;
+              parsed.settings.ratingMax = rMax;
+            }
             return parsed;
           }
         }
@@ -112,6 +118,23 @@ export function useAuctionRoom({ roomId, userId, username }: UseAuctionRoomProps
 
   const updateSettings = useCallback(
     (settings: Partial<AuctionLobbySettings>) => {
+      setState((prev) => {
+        const nextSettings = { ...prev.settings, ...settings };
+        const nextParticipants = { ...prev.participants };
+        if (typeof settings.startingBudget === "number") {
+          for (const pid of Object.keys(nextParticipants)) {
+            nextParticipants[pid] = {
+              ...nextParticipants[pid],
+              budget: settings.startingBudget,
+            };
+          }
+        }
+        return {
+          ...prev,
+          settings: nextSettings,
+          participants: nextParticipants,
+        };
+      });
       sendMessage({ type: "AUCTION_UPDATE_SETTINGS", userId, settings });
     },
     [userId, sendMessage]

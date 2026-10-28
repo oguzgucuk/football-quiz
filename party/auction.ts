@@ -26,7 +26,6 @@ import {
   finishSoldCelebration,
   finishOrNextTurn,
 } from "../lib/auction/auctionRoomEngine";
-import { createInitialSlotsForFormation } from "../lib/auction/formationTemplates";
 import { calculateLineupPowers, calculateSlotRating } from "../lib/auction/positionSuitability";
 import { autoAssignSquadToFormation } from "../lib/auction/autoSquadArranger";
 import {
@@ -260,7 +259,24 @@ export default class AuctionPartyServer implements Party.Server {
 
   private async handleUpdateSettings(userId: string, settings?: Partial<AuctionLobbySettings>) {
     if (this.state.hostUserId === userId && this.state.status === "lobby" && settings) {
-      this.state.settings = { ...this.state.settings, ...settings };
+      const validatedSettings: Partial<AuctionLobbySettings> = {};
+      if (typeof settings.startingBudget === "number") {
+        validatedSettings.startingBudget = Math.max(20, Math.min(100, settings.startingBudget));
+        for (const pid of Object.keys(this.state.participants)) {
+          this.state.participants[pid].budget = validatedSettings.startingBudget;
+        }
+      }
+      if (typeof settings.ratingMin === "number") {
+        validatedSettings.ratingMin = Math.max(67, Math.min(94, settings.ratingMin));
+      }
+      if (typeof settings.ratingMax === "number") {
+        const currentMin = validatedSettings.ratingMin ?? this.state.settings.ratingMin;
+        validatedSettings.ratingMax = Math.max(
+          currentMin + 2,
+          Math.min(96, settings.ratingMax)
+        );
+      }
+      this.state.settings = { ...this.state.settings, ...validatedSettings };
       await this.persistState();
       this.broadcast({ type: "AUCTION_STATE_SYNC", state: this.state });
     }
@@ -728,8 +744,8 @@ export default class AuctionPartyServer implements Party.Server {
       if (!this.state.lineups[uid]?.isConfirmed) {
         const defaultFormation: FormationName = "4-3-3";
         const existingSlots = this.state.lineups[uid]?.slots;
-        // Akıllı dizilim: GK'yi mutlaka kaleye, defansı defansa koyar, sahada elle konmuş oyuncuları korur
-        const slots = autoAssignSquadToFormation(p.squad, defaultFormation, existingSlots);
+        // Akıllı dizilim: GK'yi mutlaka kaleye koyar ancak süresinde onaylamayan takıma taktiksel hazırlıksızlık cezası uygular
+        const slots = autoAssignSquadToFormation(p.squad, defaultFormation, existingSlots, true);
         const lineup = calculateLineupPowers(uid, defaultFormation, slots);
         lineup.tactics = this.state.lineups[uid]?.tactics || {
           tempo: "balanced",

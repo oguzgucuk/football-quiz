@@ -44,16 +44,16 @@ export function calculateSlotRating(
   const baseRating = player.overallPrime;
   const playerPositions = player.positions.length > 0 ? player.positions : [player.primaryPosition || "CM"];
 
-  // 1. Kaleci Kontrolü (Kaleci harici biri kaleye geçerse direkt 40 reyting)
+  // 1. Kaleci Kontrolü (Kaleci harici biri kaleye geçerse direkt 35 reyting)
   if (targetPosition === "GK") {
     const isNaturalGK = playerPositions.includes("GK");
     if (isNaturalGK) return { effectiveRating: baseRating, penalty: 0 };
-    return { effectiveRating: 40, penalty: Math.max(0, baseRating - 40) };
+    return { effectiveRating: 35, penalty: Math.max(0, baseRating - 35) };
   }
 
-  // Kaleci sahaya geçerse direkt 40 reyting
+  // Kaleci sahaya geçerse direkt 35 reyting
   if (playerPositions.includes("GK")) {
-    return { effectiveRating: 40, penalty: Math.max(0, baseRating - 40) };
+    return { effectiveRating: 35, penalty: Math.max(0, baseRating - 35) };
   }
 
   // 2. Doğal Mevki (Ceza yok)
@@ -61,16 +61,16 @@ export function calculateSlotRating(
     return { effectiveRating: baseRating, penalty: 0 };
   }
 
-  // 3. Çok Yakın Mevki Kontrolü (-2 Reyting)
+  // 3. Çok Yakın Mevki Kontrolü (-3 Reyting)
   const isVeryNear = playerPositions.some((position) =>
     VERY_NEAR_POSITIONS[position as PitchPosition]?.includes(targetPosition)
   );
   if (isVeryNear) {
-    const penalized = Math.max(40, baseRating - 2);
-    return { effectiveRating: penalized, penalty: 2 };
+    const penalized = Math.max(35, baseRating - 3);
+    return { effectiveRating: penalized, penalty: 3 };
   }
 
-  // 4. Yakın Mevki Kontrolü (-5 Reyting)
+  // 4. Yakın Mevki Kontrolü (-14 Reyting)
   const isTargetDef = DEF_POSITIONS.includes(targetPosition);
   const isTargetMid = MID_POSITIONS.includes(targetPosition);
   const isTargetFwd = FWD_POSITIONS.includes(targetPosition);
@@ -85,13 +85,13 @@ export function calculateSlotRating(
     (isTargetFwd && hasPlayerFwd);
 
   if (isSameZone) {
-    const penalized = Math.max(40, baseRating - 5);
-    return { effectiveRating: penalized, penalty: 5 };
+    const penalized = Math.max(35, baseRating - 14);
+    return { effectiveRating: penalized, penalty: 14 };
   }
 
-  // 5. Uzak Mevki Kontrolü (-20 Reyting)
-  const penalized = Math.max(40, baseRating - 20);
-  return { effectiveRating: penalized, penalty: 20 };
+  // 5. Uzak Mevki Kontrolü (-35 Reyting)
+  const penalized = Math.max(35, baseRating - 35);
+  return { effectiveRating: penalized, penalty: 35 };
 }
 
 /** Diziliş slotlarını ve takım ortalamasını hesaplar. Hat etkileri maç içinde çözülür. */
@@ -151,7 +151,7 @@ export function getPlayerPositionBreakdown(
     const { effectiveRating, penalty } = calculateSlotRating(player, pos);
     if (penalty === 0) {
       natural.push({ position: pos, effectiveRating, penalty: 0, category: "natural" });
-    } else if (penalty === 2 || penalty === 5) {
+    } else if (penalty === 3 || penalty === 14) {
       nearby.push({ position: pos, effectiveRating, penalty, category: "nearby" });
     } else {
       distant.push({

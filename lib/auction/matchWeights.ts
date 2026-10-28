@@ -78,13 +78,56 @@ export const LONG_SHOT_WEIGHTS: Record<PitchPosition, number> = {
   ST: 1.10, CF: 1.10,
 };
 
+const DEF_ROLES: PitchPosition[] = ["CB", "LB", "RB", "LWB", "RWB"];
+const MID_ROLES: PitchPosition[] = ["CDM", "CM", "CAM", "LM", "RM"];
+const FWD_ROLES: PitchPosition[] = ["ST", "CF", "LW", "RW"];
+
+/**
+ * Oyuncunun doğal mevkisel hattı ile sahadaki rolün gereksinimleri arasındaki uyum katsayısı.
+ * Stoper forvet slotunda oynuyorsa hücum aksiyonunda %60 ceza alır (0.40x).
+ * Forvet stoper slotunda oynuyorsa savunma aksiyonunda %60 ceza alır (0.40x).
+ */
+export function getRoleSuitabilityMultiplier(
+  playerPositions: string[] | undefined,
+  targetPosition: PitchPosition,
+  actionType: "def" | "mid" | "atk"
+): number {
+  if (!playerPositions || playerPositions.length === 0) return 1.0;
+
+  // Kaleci sahada oynuyorsa hiçbir aksiyonda etkili olamaz
+  if (playerPositions.some((p) => ["GK", "KL"].includes(p.toUpperCase()))) {
+    return targetPosition === "GK" ? 1.0 : 0.20;
+  }
+
+  // Oyuncunun doğal mevkilerinden biri hedef mevkiyse tam verim
+  if (playerPositions.includes(targetPosition)) return 1.0;
+
+  const isPlayerDef = playerPositions.some((p) => DEF_ROLES.includes(p as PitchPosition));
+  const isPlayerMid = playerPositions.some((p) => MID_ROLES.includes(p as PitchPosition));
+  const isPlayerFwd = playerPositions.some((p) => FWD_ROLES.includes(p as PitchPosition));
+
+  if (actionType === "atk") {
+    if (isPlayerFwd) return 1.0;
+    if (isPlayerMid) return 0.80;
+    if (isPlayerDef) return 0.40;
+  } else if (actionType === "def") {
+    if (isPlayerDef) return 1.0;
+    if (isPlayerMid) return 0.75;
+    if (isPlayerFwd) return 0.40;
+  } else if (actionType === "mid") {
+    if (isPlayerMid) return 1.0;
+    if (isPlayerDef || isPlayerFwd) return 0.75;
+  }
+
+  return 0.85;
+}
+
 /**
  * Oyuncu reytingini simülasyon güç eğrisine dönüştürür.
- * 2.1 üssü; açık arttırmadaki 3-4 reytinglik kadro avantajını ödüllendirirken
- * aşırı ezici uçurumları törpüleyip maçlara rekabetçi direnç alanı tanır.
+ * 35 taban reytingi destekler, kadro ve mevki kalitesi farkını net yansıtır.
  */
 export function ratingCurve(rating: number): number {
-  return Math.pow(Math.max(0, (rating - 40) / 59), 2.1);
+  return Math.pow(Math.max(0.01, (rating - 30) / 69), 2.2);
 }
 
 /**

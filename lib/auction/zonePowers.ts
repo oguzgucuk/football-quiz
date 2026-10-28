@@ -4,7 +4,7 @@
  */
 
 import { SquadSlot, TeamLineup, TeamTactics } from "./auctionTypes";
-import { ATK_WEIGHTS, DEF_WEIGHTS, MID_WEIGHTS, LONG_SHOT_WEIGHTS, ratingCurve } from "./matchWeights";
+import { ATK_WEIGHTS, DEF_WEIGHTS, MID_WEIGHTS, LONG_SHOT_WEIGHTS, ratingCurve, getRoleSuitabilityMultiplier } from "./matchWeights";
 import { getPositionZoneWeight, parseZone } from "./zoneGrid";
 import { ZoneId } from "./zoneTypes";
 
@@ -22,6 +22,8 @@ export function calculateZonePossessionPower(lineup: TeamLineup, zone: ZoneId): 
     if (!slot.placedPlayer || slot.targetPosition === "GK") continue;
     const curve = ratingCurve(slot.effectiveRating);
     const zoneWeight = getPositionZoneWeight(slot.targetPosition, zone);
+    const actionType = third === "def" ? "def" : third === "mid" ? "mid" : "atk";
+    const roleMult = getRoleSuitabilityMultiplier(slot.placedPlayer.positions, slot.targetPosition, actionType);
 
     // Bölgeye göre mevkisel taban ağırlığı
     let baseWeight = 0;
@@ -36,7 +38,7 @@ export function calculateZonePossessionPower(lineup: TeamLineup, zone: ZoneId): 
       baseWeight = (ATK_WEIGHTS[slot.targetPosition] ?? 0.2) * 0.7 + (MID_WEIGHTS[slot.targetPosition] ?? 0.2) * 0.3;
     }
 
-    let slotPower = curve * baseWeight * zoneWeight;
+    let slotPower = curve * baseWeight * zoneWeight * roleMult;
 
     // 3. bölgede oyun kurma taktiği çarpanları
     if (third === "att") {
@@ -84,6 +86,9 @@ export function calculateZoneStealPower(lineup: TeamLineup, defendingZone: ZoneI
     const zoneWeight = getPositionZoneWeight(slot.targetPosition, defendingZone);
 
     let baseWeight = 0;
+    const actionType = third === "def" ? "def" : "mid";
+    const roleMult = getRoleSuitabilityMultiplier(slot.placedPlayer.positions, slot.targetPosition, actionType);
+
     if (third === "def") {
       // Kendi ceza sahasında stoper ve bek direnci
       baseWeight = DEF_WEIGHTS[slot.targetPosition] ?? 0.3;
@@ -95,7 +100,7 @@ export function calculateZoneStealPower(lineup: TeamLineup, defendingZone: ZoneI
       baseWeight = (MID_WEIGHTS[slot.targetPosition] ?? 0.1) * 0.6 + (ATK_WEIGHTS[slot.targetPosition] ?? 0.1) * 0.4;
     }
 
-    total += curve * baseWeight * zoneWeight;
+    total += curve * baseWeight * zoneWeight * roleMult;
   }
 
   // Taktiksel Pres Çarpanları
@@ -119,7 +124,7 @@ export function calculateZoneStealPower(lineup: TeamLineup, defendingZone: ZoneI
 
 /**
  * İki takımın bölgedeki ikili mücadelesinden topun çalınma ihtimalini çözer.
- * clamp(0.10, 0.85) ile hiçbir zaman %0 veya %100 olmaz.
+ * Güç farkını daha net yansıtır.
  */
 export function resolveZoneTurnoverChance(
   retentionPower: number,
@@ -131,7 +136,7 @@ export function resolveZoneTurnoverChance(
     return { isStolen: false, stealChance: 0.10 };
   }
 
-  const chance = clamp(stealPower / Math.max(0.001, stealPower + retentionPower), 0.10, 0.85);
+  const chance = clamp(stealPower / Math.max(0.001, stealPower + retentionPower), 0.05, 0.92);
   const isStolen = Math.random() < chance;
   return { isStolen, stealChance: chance };
 }
@@ -150,7 +155,8 @@ export function resolveBoxPenetration(
     if (!s.placedPlayer || s.targetPosition === "GK") continue;
     const curve = ratingCurve(s.effectiveRating);
     const zw = getPositionZoneWeight(s.targetPosition, atkZone);
-    atkPower += curve * (ATK_WEIGHTS[s.targetPosition] ?? 0.2) * zw;
+    const roleMult = getRoleSuitabilityMultiplier(s.placedPlayer.positions, s.targetPosition, "atk");
+    atkPower += curve * (ATK_WEIGHTS[s.targetPosition] ?? 0.2) * zw * roleMult;
   }
 
   let defPower = 0;
@@ -158,7 +164,8 @@ export function resolveBoxPenetration(
     if (!s.placedPlayer || s.targetPosition === "GK") continue;
     const curve = ratingCurve(s.effectiveRating);
     const zw = getPositionZoneWeight(s.targetPosition, defZone);
-    defPower += curve * (DEF_WEIGHTS[s.targetPosition] ?? 0.3) * zw;
+    const roleMult = getRoleSuitabilityMultiplier(s.placedPlayer.positions, s.targetPosition, "def");
+    defPower += curve * (DEF_WEIGHTS[s.targetPosition] ?? 0.3) * zw * roleMult;
   }
 
   if (defLineup.tactics?.pressing === "park_bus") defPower *= 1.35;
@@ -171,15 +178,16 @@ export function resolveBoxPenetration(
     defPower *= 1.10;
   }
 
-  // Atakların ~%55-%60'ı stoperlerce kesilir
-  const breakthroughChance = clamp(atkPower / Math.max(0.001, atkPower + defPower * 1.35), 0.10, 0.80);
+  // Atak delme şansı: Kadro ve rol kalitesine daha duyarlı
+  const breakthroughChance = clamp(atkPower / Math.max(0.001, atkPower + defPower * 1.25), 0.05, 0.92);
   const defenseBeaten = Math.random() < breakthroughChance;
 
   return { defenseBeaten, quality: breakthroughChance };
 }
 
 /**
- * Şutör vs Kaleci Kapışması (Taban gol şansı %33; kaleciler kalede devleşir).
+ * Şutör vs Kaleci Kapışması.
+ * Forvet vs Kaleci kalite farkını daha adil yansıtır.
  */
 export function resolveShooterVsGk(
   shooterRating: number,
@@ -190,7 +198,7 @@ export function resolveShooterVsGk(
   const gkCurve = ratingCurve(gkRating);
   const qualityFactor = clamp((opportunityQuality - 0.45) * 1.5, -0.15, 0.35);
 
-  const goalChance = clamp(0.33 + (shooterCurve - gkCurve) * 0.45 + qualityFactor, 0.05, 0.80);
+  const goalChance = clamp(0.33 + (shooterCurve - gkCurve) * 0.75 + qualityFactor, 0.03, 0.94);
   const isGoal = Math.random() < goalChance;
   return { isGoal, goalChance };
 }

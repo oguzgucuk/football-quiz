@@ -7,6 +7,7 @@ import { WebSocket } from "ws";
 import {
   AuctionRoomState,
   AuctionParticipant,
+  AuctionLobbySettings,
   TeamLineup,
   FormationName,
 } from "./auctionTypes";
@@ -20,7 +21,6 @@ import {
   finishOrNextTurn,
 } from "./auctionRoomEngine";
 import { generateAuctionPool } from "./generateAuctionPool";
-import { createInitialSlotsForFormation } from "./formationTemplates";
 import { calculateLineupPowers, calculateSlotRating } from "./positionSuitability";
 import { autoAssignSquadToFormation } from "./autoSquadArranger";
 import {
@@ -135,8 +135,25 @@ async function processAuctionMessage(
       break;
     }
     case "AUCTION_UPDATE_SETTINGS": {
-      if (room.state.hostUserId === msg.userId && room.state.status === "lobby") {
-        room.state.settings = { ...room.state.settings, ...msg.settings };
+      if (room.state.hostUserId === msg.userId && room.state.status === "lobby" && msg.settings) {
+        const validatedSettings: Partial<AuctionLobbySettings> = {};
+        if (typeof msg.settings.startingBudget === "number") {
+          validatedSettings.startingBudget = Math.max(20, Math.min(100, msg.settings.startingBudget));
+          for (const pid of Object.keys(room.state.participants)) {
+            room.state.participants[pid].budget = validatedSettings.startingBudget;
+          }
+        }
+        if (typeof msg.settings.ratingMin === "number") {
+          validatedSettings.ratingMin = Math.max(67, Math.min(94, msg.settings.ratingMin));
+        }
+        if (typeof msg.settings.ratingMax === "number") {
+          const currentMin = validatedSettings.ratingMin ?? room.state.settings.ratingMin;
+          validatedSettings.ratingMax = Math.max(
+            currentMin + 2,
+            Math.min(96, msg.settings.ratingMax)
+          );
+        }
+        room.state.settings = { ...room.state.settings, ...validatedSettings };
         broadcast(room, { type: "AUCTION_STATE_SYNC", state: room.state });
       }
       break;
@@ -659,8 +676,8 @@ function autoConfirmLineups(room: AuctionPartyRoom) {
     if (!room.state.lineups[uid]?.isConfirmed) {
       const defaultFormation: FormationName = "4-3-3";
       const existingSlots = room.state.lineups[uid]?.slots;
-      // Akıllı dizilim: GK'yi mutlaka kaleye, defansı defansa koyar, sahada elle konmuş oyuncuları korur
-      const slots = autoAssignSquadToFormation(p.squad, room.state.lineups[uid]?.formation || defaultFormation, existingSlots);
+      // Akıllı dizilim: GK'yi mutlaka kaleye koyar ancak süresinde onaylamayan takıma taktiksel hazırlıksızlık cezası uygular
+      const slots = autoAssignSquadToFormation(p.squad, room.state.lineups[uid]?.formation || defaultFormation, existingSlots, true);
       const lineup = calculateLineupPowers(uid, room.state.lineups[uid]?.formation || defaultFormation, slots);
       lineup.tactics = room.state.lineups[uid]?.tactics || {
         tempo: "balanced",

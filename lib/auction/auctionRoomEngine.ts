@@ -16,7 +16,7 @@ export const DEFAULT_LOBBY_SETTINGS: AuctionLobbySettings = {
   playerCount: 4,
   startingBudget: 30, // 20 - 100 ($)
   ratingMin: 70,
-  ratingMax: 99,
+  ratingMax: 96,
 };
 
 export function isGoalkeeper(

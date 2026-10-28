@@ -112,7 +112,7 @@ export function AuctionPitchBuilder({
     }
     if (secondsLeft <= 1 && !isConfirmed && !hasAutoConfirmedRef.current) {
       hasAutoConfirmedRef.current = true;
-      const finalSlots = autoAssignSquadToFormation(squad, formation, slots);
+      const finalSlots = autoAssignSquadToFormation(squad, formation, slots, true);
       const computedLineup = calculateLineupPowers(userId, formation, finalSlots);
       computedLineup.tactics = tactics;
       computedLineup.isConfirmed = true;
